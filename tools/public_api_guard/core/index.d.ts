@@ -90,9 +90,9 @@ export declare abstract class AnimationStateMetadata {
 
 /** @experimental */
 export declare class AnimationStateTransitionMetadata extends AnimationStateMetadata {
-    stateChangeExpr: string;
+    stateChangeExpr: string | ((fromState: string, toState: string) => boolean);
     steps: AnimationMetadata;
-    constructor(stateChangeExpr: string, steps: AnimationMetadata);
+    constructor(stateChangeExpr: string | ((fromState: string, toState: string) => boolean), steps: AnimationMetadata);
 }
 
 /** @experimental */
@@ -108,15 +108,19 @@ export declare class AnimationStyleMetadata extends AnimationMetadata {
 
 /** @experimental */
 export declare class AnimationTransitionEvent {
+    element: ElementRef;
     fromState: string;
     phaseName: string;
     toState: string;
     totalTime: number;
-    constructor({fromState, toState, totalTime, phaseName}: {
+    triggerName: string;
+    constructor({fromState, toState, totalTime, phaseName, element, triggerName}: {
         fromState: string;
         toState: string;
         totalTime: number;
         phaseName: string;
+        element: any;
+        triggerName: string;
     });
 }
 
@@ -918,7 +922,7 @@ export interface TrackByFn {
 }
 
 /** @experimental */
-export declare function transition(stateChangeExpr: string, steps: AnimationMetadata | AnimationMetadata[]): AnimationStateTransitionMetadata;
+export declare function transition(stateChangeExpr: string | ((fromState: string, toState: string) => boolean), steps: AnimationMetadata | AnimationMetadata[]): AnimationStateTransitionMetadata;
 
 /** @experimental */
 export declare const TRANSLATIONS: OpaqueToken;
