@@ -10,7 +10,7 @@ import {ComponentFactory, ComponentFactoryResolver, Injector, Type} from '@angul
 
 import * as angular from '../angular_js';
 
-import {$INJECTOR, $PARSE, INJECTOR_KEY} from './constants';
+import {$INJECTOR, $PARSE, INJECTOR_KEY, REQUIRE_NG1_MODEL} from './constants';
 import {DowngradeComponentAdapter} from './downgrade_component_adapter';
 
 let downgradeCount = 0;
@@ -21,19 +21,19 @@ let downgradeCount = 0;
  * *Part of the [upgrade/static](/docs/ts/latest/api/#!?query=upgrade%2Fstatic)
  * library for hybrid upgrade apps that support AoT compilation*
  *
- * Allows an Angular 2+ component to be used from Angular 1.
+ * Allows an Angular component to be used from AngularJS.
  *
  * @howToUse
  *
- * Let's assume that you have an Angular 2+ component called `ng2Heroes` that needs
- * to be made available in Angular 1 templates.
+ * Let's assume that you have an Angular component called `ng2Heroes` that needs
+ * to be made available in AngularJS templates.
  *
  * {@example upgrade/static/ts/module.ts region="ng2-heroes"}
  *
- * We must create an Angular 1 [directive](https://docs.angularjs.org/guide/directive)
- * that will make this Angular 2+ component available inside Angular 1 templates.
+ * We must create an AngularJS [directive](https://docs.angularjs.org/guide/directive)
+ * that will make this Angular component available inside AngularJS templates.
  * The `downgradeComponent()` function returns a factory function that we
- * can use to define the Angular 1 directive that wraps the "downgraded" component.
+ * can use to define the AngularJS directive that wraps the "downgraded" component.
  *
  * {@example upgrade/static/ts/module.ts region="ng2-heroes-wrapper"}
  *
@@ -42,13 +42,13 @@ let downgradeCount = 0;
  * component has been removed from the code, and so cannot be inferred.
  *
  * We must do the following:
- * * specify the Angular 2+ component class that is to be downgraded
- * * specify all inputs and outputs that the Angular 1 component expects
+ * * specify the Angular component class that is to be downgraded
+ * * specify all inputs and outputs that the AngularJS component expects
  *
  * @description
  *
  * A helper function that returns a factory function to be used for registering an
- * Angular 1 wrapper directive for "downgrading" an Angular 2+ component.
+ * AngularJS wrapper directive for "downgrading" an Angular component.
  *
  * The parameter contains information about the Component that is being downgraded:
  *
@@ -77,14 +77,16 @@ export function downgradeComponent(info: /* ComponentInfo */ {
 
     return {
       restrict: 'E',
-      require: '?^' + INJECTOR_KEY,
+      require: ['?^' + INJECTOR_KEY, REQUIRE_NG1_MODEL],
       link: (scope: angular.IScope, element: angular.IAugmentedJQuery, attrs: angular.IAttributes,
-             parentInjector: Injector, transclude: angular.ITranscludeFunction) => {
+             required: any[], transclude: angular.ITranscludeFunction) => {
 
+        let parentInjector: Injector = required[0];
         if (parentInjector === null) {
           parentInjector = $injector.get(INJECTOR_KEY);
         }
 
+        const ngModel: angular.INgModelController = required[1];
         const componentFactoryResolver: ComponentFactoryResolver =
             parentInjector.get(ComponentFactoryResolver);
         const componentFactory: ComponentFactory<any> =
@@ -95,7 +97,7 @@ export function downgradeComponent(info: /* ComponentInfo */ {
         }
 
         const facade = new DowngradeComponentAdapter(
-            idPrefix + (idCount++), info, element, attrs, scope, parentInjector, $parse,
+            idPrefix + (idCount++), info, element, attrs, scope, ngModel, parentInjector, $parse,
             componentFactory);
         facade.setupInputs();
         facade.createComponent();

@@ -8,7 +8,7 @@
 
 import {NgIf} from '@angular/common';
 import {Component, NgModule, TemplateRef, ViewContainerRef, ViewEncapsulation} from '@angular/core';
-import {BindingType, DefaultServices, NodeFlags, NodeUpdater, ViewData, ViewDefinition, ViewFlags, anchorDef, checkAndUpdateView, createRootView, elementDef, providerDef, textDef, viewDef} from '@angular/core/src/view/index';
+import {BindingType, DefaultServices, NodeFlags, NodeUpdater, ViewData, ViewDefinition, ViewFlags, anchorDef, asElementData, asProviderData, checkAndUpdateView, createRootView, elementDef, providerDef, textDef, viewDef} from '@angular/core/src/view/index';
 import {DomSanitizer, DomSanitizerImpl, SafeStyle} from '@angular/platform-browser/src/security/dom_sanitization_service';
 
 import {TreeNode, emptyTree} from '../util';
@@ -24,27 +24,33 @@ export class TreeComponent {
 let viewFlags = ViewFlags.DirectDom;
 
 const TreeComponent_Host: ViewDefinition = viewDef(viewFlags, [
-  elementDef(NodeFlags.None, 1, 'tree'),
-  providerDef(NodeFlags.None, TreeComponent, [], null, () => TreeComponent_0),
+  elementDef(NodeFlags.None, null, 1, 'tree'),
+  providerDef(NodeFlags.None, null, 0, TreeComponent, [], null, null, () => TreeComponent_0),
 ]);
 
 const TreeComponent_1: ViewDefinition = viewDef(
     viewFlags,
     [
-      elementDef(NodeFlags.None, 1, 'tree'),
-      providerDef(NodeFlags.None, TreeComponent, [], {data: [0, 'data']}, () => TreeComponent_0),
+      elementDef(NodeFlags.None, null, 1, 'tree'),
+      providerDef(
+          NodeFlags.None, null, 0, TreeComponent, [], {data: [0, 'data']}, null,
+          () => TreeComponent_0),
     ],
-    (updater: NodeUpdater, view: ViewData, cmp: TreeComponent) => {
+    (updater: NodeUpdater, view: ViewData) => {
+      const cmp = view.component;
       updater.checkInline(view, 1, cmp.data.left);
     });
 
 const TreeComponent_2: ViewDefinition = viewDef(
     viewFlags,
     [
-      elementDef(NodeFlags.None, 1, 'tree'),
-      providerDef(NodeFlags.None, TreeComponent, [], {data: [0, 'data']}, () => TreeComponent_0),
+      elementDef(NodeFlags.None, null, 1, 'tree'),
+      providerDef(
+          NodeFlags.None, null, 0, TreeComponent, [], {data: [0, 'data']}, null,
+          () => TreeComponent_0),
     ],
-    (updater: NodeUpdater, view: ViewData, cmp: TreeComponent) => {
+    (updater: NodeUpdater, view: ViewData) => {
+      const cmp = view.component;
       updater.checkInline(view, 1, cmp.data.right);
     });
 
@@ -52,14 +58,18 @@ const TreeComponent_0: ViewDefinition = viewDef(
     viewFlags,
     [
       elementDef(
-          NodeFlags.None, 1, 'span', null, [[BindingType.ElementStyle, 'backgroundColor', null]]),
+          NodeFlags.None, null, 1, 'span', null,
+          [[BindingType.ElementStyle, 'backgroundColor', null]]),
       textDef([' ', ' ']),
-      anchorDef(NodeFlags.HasEmbeddedViews, 1, TreeComponent_1),
-      providerDef(NodeFlags.None, NgIf, [ViewContainerRef, TemplateRef], {ngIf: [0, 'ngIf']}),
-      anchorDef(NodeFlags.HasEmbeddedViews, 1, TreeComponent_2),
-      providerDef(NodeFlags.None, NgIf, [ViewContainerRef, TemplateRef], {ngIf: [0, 'ngIf']}),
+      anchorDef(NodeFlags.HasEmbeddedViews, null, 1, TreeComponent_1),
+      providerDef(
+          NodeFlags.None, null, 0, NgIf, [ViewContainerRef, TemplateRef], {ngIf: [0, 'ngIf']}),
+      anchorDef(NodeFlags.HasEmbeddedViews, null, 1, TreeComponent_2),
+      providerDef(
+          NodeFlags.None, null, 0, NgIf, [ViewContainerRef, TemplateRef], {ngIf: [0, 'ngIf']}),
     ],
-    (updater: NodeUpdater, view: ViewData, cmp: TreeComponent) => {
+    (updater: NodeUpdater, view: ViewData) => {
+      const cmp = view.component;
       updater.checkInline(view, 0, cmp.bgColor);
       updater.checkInline(view, 1, cmp.data.value);
       updater.checkInline(view, 3, cmp.data.left != null);
@@ -79,8 +89,8 @@ export class AppModule {
   }
   bootstrap() {
     this.rootView = createRootView(new DefaultServices(null, this.sanitizer), TreeComponent_Host);
-    this.rootComp = this.rootView.nodes[1].provider;
-    this.rootEl = this.rootView.nodes[0].renderNode;
+    this.rootComp = asProviderData(this.rootView, 1).instance;
+    this.rootEl = asElementData(this.rootView, 0).renderElement;
   }
   tick() { checkAndUpdateView(this.rootView); }
 }

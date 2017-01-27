@@ -45,6 +45,13 @@ export declare class AnimationGroupMetadata extends AnimationWithStepsMetadata {
 }
 
 /** @experimental */
+export declare class AnimationKeyframe {
+    offset: number;
+    styles: AnimationStyles;
+    constructor(offset: number, styles: AnimationStyles);
+}
+
+/** @experimental */
 export declare class AnimationKeyframesSequenceMetadata extends AnimationMetadata {
     steps: AnimationStyleMetadata[];
     constructor(steps: AnimationStyleMetadata[]);
@@ -107,6 +114,16 @@ export declare class AnimationStyleMetadata extends AnimationMetadata {
 }
 
 /** @experimental */
+export declare class AnimationStyles {
+    styles: {
+        [key: string]: string | number;
+    }[];
+    constructor(styles: {
+        [key: string]: string | number;
+    }[]);
+}
+
+/** @experimental */
 export declare class AnimationTransitionEvent {
     element: ElementRef;
     fromState: string;
@@ -154,10 +171,10 @@ export declare class ApplicationModule {
 export declare abstract class ApplicationRef {
     componentTypes: Type<any>[];
     components: ComponentRef<any>[];
-    viewCount: any;
-    attachView(view: ViewRef): void;
+    viewCount: number;
+    abstract attachView(view: ViewRef): void;
     abstract bootstrap<C>(componentFactory: ComponentFactory<C> | Type<C>): ComponentRef<C>;
-    detachView(view: ViewRef): void;
+    abstract detachView(view: ViewRef): void;
     abstract tick(): void;
 }
 
@@ -226,6 +243,7 @@ export declare const COMPILER_OPTIONS: InjectionToken<{
     useJit?: boolean;
     defaultEncapsulation?: ViewEncapsulation;
     providers?: any[];
+    missingTranslation?: MissingTranslationStrategy;
 }[]>;
 
 /** @experimental */
@@ -239,6 +257,7 @@ export declare type CompilerOptions = {
     useJit?: boolean;
     defaultEncapsulation?: ViewEncapsulation;
     providers?: any[];
+    missingTranslation?: MissingTranslationStrategy;
 };
 
 /** @stable */
@@ -504,8 +523,8 @@ export declare class InjectionToken<T> extends OpaqueToken {
 
 /** @stable */
 export declare abstract class Injector {
-    get<T>(token: Type<T> | InjectionToken<T>, notFoundValue?: T): T;
-    /** @deprecated */ get(token: any, notFoundValue?: any): any;
+    abstract get<T>(token: Type<T> | InjectionToken<T>, notFoundValue?: T): T;
+    /** @deprecated */ abstract get(token: any, notFoundValue?: any): any;
     static NULL: Injector;
     static THROW_IF_NOT_FOUND: Object;
 }
@@ -599,6 +618,13 @@ export declare class KeyValueDiffers {
 
 /** @experimental */
 export declare const LOCALE_ID: InjectionToken<string>;
+
+/** @experimental */
+export declare enum MissingTranslationStrategy {
+    Error = 0,
+    Warning = 1,
+    Ignore = 2,
+}
 
 /** @experimental */
 export declare class ModuleWithComponentFactories<T> {
@@ -724,8 +750,8 @@ export declare const platformCore: (extraProviders?: Provider[]) => PlatformRef;
 export declare abstract class PlatformRef {
     destroyed: boolean;
     injector: Injector;
-    /** @stable */ bootstrapModule<M>(moduleType: Type<M>, compilerOptions?: CompilerOptions | CompilerOptions[]): Promise<NgModuleRef<M>>;
-    /** @experimental */ bootstrapModuleFactory<M>(moduleFactory: NgModuleFactory<M>): Promise<NgModuleRef<M>>;
+    /** @stable */ abstract bootstrapModule<M>(moduleType: Type<M>, compilerOptions?: CompilerOptions | CompilerOptions[]): Promise<NgModuleRef<M>>;
+    /** @experimental */ abstract bootstrapModuleFactory<M>(moduleFactory: NgModuleFactory<M>): Promise<NgModuleRef<M>>;
     abstract destroy(): void;
     abstract onDestroy(callback: () => void): void;
 }
@@ -760,11 +786,11 @@ export declare class QueryList<T> {
 /** @stable */
 export declare abstract class ReflectiveInjector implements Injector {
     parent: Injector;
-    createChildFromResolved(providers: ResolvedReflectiveProvider[]): ReflectiveInjector;
+    abstract createChildFromResolved(providers: ResolvedReflectiveProvider[]): ReflectiveInjector;
     abstract get(token: any, notFoundValue?: any): any;
-    instantiateResolved(provider: ResolvedReflectiveProvider): any;
-    resolveAndCreateChild(providers: Provider[]): ReflectiveInjector;
-    resolveAndInstantiate(provider: Provider): any;
+    abstract instantiateResolved(provider: ResolvedReflectiveProvider): any;
+    abstract resolveAndCreateChild(providers: Provider[]): ReflectiveInjector;
+    abstract resolveAndInstantiate(provider: Provider): any;
     /** @experimental */ static fromResolvedProviders(providers: ResolvedReflectiveProvider[], parent?: Injector): ReflectiveInjector;
     static resolve(providers: Provider[]): ResolvedReflectiveProvider[];
     static resolveAndCreate(providers: Provider[], parent?: Injector): ReflectiveInjector;

@@ -13,8 +13,9 @@ import {ElementRef} from '../linker/element_ref';
 import {TemplateRef} from '../linker/template_ref';
 import {ViewContainerRef} from '../linker/view_container_ref';
 import {Renderer} from '../render/api';
+import {queryDef} from './query';
 
-import {BindingDef, BindingType, DepDef, DepFlags, NodeData, NodeDef, NodeFlags, NodeType, Services, ViewData, ViewDefinition, ViewFlags} from './types';
+import {BindingDef, BindingType, DepDef, DepFlags, DisposableFn, NodeData, NodeDef, NodeFlags, NodeType, ProviderData, ProviderOutputDef, QueryBindingType, QueryDef, QueryValueType, Services, ViewData, ViewDefinition, ViewFlags, asElementData, asProviderData} from './types';
 import {checkAndUpdateBinding, checkAndUpdateBindingWithChange, setBindingDebugInfo} from './util';
 
 const _tokenKeyCache = new Map<any, string>();
@@ -25,8 +26,14 @@ const ViewContainerRefTokenKey = tokenKey(ViewContainerRef);
 const TemplateRefTokenKey = tokenKey(TemplateRef);
 
 export function providerDef(
-    flags: NodeFlags, ctor: any, deps: ([DepFlags, any] | any)[],
-    props?: {[name: string]: [number, string]}, component?: () => ViewDefinition): NodeDef {
+    flags: NodeFlags, matchedQueries: [string, QueryValueType][], childCount: number, ctor: any,
+    deps: ([DepFlags, any] | any)[], props?: {[name: string]: [number, string]},
+    outputs?: {[name: string]: string}, component?: () => ViewDefinition): NodeDef {
+  const matchedQueryDefs: {[queryId: string]: QueryValueType} = {};
+  if (matchedQueries) {
+    matchedQueries.forEach(([queryId, valueType]) => { matchedQueryDefs[queryId] = valueType; });
+  }
+
   const bindings: BindingDef[] = [];
   if (props) {
     for (let prop in props) {
@@ -37,6 +44,12 @@ export function providerDef(
         securityContext: undefined,
         suffix: undefined
       };
+    }
+  }
+  const outputDefs: ProviderOutputDef[] = [];
+  if (outputs) {
+    for (let propName in outputs) {
+      outputDefs.push({propName, eventName: outputs[propName]});
     }
   }
   const depDefs: DepDef[] = deps.map(value => {
@@ -53,6 +66,7 @@ export function providerDef(
   if (component) {
     flags = flags | NodeFlags.HasComponent;
   }
+
   return {
     type: NodeType.Provider,
     // will bet set by the view definition
@@ -60,19 +74,18 @@ export function providerDef(
     reverseChildIndex: undefined,
     parent: undefined,
     childFlags: undefined,
+    childMatchedQueries: undefined,
     bindingIndex: undefined,
-    providerIndices: undefined,
+    disposableIndex: undefined,
     // regular values
     flags,
-    childCount: 0, bindings,
+    matchedQueries: matchedQueryDefs, childCount, bindings,
+    disposableCount: outputDefs.length,
     element: undefined,
-    provider: {
-      tokenKey: tokenKey(ctor),
-      ctor,
-      deps: depDefs,
-    },
-    text: undefined, component,
-    template: undefined
+    provider: {tokenKey: tokenKey(ctor), ctor, deps: depDefs, outputs: outputDefs, component},
+    text: undefined,
+    pureExpression: undefined,
+    query: undefined
   };
 }
 
@@ -85,19 +98,25 @@ export function tokenKey(token: any): string {
   return key;
 }
 
-export function createProvider(view: ViewData, def: NodeDef, componentView: ViewData): NodeData {
+export function createProvider(
+    view: ViewData, def: NodeDef, componentView: ViewData): ProviderData {
   const providerDef = def.provider;
-  return {
-    renderNode: undefined,
-    provider: createInstance(view, def.parent, providerDef.ctor, providerDef.deps),
-    embeddedViews: undefined, componentView
-  };
+  const provider = createInstance(view, def.parent, providerDef.ctor, providerDef.deps);
+  if (providerDef.outputs.length) {
+    for (let i = 0; i < providerDef.outputs.length; i++) {
+      const output = providerDef.outputs[i];
+      const subscription = provider[output.propName].subscribe(
+          view.def.handleEvent.bind(null, view, def.parent, output.eventName));
+      view.disposables[def.disposableIndex + i] = subscription.unsubscribe.bind(subscription);
+    }
+  }
+  return {instance: provider, componentView: componentView};
 }
 
 export function checkAndUpdateProviderInline(
     view: ViewData, def: NodeDef, v0: any, v1: any, v2: any, v3: any, v4: any, v5: any, v6: any,
     v7: any, v8: any, v9: any) {
-  const provider = view.nodes[def.index].provider;
+  const provider = asProviderData(view, def.index).instance;
   let changes: SimpleChanges;
   // Note: fallthrough is intended!
   switch (def.bindings.length) {
@@ -133,9 +152,8 @@ export function checkAndUpdateProviderInline(
   }
 }
 
-export function checkAndUpdateProviderDynamic(
-    view: ViewData, index: number, def: NodeDef, values: any[]) {
-  const provider = view.nodes[def.index].provider;
+export function checkAndUpdateProviderDynamic(view: ViewData, def: NodeDef, values: any[]) {
+  const provider = asProviderData(view, def.index).instance;
   let changes: SimpleChanges;
   for (let i = 0; i < values.length; i++) {
     changes = checkAndUpdateProp(view, provider, def, i, values[i], changes);
@@ -189,7 +207,7 @@ export function resolveDep(
     if (elDef.parent != null) {
       elIndex = elDef.parent;
     } else {
-      elIndex = view.parentIndex;
+      elIndex = view.parentDiIndex;
       view = view.parent;
     }
   }
@@ -204,18 +222,18 @@ export function resolveDep(
           return Injector.NULL.get(depDef.token, notFoundValue);
         }
       case ElementRefTokenKey:
-        return new ElementRef(view.nodes[elIndex].renderNode);
+        return new ElementRef(asElementData(view, elIndex).renderElement);
       case ViewContainerRefTokenKey:
-        return view.services.createViewContainerRef(view.nodes[elIndex]);
+        return view.services.createViewContainerRef(asElementData(view, elIndex));
       case TemplateRefTokenKey:
         return view.services.createTemplateRef(view, elDef);
       default:
-        const providerIndex = elDef.providerIndices[tokenKey];
+        const providerIndex = elDef.element.providerIndices[tokenKey];
         if (providerIndex != null) {
-          return view.nodes[providerIndex].provider;
+          return asProviderData(view, providerIndex).instance;
         }
     }
-    elIndex = view.parentIndex;
+    elIndex = view.parentDiIndex;
     view = view.parent;
   }
   return Injector.NULL.get(depDef.token, notFoundValue);
@@ -241,7 +259,9 @@ function checkAndUpdateProp(
     provider[propName] = value;
 
     if (view.def.flags & ViewFlags.LogBindingUpdate) {
-      setBindingDebugInfo(view.renderer, view.nodes[def.parent].renderNode, name, value);
+      setBindingDebugInfo(
+          view.renderer, asElementData(view, def.parent).renderElement, binding.nonMinifiedName,
+          value);
     }
     if (change) {
       changes = changes || {};
@@ -262,7 +282,7 @@ export function callLifecycleHooksChildrenFirst(view: ViewData, lifecycles: Node
     const nodeIndex = nodeDef.index;
     if (nodeDef.flags & lifecycles) {
       // a leaf
-      callProviderLifecycles(view.nodes[nodeIndex].provider, nodeDef.flags & lifecycles);
+      callProviderLifecycles(asProviderData(view, nodeIndex).instance, nodeDef.flags & lifecycles);
     } else if ((nodeDef.childFlags & lifecycles) === 0) {
       // a parent with leafs
       // no child matches one of the lifecycles,

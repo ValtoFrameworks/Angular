@@ -6,22 +6,33 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {NodeData, NodeFlags, ViewData} from './types';
+import {dirtyParentQuery} from './query';
+import {ElementData, NodeData, NodeFlags, NodeType, ViewData, asElementData, asProviderData, asTextData} from './types';
+import {declaredViewContainer, renderNode} from './util';
 
-export function attachEmbeddedView(node: NodeData, viewIndex: number, view: ViewData) {
-  let embeddedViews = node.embeddedViews;
+export function attachEmbeddedView(elementData: ElementData, viewIndex: number, view: ViewData) {
+  let embeddedViews = elementData.embeddedViews;
   if (viewIndex == null) {
     viewIndex = embeddedViews.length;
   }
-  // perf: array.push is faster than array.splice!
-  if (viewIndex >= embeddedViews.length) {
-    embeddedViews.push(view);
-  } else {
-    embeddedViews.splice(viewIndex, 0, view);
+  addToArray(embeddedViews, viewIndex, view);
+  const dvcElementData = declaredViewContainer(view);
+  if (dvcElementData && dvcElementData !== elementData) {
+    let projectedViews = dvcElementData.projectedViews;
+    if (!projectedViews) {
+      projectedViews = dvcElementData.projectedViews = [];
+    }
+    projectedViews.push(view);
   }
+
+  for (let queryId in view.def.nodeMatchedQueries) {
+    dirtyParentQuery(queryId, view);
+  }
+
+  // update rendering
   const prevView = viewIndex > 0 ? embeddedViews[viewIndex - 1] : null;
-  const prevNode = prevView ? prevView.nodes[prevView.def.lastRootNode] : node;
-  const prevRenderNode = prevNode.renderNode;
+  const prevRenderNode =
+      prevView ? renderNode(prevView, prevView.def.lastRootNode) : elementData.renderElement;
   if (view.renderer) {
     view.renderer.attachViewAfter(prevRenderNode, rootRenderNodes(view));
   } else {
@@ -34,28 +45,53 @@ export function attachEmbeddedView(node: NodeData, viewIndex: number, view: View
   }
 }
 
-export function detachEmbeddedView(node: NodeData, viewIndex: number): ViewData {
-  const embeddedViews = node.embeddedViews;
+export function detachEmbeddedView(elementData: ElementData, viewIndex: number): ViewData {
+  const embeddedViews = elementData.embeddedViews;
   if (viewIndex == null) {
     viewIndex = embeddedViews.length;
   }
   const view = embeddedViews[viewIndex];
-  // perf: array.pop is faster than array.splice!
-  if (viewIndex >= embeddedViews.length - 1) {
-    embeddedViews.pop();
-  } else {
-    embeddedViews.splice(viewIndex, 1);
+  removeFromArray(embeddedViews, viewIndex);
+
+  const dvcElementData = declaredViewContainer(view);
+  if (dvcElementData && dvcElementData !== elementData) {
+    const projectedViews = dvcElementData.projectedViews;
+    removeFromArray(projectedViews, projectedViews.indexOf(view));
   }
+
+  for (let queryId in view.def.nodeMatchedQueries) {
+    dirtyParentQuery(queryId, view);
+  }
+
+  // update rendering
   if (view.renderer) {
     view.renderer.detachView(rootRenderNodes(view));
   } else {
-    const parentNode = node.renderNode.parentNode;
+    const parentNode = elementData.renderElement.parentNode;
     if (parentNode) {
       directDomAttachDetachSiblingRenderNodes(
           view, 0, DirectDomAction.RemoveChild, parentNode, null);
     }
   }
   return view;
+}
+
+function addToArray(arr: any[], index: number, value: any) {
+  // perf: array.push is faster than array.splice!
+  if (index >= arr.length) {
+    arr.push(value);
+  } else {
+    arr.splice(index, 0, value);
+  }
+}
+
+function removeFromArray(arr: any[], index: number) {
+  // perf: array.pop is faster than array.splice!
+  if (index >= arr.length - 1) {
+    arr.pop();
+  } else {
+    arr.splice(index, 1);
+  }
 }
 
 export function rootRenderNodes(view: ViewData): any[] {
@@ -65,12 +101,12 @@ export function rootRenderNodes(view: ViewData): any[] {
 }
 
 function collectSiblingRenderNodes(view: ViewData, startIndex: number, target: any[]) {
-  for (let i = startIndex; i < view.nodes.length; i++) {
+  const nodeCount = view.def.nodes.length;
+  for (let i = startIndex; i < nodeCount; i++) {
     const nodeDef = view.def.nodes[i];
-    const nodeData = view.nodes[i];
-    target.push(nodeData.renderNode);
+    target.push(renderNode(view, nodeDef));
     if (nodeDef.flags & NodeFlags.HasEmbeddedViews) {
-      const embeddedViews = nodeData.embeddedViews;
+      const embeddedViews = asElementData(view, i).embeddedViews;
       if (embeddedViews) {
         for (let k = 0; k < embeddedViews.length; k++) {
           collectSiblingRenderNodes(embeddedViews[k], 0, target);
@@ -91,22 +127,23 @@ enum DirectDomAction {
 function directDomAttachDetachSiblingRenderNodes(
     view: ViewData, startIndex: number, action: DirectDomAction, parentNode: any,
     nextSibling: any) {
-  for (let i = startIndex; i < view.nodes.length; i++) {
+  const nodeCount = view.def.nodes.length;
+  for (let i = startIndex; i < nodeCount; i++) {
     const nodeDef = view.def.nodes[i];
-    const nodeData = view.nodes[i];
+    const rn = renderNode(view, nodeDef);
     switch (action) {
       case DirectDomAction.AppendChild:
-        parentNode.appendChild(nodeData.renderNode);
+        parentNode.appendChild(rn);
         break;
       case DirectDomAction.InsertBefore:
-        parentNode.insertBefore(nodeData.renderNode, nextSibling);
+        parentNode.insertBefore(rn, nextSibling);
         break;
       case DirectDomAction.RemoveChild:
-        parentNode.removeChild(nodeData.renderNode);
+        parentNode.removeChild(rn);
         break;
     }
     if (nodeDef.flags & NodeFlags.HasEmbeddedViews) {
-      const embeddedViews = nodeData.embeddedViews;
+      const embeddedViews = asElementData(view, i).embeddedViews;
       if (embeddedViews) {
         for (let k = 0; k < embeddedViews.length; k++) {
           directDomAttachDetachSiblingRenderNodes(

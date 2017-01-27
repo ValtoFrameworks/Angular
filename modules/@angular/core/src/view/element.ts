@@ -8,14 +8,57 @@
 
 import {SecurityContext} from '../security';
 
-import {BindingDef, BindingType, NodeData, NodeDef, NodeFlags, NodeType, ViewData, ViewFlags} from './types';
+import {BindingDef, BindingType, DisposableFn, ElementData, ElementOutputDef, NodeData, NodeDef, NodeFlags, NodeType, QueryValueType, ViewData, ViewDefinition, ViewFlags, asElementData} from './types';
 import {checkAndUpdateBinding, setBindingDebugInfo} from './util';
 
+export function anchorDef(
+    flags: NodeFlags, matchedQueries: [string, QueryValueType][], childCount: number,
+    template?: ViewDefinition): NodeDef {
+  const matchedQueryDefs: {[queryId: string]: QueryValueType} = {};
+  if (matchedQueries) {
+    matchedQueries.forEach(([queryId, valueType]) => { matchedQueryDefs[queryId] = valueType; });
+  }
+  return {
+    type: NodeType.Element,
+    // will bet set by the view definition
+    index: undefined,
+    reverseChildIndex: undefined,
+    parent: undefined,
+    childFlags: undefined,
+    childMatchedQueries: undefined,
+    bindingIndex: undefined,
+    disposableIndex: undefined,
+    // regular values
+    flags,
+    matchedQueries: matchedQueryDefs, childCount,
+    bindings: [],
+    disposableCount: 0,
+    element: {
+      name: undefined,
+      attrs: undefined,
+      outputs: [], template,
+      // will bet set by the view definition
+      providerIndices: undefined,
+    },
+    provider: undefined,
+    text: undefined,
+    pureExpression: undefined,
+    query: undefined,
+  };
+}
+
 export function elementDef(
-    flags: NodeFlags, childCount: number, name: string, fixedAttrs: {[name: string]: string} = {},
-    bindings: ([BindingType.ElementClass, string] | [BindingType.ElementStyle, string, string] | [
-      BindingType.ElementAttribute | BindingType.ElementProperty, string, SecurityContext
-    ])[] = []): NodeDef {
+    flags: NodeFlags, matchedQueries: [string, QueryValueType][], childCount: number, name: string,
+    fixedAttrs: {[name: string]: string} = {},
+    bindings?:
+        ([BindingType.ElementClass, string] | [BindingType.ElementStyle, string, string] |
+         [BindingType.ElementAttribute | BindingType.ElementProperty, string, SecurityContext])[],
+    outputs?: (string | [string, string])[]): NodeDef {
+  const matchedQueryDefs: {[queryId: string]: QueryValueType} = {};
+  if (matchedQueries) {
+    matchedQueries.forEach(([queryId, valueType]) => { matchedQueryDefs[queryId] = valueType; });
+  }
+  bindings = bindings || [];
   const bindingDefs = new Array(bindings.length);
   for (let i = 0; i < bindings.length; i++) {
     const entry = bindings[i];
@@ -35,6 +78,19 @@ export function elementDef(
     }
     bindingDefs[i] = {type: bindingType, name, nonMinfiedName: name, securityContext, suffix};
   }
+  outputs = outputs || [];
+  const outputDefs: ElementOutputDef[] = new Array(outputs.length);
+  for (let i = 0; i < outputs.length; i++) {
+    const output = outputs[i];
+    let target: string;
+    let eventName: string;
+    if (Array.isArray(output)) {
+      [target, eventName] = output;
+    } else {
+      eventName = output;
+    }
+    outputDefs[i] = {eventName: eventName, target: target};
+  }
   return {
     type: NodeType.Element,
     // will bet set by the view definition
@@ -42,47 +98,102 @@ export function elementDef(
     reverseChildIndex: undefined,
     parent: undefined,
     childFlags: undefined,
+    childMatchedQueries: undefined,
     bindingIndex: undefined,
-    providerIndices: undefined,
+    disposableIndex: undefined,
     // regular values
     flags,
-    childCount,
+    matchedQueries: matchedQueryDefs, childCount,
     bindings: bindingDefs,
-    element: {name, attrs: fixedAttrs},
+    disposableCount: outputDefs.length,
+    element: {
+      name,
+      attrs: fixedAttrs,
+      outputs: outputDefs,
+      template: undefined,
+      // will bet set by the view definition
+      providerIndices: undefined,
+    },
     provider: undefined,
     text: undefined,
-    component: undefined,
-    template: undefined
+    pureExpression: undefined,
+    query: undefined,
   };
 }
 
-export function createElement(view: ViewData, renderHost: any, def: NodeDef): NodeData {
-  const parentNode = def.parent != null ? view.nodes[def.parent].renderNode : renderHost;
+export function createElement(view: ViewData, renderHost: any, def: NodeDef): ElementData {
+  const parentNode =
+      def.parent != null ? asElementData(view, def.parent).renderElement : renderHost;
   const elDef = def.element;
   let el: any;
   if (view.renderer) {
-    el = view.renderer.createElement(parentNode, elDef.name);
-    if (elDef.attrs) {
-      for (let attrName in elDef.attrs) {
-        view.renderer.setElementAttribute(el, attrName, elDef.attrs[attrName]);
-      }
-    }
+    el = elDef.name ? view.renderer.createElement(parentNode, elDef.name) :
+                      view.renderer.createTemplateAnchor(parentNode);
   } else {
-    el = document.createElement(elDef.name);
+    el = elDef.name ? document.createElement(elDef.name) : document.createComment('');
     if (parentNode) {
       parentNode.appendChild(el);
     }
-    if (elDef.attrs) {
-      for (let attrName in elDef.attrs) {
+  }
+  if (elDef.attrs) {
+    for (let attrName in elDef.attrs) {
+      if (view.renderer) {
+        view.renderer.setElementAttribute(el, attrName, elDef.attrs[attrName]);
+      } else {
         el.setAttribute(attrName, elDef.attrs[attrName]);
       }
     }
   }
+  if (elDef.outputs.length) {
+    for (let i = 0; i < elDef.outputs.length; i++) {
+      const output = elDef.outputs[i];
+      let disposable: DisposableFn;
+      if (view.renderer) {
+        const handleEventClosure = renderEventHandlerClosure(view, def.index, output.eventName);
+        if (output.target) {
+          disposable =
+              <any>view.renderer.listenGlobal(output.target, output.eventName, handleEventClosure);
+        } else {
+          disposable = <any>view.renderer.listen(el, output.eventName, handleEventClosure);
+        }
+      } else {
+        let target: any;
+        switch (output.target) {
+          case 'window':
+            target = window;
+            break;
+          case 'document':
+            target = document;
+            break;
+          default:
+            target = el;
+        }
+        const handleEventClosure = directDomEventHandlerClosure(view, def.index, output.eventName);
+        target.addEventListener(output.eventName, handleEventClosure);
+        disposable = target.removeEventListener.bind(target, output.eventName, handleEventClosure);
+      }
+      view.disposables[def.disposableIndex + i] = disposable;
+    }
+  }
   return {
-    renderNode: el,
-    provider: undefined,
+    renderElement: el,
     embeddedViews: (def.flags & NodeFlags.HasEmbeddedViews) ? [] : undefined,
-    componentView: undefined
+    projectedViews: undefined
+  };
+}
+
+function renderEventHandlerClosure(view: ViewData, index: number, eventName: string) {
+  return (event: any) => { return view.def.handleEvent(view, index, eventName, event); };
+}
+
+
+function directDomEventHandlerClosure(view: ViewData, index: number, eventName: string) {
+  return (event: any) => {
+    const result = view.def.handleEvent(view, index, eventName, event);
+    if (result === false) {
+      event.preventDefault();
+    }
+    return result;
   };
 }
 
@@ -127,7 +238,7 @@ function checkAndUpdateElementValue(view: ViewData, def: NodeDef, bindingIdx: nu
 
   const binding = def.bindings[bindingIdx];
   const name = binding.name;
-  const renderNode = view.nodes[def.index].renderNode;
+  const renderNode = asElementData(view, def.index).renderElement;
   switch (binding.type) {
     case BindingType.ElementAttribute:
       setElementAttribute(view, binding, renderNode, name, value);

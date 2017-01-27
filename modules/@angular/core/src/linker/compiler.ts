@@ -9,6 +9,7 @@
 import {Injectable, InjectionToken} from '../di';
 import {BaseError} from '../facade/errors';
 import {stringify} from '../facade/lang';
+import {MissingTranslationStrategy} from '../i18n/tokens';
 import {ViewEncapsulation} from '../metadata';
 import {Type} from '../type';
 
@@ -87,7 +88,7 @@ export class Compiler {
    * Exposes the CSS-style selectors that have been used in `ngContent` directives within
    * the template of the given component.
    * This is used by the `upgrade` library to compile the appropriate transclude content
-   * in the Angular 1 wrapper component.
+   * in the AngularJS wrapper component.
    */
   getNgContentSelectors(component: Type<any>): string[] { throw _throwError(); }
 
@@ -112,6 +113,7 @@ export type CompilerOptions = {
   useJit?: boolean,
   defaultEncapsulation?: ViewEncapsulation,
   providers?: any[],
+  missingTranslation?: MissingTranslationStrategy,
 };
 
 /**

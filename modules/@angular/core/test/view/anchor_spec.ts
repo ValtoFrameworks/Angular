@@ -7,7 +7,7 @@
  */
 
 import {RenderComponentType, RootRenderer, Sanitizer, SecurityContext, ViewEncapsulation} from '@angular/core';
-import {DefaultServices, NodeDef, NodeFlags, NodeUpdater, Services, ViewData, ViewDefinition, ViewFlags, ViewUpdateFn, anchorDef, checkAndUpdateView, checkNoChangesView, createRootView, elementDef, rootRenderNodes, textDef, viewDef} from '@angular/core/src/view/index';
+import {DefaultServices, NodeDef, NodeFlags, NodeUpdater, Services, ViewData, ViewDefinition, ViewFlags, ViewHandleEventFn, ViewUpdateFn, anchorDef, checkAndUpdateView, checkNoChangesView, createRootView, elementDef, rootRenderNodes, textDef, viewDef} from '@angular/core/src/view/index';
 import {inject} from '@angular/core/testing';
 import {getDOM} from '@angular/platform-browser/src/dom/dom_adapter';
 
@@ -34,8 +34,9 @@ function defineTests(config: {directDom: boolean, viewFlags: number}) {
               new RenderComponentType('1', 'someUrl', 0, ViewEncapsulation.None, [], {});
         }));
 
-    function compViewDef(nodes: NodeDef[], updater?: ViewUpdateFn): ViewDefinition {
-      return viewDef(config.viewFlags, nodes, updater, renderComponentType);
+    function compViewDef(
+        nodes: NodeDef[], update?: ViewUpdateFn, handleEvent?: ViewHandleEventFn): ViewDefinition {
+      return viewDef(config.viewFlags, nodes, update, handleEvent, renderComponentType);
     }
 
     function createAndGetRootNodes(viewDef: ViewDefinition): {rootNodes: any[], view: ViewData} {
@@ -47,21 +48,21 @@ function defineTests(config: {directDom: boolean, viewFlags: number}) {
     describe('create', () => {
       it('should create anchor nodes without parents', () => {
         const rootNodes =
-            createAndGetRootNodes(compViewDef([anchorDef(NodeFlags.None, 0)])).rootNodes;
+            createAndGetRootNodes(compViewDef([anchorDef(NodeFlags.None, null, 0)])).rootNodes;
         expect(rootNodes.length).toBe(1);
       });
 
       it('should create views with multiple root anchor nodes', () => {
         const rootNodes = createAndGetRootNodes(compViewDef([
-                            anchorDef(NodeFlags.None, 0), anchorDef(NodeFlags.None, 0)
+                            anchorDef(NodeFlags.None, null, 0), anchorDef(NodeFlags.None, null, 0)
                           ])).rootNodes;
         expect(rootNodes.length).toBe(2);
       });
 
       it('should create anchor nodes with parents', () => {
         const rootNodes = createAndGetRootNodes(compViewDef([
-                            elementDef(NodeFlags.None, 1, 'div'),
-                            anchorDef(NodeFlags.None, 0),
+                            elementDef(NodeFlags.None, null, 1, 'div'),
+                            anchorDef(NodeFlags.None, null, 0),
                           ])).rootNodes;
         expect(getDOM().childNodes(rootNodes[0]).length).toBe(1);
       });

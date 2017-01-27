@@ -16,7 +16,7 @@ import {EmbeddedViewRef, ViewRef} from '../linker/view_ref';
 import {RenderComponentType, Renderer, RootRenderer} from '../render/api';
 import {Sanitizer, SecurityContext} from '../security';
 
-import {NodeData, NodeDef, Services, ViewData, ViewDefinition} from './types';
+import {ElementData, NodeData, NodeDef, Services, ViewData, ViewDefinition, asElementData} from './types';
 import {checkAndUpdateView, checkNoChangesView, createEmbeddedView, destroyView} from './view';
 import {attachEmbeddedView, detachEmbeddedView, rootRenderNodes} from './view_attach';
 
@@ -31,7 +31,10 @@ export class DefaultServices implements Services {
     return this._sanitizer.sanitize(context, value);
   }
   // Note: This needs to be here to prevent a cycle in source files.
-  createViewContainerRef(data: NodeData): ViewContainerRef { return new ViewContainerRef_(data); }
+  createViewContainerRef(data: ElementData): ViewContainerRef {
+    return new ViewContainerRef_(data);
+  }
+
   // Note: This needs to be here to prevent a cycle in source files.
   createTemplateRef(parentView: ViewData, def: NodeDef): TemplateRef<any> {
     return new TemplateRef_(parentView, def);
@@ -39,7 +42,7 @@ export class DefaultServices implements Services {
 }
 
 class ViewContainerRef_ implements ViewContainerRef {
-  constructor(private _data: NodeData) {}
+  constructor(private _data: ElementData) {}
 
   get element(): ElementRef { return <ElementRef>unimplemented(); }
 
@@ -126,6 +129,6 @@ class TemplateRef_ implements TemplateRef<any> {
   }
 
   get elementRef(): ElementRef {
-    return new ElementRef(this._parentView.nodes[this._def.index].renderNode);
+    return new ElementRef(asElementData(this._parentView, this._def.index).renderElement);
   }
 }
