@@ -7,12 +7,20 @@
  */
 
 export {anchorDef, elementDef} from './element';
-export {providerDef} from './provider';
+export {ngContentDef} from './ng_content';
+export {directiveDef, providerDef} from './provider';
 export {pureArrayDef, pureObjectDef, purePipeDef} from './pure_expression';
 export {queryDef} from './query';
 export {textDef} from './text';
-export {checkAndUpdateView, checkNoChangesView, createEmbeddedView, createRootView, destroyView, viewDef} from './view';
-export {attachEmbeddedView, detachEmbeddedView, rootRenderNodes} from './view_attach';
-
+export {rootRenderNodes, setCurrentNode} from './util';
+export {checkAndUpdateView, checkNoChangesView, checkNodeDynamic, checkNodeInline, createEmbeddedView, createRootView, destroyView, viewDef} from './view';
+export {attachEmbeddedView, detachEmbeddedView, moveEmbeddedView} from './view_attach';
 export * from './types';
-export {DefaultServices} from './services';
+
+import {createRefs} from './refs';
+import {Refs} from './types';
+
+Refs.setInstance(createRefs());
+
+export const createComponentFactory: typeof Refs.createComponentFactory =
+    Refs.createComponentFactory;

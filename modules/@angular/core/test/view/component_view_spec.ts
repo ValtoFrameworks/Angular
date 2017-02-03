@@ -6,12 +6,12 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {RenderComponentType, RootRenderer, Sanitizer, SecurityContext, ViewEncapsulation} from '@angular/core';
-import {BindingType, DefaultServices, NodeDef, NodeFlags, NodeUpdater, Services, ViewData, ViewDefinition, ViewFlags, ViewHandleEventFn, ViewUpdateFn, anchorDef, asProviderData, checkAndUpdateView, checkNoChangesView, createRootView, destroyView, elementDef, providerDef, rootRenderNodes, textDef, viewDef} from '@angular/core/src/view/index';
+import {Injector, RenderComponentType, RootRenderer, Sanitizer, SecurityContext, ViewEncapsulation} from '@angular/core';
+import {BindingType, NodeDef, NodeFlags, RootData, ViewData, ViewDefinition, ViewFlags, ViewHandleEventFn, ViewState, ViewUpdateFn, anchorDef, asProviderData, checkAndUpdateView, checkNoChangesView, checkNodeDynamic, checkNodeInline, createRootView, destroyView, directiveDef, elementDef, rootRenderNodes, setCurrentNode, textDef, viewDef} from '@angular/core/src/view/index';
 import {inject} from '@angular/core/testing';
 import {getDOM} from '@angular/platform-browser/src/dom/dom_adapter';
 
-import {isBrowser, setupAndCheckRenderer} from './helper';
+import {createRootData, isBrowser, removeNodes, setupAndCheckRenderer} from './helper';
 
 export function main() {
   if (isBrowser()) {
@@ -24,23 +24,23 @@ function defineTests(config: {directDom: boolean, viewFlags: number}) {
   describe(`Component Views, directDom: ${config.directDom}`, () => {
     setupAndCheckRenderer(config);
 
-    let services: Services;
+    let rootData: RootData;
     let renderComponentType: RenderComponentType;
 
-    beforeEach(
-        inject([RootRenderer, Sanitizer], (rootRenderer: RootRenderer, sanitizer: Sanitizer) => {
-          services = new DefaultServices(rootRenderer, sanitizer);
-          renderComponentType =
-              new RenderComponentType('1', 'someUrl', 0, ViewEncapsulation.None, [], {});
-        }));
+    beforeEach(() => {
+      rootData = createRootData();
+      renderComponentType =
+          new RenderComponentType('1', 'someUrl', 0, ViewEncapsulation.None, [], {});
+    });
 
     function compViewDef(
-        nodes: NodeDef[], update?: ViewUpdateFn, handleEvent?: ViewHandleEventFn): ViewDefinition {
-      return viewDef(config.viewFlags, nodes, update, handleEvent, renderComponentType);
+        nodes: NodeDef[], update?: ViewUpdateFn, handleEvent?: ViewHandleEventFn,
+        flags?: ViewFlags): ViewDefinition {
+      return viewDef(config.viewFlags | flags, nodes, update, handleEvent, renderComponentType);
     }
 
     function createAndGetRootNodes(viewDef: ViewDefinition): {rootNodes: any[], view: ViewData} {
-      const view = createRootView(services, viewDef);
+      const view = createRootView(rootData, viewDef);
       const rootNodes = rootRenderNodes(view);
       return {rootNodes, view};
     }
@@ -52,11 +52,11 @@ function defineTests(config: {directDom: boolean, viewFlags: number}) {
       }
 
       const {view, rootNodes} = createAndGetRootNodes(compViewDef([
-        elementDef(NodeFlags.None, null, 1, 'div'),
-        providerDef(
+        elementDef(NodeFlags.None, null, null, 1, 'div'),
+        directiveDef(
             NodeFlags.None, null, 0, AComp, [], null, null,
             () => compViewDef([
-              elementDef(NodeFlags.None, null, 0, 'span'),
+              elementDef(NodeFlags.None, null, null, 0, 'span'),
             ])),
       ]));
 
@@ -69,65 +69,259 @@ function defineTests(config: {directDom: boolean, viewFlags: number}) {
       expect(getDOM().nodeName(compRootEl).toLowerCase()).toBe('span');
     });
 
-    it('should dirty check component views', () => {
-      let value = 'v1';
-      class AComp {
-        a: any;
+    if (isBrowser()) {
+      describe('root views', () => {
+        let rootNode: HTMLElement;
+        beforeEach(() => {
+          rootNode = document.createElement('root');
+          document.body.appendChild(rootNode);
+          removeNodes.push(rootNode);
+        });
+
+        it('should select root elements based on a selector', () => {
+          rootData.selectorOrNode = 'root';
+          const view = createRootView(rootData, compViewDef([
+                                        elementDef(NodeFlags.None, null, null, 1, 'div'),
+                                      ]));
+          const rootNodes = rootRenderNodes(view);
+          expect(rootNodes).toEqual([rootNode]);
+        });
+
+        it('should select root elements based on a node', () => {
+          rootData.selectorOrNode = rootNode;
+          const view = createRootView(rootData, compViewDef([
+                                        elementDef(NodeFlags.None, null, null, 1, 'div'),
+                                      ]));
+          const rootNodes = rootRenderNodes(view);
+          expect(rootNodes).toEqual([rootNode]);
+        });
+
+        it('should set attributes on the root node', () => {
+          rootData.selectorOrNode = rootNode;
+          const view =
+              createRootView(rootData, compViewDef([
+                               elementDef(NodeFlags.None, null, null, 1, 'div', {'a': 'b'}),
+                             ]));
+          expect(rootNode.getAttribute('a')).toBe('b');
+        });
+
+        it('should clear the content of the root node', () => {
+          rootData.selectorOrNode = rootNode;
+          rootNode.appendChild(document.createElement('div'));
+          const view =
+              createRootView(rootData, compViewDef([
+                               elementDef(NodeFlags.None, null, null, 1, 'div', {'a': 'b'}),
+                             ]));
+          expect(rootNode.childNodes.length).toBe(0);
+        });
+      });
+    }
+
+    describe('data binding', () => {
+      it('should dirty check component views', () => {
+        let value: any;
+        class AComp {
+          a: any;
+        }
+
+        const update = jasmine.createSpy('updater').and.callFake((view: ViewData) => {
+          setCurrentNode(view, 0);
+          checkNodeInline(value);
+        });
+
+        const {view, rootNodes} = createAndGetRootNodes(
+          compViewDef([
+            elementDef(NodeFlags.None, null, null, 1, 'div'),
+            directiveDef(NodeFlags.None, null, 0, AComp, [], null, null, () => compViewDef(
+              [
+                elementDef(NodeFlags.None, null, null, 0, 'span', null, [[BindingType.ElementAttribute, 'a', SecurityContext.NONE]]),
+              ], update
+            )),
+          ]));
+        const compView = asProviderData(view, 1).componentView;
+
+        value = 'v1';
+        checkAndUpdateView(view);
+
+        expect(update).toHaveBeenCalledWith(compView);
+
+        update.calls.reset();
+        checkNoChangesView(view);
+
+        expect(update).toHaveBeenCalledWith(compView);
+
+        value = 'v2';
+        expect(() => checkNoChangesView(view))
+            .toThrowError(
+                `Expression has changed after it was checked. Previous value: 'v1'. Current value: 'v2'.`);
+      });
+
+      it('should support detaching and attaching component views for dirty checking', () => {
+        class AComp {
+          a: any;
+        }
+
+        const update = jasmine.createSpy('updater');
+
+        const {view, rootNodes} = createAndGetRootNodes(compViewDef([
+          elementDef(NodeFlags.None, null, null, 1, 'div'),
+          directiveDef(
+              NodeFlags.None, null, 0, AComp, [], null, null,
+              () => compViewDef(
+                  [
+                    elementDef(NodeFlags.None, null, null, 0, 'span'),
+                  ],
+                  update)),
+        ]));
+
+        const compView = asProviderData(view, 1).componentView;
+
+        checkAndUpdateView(view);
+        update.calls.reset();
+
+        compView.state &= ~ViewState.ChecksEnabled;
+        checkAndUpdateView(view);
+        expect(update).not.toHaveBeenCalled();
+
+        compView.state |= ViewState.ChecksEnabled;
+        checkAndUpdateView(view);
+        expect(update).toHaveBeenCalled();
+      });
+
+      if (isBrowser()) {
+        it('should support OnPush components', () => {
+          let compInputValue: any;
+          class AComp {
+            a: any;
+          }
+
+          const update = jasmine.createSpy('updater');
+
+          const addListenerSpy = spyOn(HTMLElement.prototype, 'addEventListener').and.callThrough();
+          const {view, rootNodes} =
+              createAndGetRootNodes(
+                  compViewDef(
+                      [
+                        elementDef(NodeFlags.None, null, null, 1, 'div'),
+                        directiveDef(
+                            NodeFlags.None, null, 0, AComp, [], {a: [0, 'a']}, null,
+                            () =>
+                                compViewDef(
+                                    [
+                                      elementDef(NodeFlags.None, null, null, 0, 'span', null, null, ['click']),
+                                    ],
+                                    update, null, ViewFlags.OnPush)),
+                      ],
+                      (view) => {
+                        setCurrentNode(view, 1);
+                        checkNodeInline(compInputValue);
+                      }));
+
+          const compView = asProviderData(view, 1).componentView;
+
+          checkAndUpdateView(view);
+
+          // auto detach
+          update.calls.reset();
+          checkAndUpdateView(view);
+          expect(update).not.toHaveBeenCalled();
+
+          // auto attach on input changes
+          update.calls.reset();
+          compInputValue = 'v1';
+          checkAndUpdateView(view);
+          expect(update).toHaveBeenCalled();
+
+          // auto detach
+          update.calls.reset();
+          checkAndUpdateView(view);
+          expect(update).not.toHaveBeenCalled();
+
+          // auto attach on events
+          addListenerSpy.calls.mostRecent().args[1]('SomeEvent');
+          update.calls.reset();
+          checkAndUpdateView(view);
+          expect(update).toHaveBeenCalled();
+
+          // auto detach
+          update.calls.reset();
+          checkAndUpdateView(view);
+          expect(update).not.toHaveBeenCalled();
+        });
       }
 
-      const update = jasmine.createSpy('updater').and.callFake(
-          (updater: NodeUpdater, view: ViewData) => updater.checkInline(view, 0, value));
+      it('should stop dirty checking views that threw errors in change detection', () => {
+        class AComp {
+          a: any;
+        }
 
-      const {view, rootNodes} = createAndGetRootNodes(
-        compViewDef([
-          elementDef(NodeFlags.None, null, 1, 'div'),
-          providerDef(NodeFlags.None, null, 0, AComp, [], null, null, () => compViewDef(
+        const update = jasmine.createSpy('updater');
+
+        const {view, rootNodes} = createAndGetRootNodes(compViewDef([
+          elementDef(NodeFlags.None, null, null, 1, 'div'),
+          directiveDef(
+              NodeFlags.None, null, 0, AComp, [], null, null,
+              () => compViewDef(
+                  [
+                    elementDef(NodeFlags.None, null, null, 0, 'span'),
+                  ],
+                  update)),
+        ]));
+
+        const compView = asProviderData(view, 1).componentView;
+
+        update.and.callFake((view: ViewData) => {
+          setCurrentNode(view, 0);
+          throw new Error('Test');
+        });
+        expect(() => checkAndUpdateView(view)).toThrow();
+        expect(update).toHaveBeenCalled();
+
+        update.calls.reset();
+        checkAndUpdateView(view);
+        expect(update).not.toHaveBeenCalled();
+      });
+
+    });
+
+    describe('destroy', () => {
+      it('should destroy component views', () => {
+        const log: string[] = [];
+
+        class AComp {}
+
+        class ChildProvider {
+          ngOnDestroy() { log.push('ngOnDestroy'); };
+        }
+
+        const {view, rootNodes} = createAndGetRootNodes(compViewDef([
+          elementDef(NodeFlags.None, null, null, 1, 'div'),
+          directiveDef(
+              NodeFlags.None, null, 0, AComp, [], null, null,
+              () => compViewDef([
+                elementDef(NodeFlags.None, null, null, 1, 'span'),
+                directiveDef(NodeFlags.OnDestroy, null, 0, ChildProvider, [])
+              ])),
+        ]));
+
+        destroyView(view);
+
+        expect(log).toEqual(['ngOnDestroy']);
+      });
+
+      it('should throw on dirty checking destroyed views', () => {
+        const {view, rootNodes} = createAndGetRootNodes(compViewDef(
             [
-              elementDef(NodeFlags.None, null, 0, 'span', null, [[BindingType.ElementAttribute, 'a', SecurityContext.NONE]]),
-            ], update
-          )),
-        ], jasmine.createSpy('parentUpdater')));
-      const compView = asProviderData(view, 1).componentView;
+              elementDef(NodeFlags.None, null, null, 0, 'div'),
+            ],
+            (view) => { setCurrentNode(view, 0); }));
 
-      checkAndUpdateView(view);
+        destroyView(view);
 
-      expect(update).toHaveBeenCalled();
-      expect(update.calls.mostRecent().args[1]).toBe(compView);
-
-      update.calls.reset();
-      checkNoChangesView(view);
-
-      expect(update).toHaveBeenCalled();
-      expect(update.calls.mostRecent().args[1]).toBe(compView);
-
-      value = 'v2';
-      expect(() => checkNoChangesView(view))
-          .toThrowError(
-              `Expression has changed after it was checked. Previous value: 'v1'. Current value: 'v2'.`);
+        expect(() => checkAndUpdateView(view))
+            .toThrowError('View has been used after destroy for CheckAndUpdate');
+      });
     });
 
-    it('should destroy component views', () => {
-      const log: string[] = [];
-
-      class AComp {}
-
-      class ChildProvider {
-        ngOnDestroy() { log.push('ngOnDestroy'); };
-      }
-
-      const {view, rootNodes} = createAndGetRootNodes(compViewDef([
-        elementDef(NodeFlags.None, null, 1, 'div'),
-        providerDef(
-            NodeFlags.None, null, 0, AComp, [], null, null,
-            () => compViewDef([
-              elementDef(NodeFlags.None, null, 1, 'span'),
-              providerDef(NodeFlags.OnDestroy, null, 0, ChildProvider, [])
-            ])),
-      ]));
-
-      destroyView(view);
-
-      expect(log).toEqual(['ngOnDestroy']);
-    });
   });
 }

@@ -6,12 +6,12 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {RenderComponentType, RootRenderer, Sanitizer, SecurityContext, ViewEncapsulation} from '@angular/core';
-import {DefaultServices, NodeDef, NodeFlags, NodeUpdater, Services, ViewData, ViewDefinition, ViewFlags, ViewHandleEventFn, ViewUpdateFn, anchorDef, checkAndUpdateView, checkNoChangesView, createRootView, elementDef, rootRenderNodes, textDef, viewDef} from '@angular/core/src/view/index';
+import {Injector, RenderComponentType, RootRenderer, Sanitizer, SecurityContext, ViewEncapsulation, WrappedValue, getDebugNode} from '@angular/core';
+import {DebugContext, NodeDef, NodeFlags, RootData, ViewData, ViewDefinition, ViewFlags, ViewHandleEventFn, ViewUpdateFn, anchorDef, asTextData, checkAndUpdateView, checkNoChangesView, checkNodeDynamic, checkNodeInline, createRootView, elementDef, rootRenderNodes, setCurrentNode, textDef, viewDef} from '@angular/core/src/view/index';
 import {inject} from '@angular/core/testing';
 import {getDOM} from '@angular/platform-browser/src/dom/dom_adapter';
 
-import {isBrowser, setupAndCheckRenderer} from './helper';
+import {INLINE_DYNAMIC_VALUES, InlineDynamic, checkNodeInlineOrDynamic, createRootData, isBrowser, setupAndCheckRenderer} from './helper';
 
 export function main() {
   if (isBrowser()) {
@@ -24,90 +24,115 @@ function defineTests(config: {directDom: boolean, viewFlags: number}) {
   describe(`View Text, directDom: ${config.directDom}`, () => {
     setupAndCheckRenderer(config);
 
-    let services: Services;
+    let rootData: RootData;
     let renderComponentType: RenderComponentType;
 
-    beforeEach(
-        inject([RootRenderer, Sanitizer], (rootRenderer: RootRenderer, sanitizer: Sanitizer) => {
-          services = new DefaultServices(rootRenderer, sanitizer);
-          renderComponentType =
-              new RenderComponentType('1', 'someUrl', 0, ViewEncapsulation.None, [], {});
-        }));
+    beforeEach(() => {
+      rootData = createRootData();
+      renderComponentType =
+          new RenderComponentType('1', 'someUrl', 0, ViewEncapsulation.None, [], {});
+    });
 
     function compViewDef(
         nodes: NodeDef[], update?: ViewUpdateFn, handleEvent?: ViewHandleEventFn): ViewDefinition {
       return viewDef(config.viewFlags, nodes, update, handleEvent, renderComponentType);
     }
 
-    function createAndGetRootNodes(viewDef: ViewDefinition): {rootNodes: any[], view: ViewData} {
-      const view = createRootView(services, viewDef);
+    function createAndGetRootNodes(
+        viewDef: ViewDefinition, context?: any): {rootNodes: any[], view: ViewData} {
+      const view = createRootView(rootData, viewDef, context);
       const rootNodes = rootRenderNodes(view);
       return {rootNodes, view};
     }
 
     describe('create', () => {
       it('should create text nodes without parents', () => {
-        const rootNodes = createAndGetRootNodes(compViewDef([textDef(['a'])])).rootNodes;
+        const rootNodes = createAndGetRootNodes(compViewDef([textDef(null, ['a'])])).rootNodes;
         expect(rootNodes.length).toBe(1);
         expect(getDOM().getText(rootNodes[0])).toBe('a');
       });
 
       it('should create views with multiple root text nodes', () => {
-        const rootNodes =
-            createAndGetRootNodes(compViewDef([textDef(['a']), textDef(['b'])])).rootNodes;
+        const rootNodes = createAndGetRootNodes(compViewDef([
+                            textDef(null, ['a']), textDef(null, ['b'])
+                          ])).rootNodes;
         expect(rootNodes.length).toBe(2);
       });
 
       it('should create text nodes with parents', () => {
         const rootNodes = createAndGetRootNodes(compViewDef([
-                            elementDef(NodeFlags.None, null, 1, 'div'),
-                            textDef(['a']),
+                            elementDef(NodeFlags.None, null, null, 1, 'div'),
+                            textDef(null, ['a']),
                           ])).rootNodes;
         expect(rootNodes.length).toBe(1);
         const textNode = getDOM().firstChild(rootNodes[0]);
         expect(getDOM().getText(textNode)).toBe('a');
       });
-    });
 
-    it('should checkNoChanges', () => {
-      let textValue = 'v1';
-      const {view, rootNodes} = createAndGetRootNodes(compViewDef(
-          [
-            textDef(['', '']),
-          ],
-          (updater, view) => updater.checkInline(view, 0, textValue)));
-
-      checkAndUpdateView(view);
-      checkNoChangesView(view);
-
-      textValue = 'v2';
-      expect(() => checkNoChangesView(view))
-          .toThrowError(
-              `Expression has changed after it was checked. Previous value: 'v1'. Current value: 'v2'.`);
+      if (!config.directDom) {
+        it('should add debug information to the renderer', () => {
+          const someContext = new Object();
+          const {view, rootNodes} =
+              createAndGetRootNodes(compViewDef([textDef(null, ['a'])]), someContext);
+          expect(getDebugNode(rootNodes[0]).nativeNode).toBe(asTextData(view, 0).renderText);
+        });
+      }
     });
 
     describe('change text', () => {
-      [{
-        name: 'inline',
-        update: (updater: NodeUpdater, view: ViewData) => updater.checkInline(view, 0, 'a', 'b')
-      },
-       {
-         name: 'dynamic',
-         update: (updater: NodeUpdater, view: ViewData) =>
-                     updater.checkDynamic(view, 0, ['a', 'b'])
-       }].forEach((config) => {
-        it(`should update ${config.name}`, () => {
+      INLINE_DYNAMIC_VALUES.forEach((inlineDynamic) => {
+        it(`should update ${InlineDynamic[inlineDynamic]}`, () => {
           const {view, rootNodes} = createAndGetRootNodes(compViewDef(
               [
-                textDef(['0', '1', '2']),
+                textDef(null, ['0', '1', '2']),
               ],
-              config.update));
+              (view: ViewData) => {
+                setCurrentNode(view, 0);
+                checkNodeInlineOrDynamic(inlineDynamic, ['a', 'b']);
+              }));
 
           checkAndUpdateView(view);
 
           const node = rootNodes[0];
           expect(getDOM().getText(rootNodes[0])).toBe('0a1b2');
         });
+
+        if (isBrowser()) {
+          it(`should unwrap values with ${InlineDynamic[inlineDynamic]}`, () => {
+            let bindingValue: any;
+            const setterSpy = jasmine.createSpy('set');
+
+            class FakeTextNode {
+              set nodeValue(value: any) { setterSpy(value); }
+            }
+
+            spyOn(document, 'createTextNode').and.returnValue(new FakeTextNode());
+
+            const {view, rootNodes} = createAndGetRootNodes(compViewDef(
+                [
+                  textDef(null, ['', '']),
+                ],
+                (view: ViewData) => {
+                  setCurrentNode(view, 0);
+                  checkNodeInlineOrDynamic(inlineDynamic, [bindingValue]);
+                }));
+
+            Object.defineProperty(rootNodes[0], 'nodeValue', {set: setterSpy});
+
+            bindingValue = 'v1';
+            checkAndUpdateView(view);
+            expect(setterSpy).toHaveBeenCalledWith('v1');
+
+            setterSpy.calls.reset();
+            checkAndUpdateView(view);
+            expect(setterSpy).not.toHaveBeenCalled();
+
+            setterSpy.calls.reset();
+            bindingValue = WrappedValue.wrap('v1');
+            checkAndUpdateView(view);
+            expect(setterSpy).toHaveBeenCalledWith('v1');
+          });
+        }
       });
     });
 

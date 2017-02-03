@@ -2,7 +2,7 @@
 export declare const APP_BASE_HREF: InjectionToken<string>;
 
 /** @stable */
-export declare class AsyncPipe implements OnDestroy {
+export declare class AsyncPipe implements OnDestroy, PipeTransform {
     constructor(_ref: ChangeDetectorRef);
     ngOnDestroy(): void;
     transform(obj: Observable<any> | Promise<any> | EventEmitter<any>): any;
@@ -74,7 +74,7 @@ export declare class Location {
     path(includeHash?: boolean): string;
     prepareExternalUrl(url: string): string;
     replaceState(path: string, query?: string): void;
-    subscribe(onNext: (value: any) => void, onThrow?: (exception: any) => void, onReturn?: () => void): Object;
+    subscribe(onNext: (value: PopStateEvent) => void, onThrow?: (exception: any) => void, onReturn?: () => void): Object;
     static joinWithSlash(start: string, end: string): string;
     static normalizeQueryParams(params: string): string;
     static stripTrailingSlash(url: string): string;
@@ -128,12 +128,16 @@ export declare class NgComponentOutlet implements OnChanges, OnDestroy {
     ngOnDestroy(): void;
 }
 
+/** @deprecated */
+export declare class NgFor extends NgForOf<any> {
+}
+
 /** @stable */
-export declare class NgFor implements DoCheck, OnChanges {
-    ngForOf: any;
-    ngForTemplate: TemplateRef<NgForRow>;
-    ngForTrackBy: TrackByFn;
-    constructor(_viewContainer: ViewContainerRef, _template: TemplateRef<NgForRow>, _differs: IterableDiffers, _cdr: ChangeDetectorRef);
+export declare class NgForOf<T> implements DoCheck, OnChanges {
+    ngForOf: NgIterable<T>;
+    ngForTemplate: TemplateRef<NgForOfRow<T>>;
+    ngForTrackBy: TrackByFunction<T>;
+    constructor(_viewContainer: ViewContainerRef, _template: TemplateRef<NgForOfRow<T>>, _differs: IterableDiffers, _cdr: ChangeDetectorRef);
     ngDoCheck(): void;
     ngOnChanges(changes: SimpleChanges): void;
 }
@@ -237,6 +241,13 @@ export declare abstract class PlatformLocation {
     abstract onPopState(fn: LocationChangeListener): void;
     abstract pushState(state: any, title: string, url: string): void;
     abstract replaceState(state: any, title: string, url: string): void;
+}
+
+/** @experimental */
+export interface PopStateEvent {
+    pop?: boolean;
+    type?: string;
+    url?: string;
 }
 
 /** @stable */

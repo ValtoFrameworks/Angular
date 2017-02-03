@@ -243,6 +243,10 @@ function _callAndReportToErrorHandler(errorHandler: ErrorHandler, callback: () =
   }
 }
 
+/**
+ * workaround https://github.com/angular/tsickle/issues/350
+ * @suppress {checkTypes}
+ */
 @Injectable()
 export class PlatformRef_ extends PlatformRef {
   private _modules: NgModuleRef<any>[] = [];
@@ -305,28 +309,17 @@ export class PlatformRef_ extends PlatformRef {
   }
 
   private _bootstrapModuleWithZone<M>(
-      moduleType: Type<M>, compilerOptions: CompilerOptions|CompilerOptions[] = [], ngZone: NgZone,
-      componentFactoryCallback?: any): Promise<NgModuleRef<M>> {
+      moduleType: Type<M>, compilerOptions: CompilerOptions|CompilerOptions[] = [],
+      ngZone: NgZone = null): Promise<NgModuleRef<M>> {
     const compilerFactory: CompilerFactory = this.injector.get(CompilerFactory);
     const compiler = compilerFactory.createCompiler(
         Array.isArray(compilerOptions) ? compilerOptions : [compilerOptions]);
-
-    // ugly internal api hack: generate host component factories for all declared components and
-    // pass the factories into the callback - this is used by UpdateAdapter to get hold of all
-    // factories.
-    if (componentFactoryCallback) {
-      return compiler.compileModuleAndAllComponentsAsync(moduleType)
-          .then(({ngModuleFactory, componentFactories}) => {
-            componentFactoryCallback(componentFactories);
-            return this._bootstrapModuleFactoryWithZone(ngModuleFactory, ngZone);
-          });
-    }
 
     return compiler.compileModuleAsync(moduleType)
         .then((moduleFactory) => this._bootstrapModuleFactoryWithZone(moduleFactory, ngZone));
   }
 
-  private _moduleDoBootstrap(moduleRef: NgModuleInjector<any>) {
+  private _moduleDoBootstrap(moduleRef: NgModuleInjector<any>): void {
     const appRef = moduleRef.injector.get(ApplicationRef);
     if (moduleRef.bootstrapFactories.length > 0) {
       moduleRef.bootstrapFactories.forEach((compFactory) => appRef.bootstrap(compFactory));
@@ -337,6 +330,7 @@ export class PlatformRef_ extends PlatformRef {
           `The module ${stringify(moduleRef.instance.constructor)} was bootstrapped, but it does not declare "@NgModule.bootstrap" components nor a "ngDoBootstrap" method. ` +
           `Please define one of these.`);
     }
+    this._modules.push(moduleRef);
   }
 }
 
@@ -403,6 +397,10 @@ export abstract class ApplicationRef {
   abstract get viewCount(): number;
 }
 
+/**
+ * workaround https://github.com/angular/tsickle/issues/350
+ * @suppress {checkTypes}
+ */
 @Injectable()
 export class ApplicationRef_ extends ApplicationRef {
   /** @internal */

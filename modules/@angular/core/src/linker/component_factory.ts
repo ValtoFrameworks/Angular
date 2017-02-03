@@ -67,6 +67,10 @@ export abstract class ComponentRef<C> {
   abstract onDestroy(callback: Function): void;
 }
 
+/**
+ * workaround https://github.com/angular/tsickle/issues/350
+ * @suppress {checkTypes}
+ */
 export class ComponentRef_<C> extends ComponentRef<C> {
   constructor(
       private _index: number, private _parentView: AppView<any>, private _nativeElement: any,
@@ -91,11 +95,9 @@ export class ComponentFactory<C> {
   /** @internal */
   _viewClass: Type<AppView<any>>;
   constructor(
-      public selector: string, _viewClass: Type<AppView<any>>, private _componentType: Type<any>) {
+      public selector: string, _viewClass: Type<AppView<any>>, public componentType: Type<any>) {
     this._viewClass = _viewClass;
   }
-
-  get componentType(): Type<any> { return this._componentType; }
 
   /**
    * Creates a new component.

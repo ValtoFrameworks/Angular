@@ -7,10 +7,13 @@
  */
 
 import {PipeTransform} from '../change_detection/change_detection';
+import {Injector} from '../di';
+import {ComponentFactory} from '../linker/component_factory';
 import {QueryList} from '../linker/query_list';
 import {TemplateRef} from '../linker/template_ref';
 import {ViewContainerRef} from '../linker/view_container_ref';
-import {RenderComponentType, Renderer, RootRenderer} from '../render/api';
+import {ViewRef} from '../linker/view_ref';
+import {RenderComponentType, RenderDebugInfo, Renderer, RootRenderer} from '../render/api';
 import {Sanitizer, SecurityContext} from '../security';
 
 // -------------------------------------
@@ -24,14 +27,14 @@ export interface ViewDefinition {
   handleEvent: ViewHandleEventFn;
   /**
    * Order: Depth first.
-   * Especially providers are before elements / anchros.
+   * Especially providers are before elements / anchors.
    */
   nodes: NodeDef[];
   /** aggregated NodeFlags for all nodes **/
   nodeFlags: NodeFlags;
   /**
    * Order: parents before children, but children in reverse order.
-   * Especially providers are after elements / anchros.
+   * Especially providers are after elements / anchors.
    */
   reverseChildNodes: NodeDef[];
   lastRootNode: NodeDef;
@@ -44,14 +47,9 @@ export interface ViewDefinition {
   nodeMatchedQueries: {[queryId: string]: boolean};
 }
 
-export type ViewUpdateFn = (updater: NodeUpdater, view: ViewData) => void;
+export type ViewDefinitionFactory = () => ViewDefinition;
 
-export interface NodeUpdater {
-  checkInline(
-      view: ViewData, nodeIndex: number, v0?: any, v1?: any, v2?: any, v3?: any, v4?: any, v5?: any,
-      v6?: any, v7?: any, v8?: any, v9?: any): any;
-  checkDynamic(view: ViewData, nodeIndex: number, values: any[]): any;
-}
+export type ViewUpdateFn = (view: ViewData) => void;
 
 export type ViewHandleEventFn =
     (view: ViewData, nodeIndex: number, eventName: string, event: any) => boolean;
@@ -61,8 +59,8 @@ export type ViewHandleEventFn =
  */
 export enum ViewFlags {
   None = 0,
-  LogBindingUpdate = 1 << 0,
-  DirectDom = 1 << 1
+  DirectDom = 1 << 1,
+  OnPush = 1 << 2
 }
 
 /**
@@ -77,6 +75,8 @@ export interface NodeDef {
   reverseChildIndex: number;
   flags: NodeFlags;
   parent: number;
+  /** this is checked against NgContentDef.index to find matched nodes */
+  ngContentIndex: number;
   /** number of transitive children */
   childCount: number;
   /** aggregated NodeFlags for all children **/
@@ -100,6 +100,7 @@ export interface NodeDef {
   text: TextDef;
   pureExpression: PureExpressionDef;
   query: QueryDef;
+  ngContent: NgContentDef;
 }
 
 export enum NodeType {
@@ -108,6 +109,7 @@ export enum NodeType {
   Provider,
   PureExpression,
   Query,
+  NgContent
 }
 
 /**
@@ -127,6 +129,7 @@ export enum NodeFlags {
   HasComponent = 1 << 9,
   HasContentQuery = 1 << 10,
   HasViewQuery = 1 << 11,
+  LazyProvider = 1 << 12
 }
 
 export interface BindingDef {
@@ -149,6 +152,7 @@ export enum BindingType {
 
 export enum QueryValueType {
   ElementRef,
+  RenderElement,
   TemplateRef,
   ViewContainerRef,
   Provider
@@ -162,10 +166,9 @@ export interface ElementDef {
   /**
    * visible providers for DI in the view,
    * as see from this element.
-   * Note: We use protoypical inheritance
-   * to indices in parent ElementDefs.
    */
   providerIndices: {[tokenKey: string]: number};
+  source: string;
 }
 
 export interface ElementOutputDef {
@@ -174,12 +177,21 @@ export interface ElementOutputDef {
 }
 
 export interface ProviderDef {
+  type: ProviderType;
+  token: any;
   tokenKey: string;
-  ctor: any;
+  value: any;
   deps: DepDef[];
   outputs: ProviderOutputDef[];
   // closure to allow recursive components
-  component: () => ViewDefinition;
+  component: ViewDefinitionFactory;
+}
+
+export enum ProviderType {
+  Value,
+  Class,
+  Factory,
+  UseExisting
 }
 
 export interface DepDef {
@@ -193,7 +205,8 @@ export interface DepDef {
  */
 export enum DepFlags {
   None = 0,
-  SkipSelf = 1 << 0
+  SkipSelf = 1 << 0,
+  Optional = 1 << 1
 }
 
 export interface ProviderOutputDef {
@@ -201,7 +214,10 @@ export interface ProviderOutputDef {
   eventName: string;
 }
 
-export interface TextDef { prefix: string; }
+export interface TextDef {
+  prefix: string;
+  source: string;
+}
 
 export interface PureExpressionDef {
   type: PureExpressionType;
@@ -229,6 +245,16 @@ export enum QueryBindingType {
   All
 }
 
+export interface NgContentDef {
+  /**
+   * this index is checked against NodeDef.ngContentIndex to find the nodes
+   * that are matched by this ng-content.
+   * Note that a NodeDef with an ng-content can be reprojected, i.e.
+   * have a ngContentIndex on its own.
+   */
+  index: number;
+}
+
 // -------------------------------------
 // Data
 // -------------------------------------
@@ -240,14 +266,10 @@ export enum QueryBindingType {
 export interface ViewData {
   def: ViewDefinition;
   renderer: Renderer;
-  services: Services;
+  root: RootData;
   // index of parent element / anchor. Not the index
   // of the provider with the component view.
   parentIndex: number;
-  // for component views, this is the same as parentIndex.
-  // for embedded views, this is the index of the parent node
-  // that contains the view container.
-  parentDiIndex: number;
   parent: ViewData;
   component: any;
   context: any;
@@ -257,9 +279,19 @@ export interface ViewData {
   // and call the right accessor (e.g. `elementData`) based on
   // the NodeType.
   nodes: {[key: number]: NodeData};
-  firstChange: boolean;
+  state: ViewState;
   oldValues: any[];
   disposables: DisposableFn[];
+}
+
+/**
+ * Bitmask of states
+ */
+export enum ViewState {
+  FirstCheck = 1 << 0,
+  ChecksEnabled = 1 << 1,
+  Errored = 1 << 2,
+  Destroyed = 1 << 3
 }
 
 export type DisposableFn = () => void;
@@ -354,11 +386,62 @@ export function asQueryList(view: ViewData, index: number): QueryList<any> {
   return <any>view.nodes[index];
 }
 
-export interface Services {
-  renderComponent(rcp: RenderComponentType): Renderer;
-  sanitize(context: SecurityContext, value: string): string;
-  // Note: This needs to be here to prevent a cycle in source files.
-  createViewContainerRef(data: ElementData): ViewContainerRef;
-  // Note: This needs to be here to prevent a cycle in source files.
-  createTemplateRef(parentView: ViewData, def: NodeDef): TemplateRef<any>;
+export interface RootData {
+  injector: Injector;
+  projectableNodes: any[][];
+  selectorOrNode: string|any;
+  renderer: RootRenderer;
+  sanitizer: Sanitizer;
+}
+
+// -------------------------------------
+// Other
+// -------------------------------------
+export enum EntryAction {
+  CheckAndUpdate,
+  CheckNoChanges,
+  Create,
+  Destroy,
+  HandleEvent
+}
+
+export interface DebugContext extends RenderDebugInfo {
+  view: ViewData;
+  nodeIndex: number;
+  componentRenderElement: any;
+  renderNode: any;
+}
+
+/**
+ * This class is used to prevent cycles in the source files.
+ */
+export abstract class Refs {
+  private static instance: Refs;
+
+  static setInstance(instance: Refs) { Refs.instance = instance; }
+  static createComponentFactory(selector: string, viewDefFactory: ViewDefinitionFactory):
+      ComponentFactory<any> {
+    return Refs.instance.createComponentFactory(selector, viewDefFactory);
+  }
+  static createViewRef(data: ViewData): ViewRef { return Refs.instance.createViewRef(data); }
+  static createViewContainerRef(view: ViewData, elIndex: number): ViewContainerRef {
+    return Refs.instance.createViewContainerRef(view, elIndex);
+  }
+  static createTemplateRef(parentView: ViewData, def: NodeDef): TemplateRef<any> {
+    return Refs.instance.createTemplateRef(parentView, def);
+  }
+  static createInjector(view: ViewData, elIndex: number): Injector {
+    return Refs.instance.createInjector(view, elIndex);
+  }
+  static createDebugContext(view: ViewData, nodeIndex: number): DebugContext {
+    return Refs.instance.createDebugContext(view, nodeIndex);
+  }
+
+  abstract createComponentFactory(selector: string, viewDefFactory: ViewDefinitionFactory):
+      ComponentFactory<any>;
+  abstract createViewRef(data: ViewData): ViewRef;
+  abstract createViewContainerRef(view: ViewData, elIndex: number): ViewContainerRef;
+  abstract createTemplateRef(parentView: ViewData, def: NodeDef): TemplateRef<any>;
+  abstract createInjector(view: ViewData, elIndex: number): Injector;
+  abstract createDebugContext(view: ViewData, nodeIndex: number): DebugContext;
 }

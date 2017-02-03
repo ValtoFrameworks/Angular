@@ -150,6 +150,15 @@ export declare class DefaultValueAccessor implements ControlValueAccessor {
     writeValue(value: any): void;
 }
 
+/** @experimental */
+export declare class EmailValidator implements Validator {
+    email: boolean | string;
+    registerOnValidatorChange(fn: () => void): void;
+    validate(c: AbstractControl): {
+        [key: string]: any;
+    };
+}
+
 /** @stable */
 export interface Form {
     addControl(dir: NgControl): void;
@@ -426,6 +435,8 @@ export declare class NgModel extends NgControl implements OnChanges, OnDestroy {
     validator: ValidatorFn;
     viewModel: any;
     constructor(parent: ControlContainer, validators: Array<Validator | ValidatorFn>, asyncValidators: Array<Validator | AsyncValidatorFn>, valueAccessors: ControlValueAccessor[]);
+    compositionEnd(): void;
+    compositionStart(): void;
     ngOnChanges(changes: SimpleChanges): void;
     ngOnDestroy(): void;
     viewToModelUpdate(newValue: any): void;
@@ -488,6 +499,7 @@ export declare class RequiredValidator implements Validator {
 
 /** @stable */
 export declare class SelectControlValueAccessor implements ControlValueAccessor {
+    compareWith: (o1: any, o2: any) => boolean;
     onChange: (_: any) => void;
     onTouched: () => void;
     value: any;
@@ -500,6 +512,7 @@ export declare class SelectControlValueAccessor implements ControlValueAccessor 
 
 /** @stable */
 export declare class SelectMultipleControlValueAccessor implements ControlValueAccessor {
+    compareWith: (o1: any, o2: any) => boolean;
     onChange: (_: any) => void;
     onTouched: () => void;
     value: any;
@@ -529,6 +542,10 @@ export interface ValidatorFn {
 export declare class Validators {
     static compose(validators: ValidatorFn[]): ValidatorFn;
     static composeAsync(validators: AsyncValidatorFn[]): AsyncValidatorFn;
+    static email(control: AbstractControl): {
+        [key: string]: boolean;
+    };
+    static equalsTo(...fieldPaths: string[]): ValidatorFn;
     static maxLength(maxLength: number): ValidatorFn;
     static minLength(minLength: number): ValidatorFn;
     static nullValidator(c: AbstractControl): {

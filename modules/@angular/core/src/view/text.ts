@@ -6,12 +6,15 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
+import {isDevMode} from '../application_ref';
 import {looseIdentical} from '../facade/lang';
 
-import {BindingDef, BindingType, NodeData, NodeDef, NodeFlags, NodeType, Services, TextData, ViewData, asElementData, asTextData} from './types';
-import {checkAndUpdateBinding} from './util';
+import {BindingDef, BindingType, DebugContext, NodeData, NodeDef, NodeFlags, NodeType, Refs, RootData, TextData, ViewData, ViewFlags, asElementData, asTextData} from './types';
+import {checkAndUpdateBinding, sliceErrorStack, unwrapValue} from './util';
 
-export function textDef(constants: string[]): NodeDef {
+export function textDef(ngContentIndex: number, constants: string[]): NodeDef {
+  // skip the call to sliceErrorStack itself + the call to this function.
+  const source = isDevMode() ? sliceErrorStack(2, 3) : '';
   const bindings: BindingDef[] = new Array(constants.length - 1);
   for (let i = 1; i < constants.length; i++) {
     bindings[i - 1] = {
@@ -34,14 +37,15 @@ export function textDef(constants: string[]): NodeDef {
     disposableIndex: undefined,
     // regular values
     flags: 0,
-    matchedQueries: {},
+    matchedQueries: {}, ngContentIndex,
     childCount: 0, bindings,
     disposableCount: 0,
     element: undefined,
     provider: undefined,
-    text: {prefix: constants[0]},
+    text: {prefix: constants[0], source},
     pureExpression: undefined,
     query: undefined,
+    ngContent: undefined
   };
 }
 
@@ -50,7 +54,8 @@ export function createText(view: ViewData, renderHost: any, def: NodeDef): TextD
       def.parent != null ? asElementData(view, def.parent).renderElement : renderHost;
   let renderNode: any;
   if (view.renderer) {
-    renderNode = view.renderer.createText(parentNode, def.text.prefix);
+    const debugContext = isDevMode() ? Refs.createDebugContext(view, def.index) : undefined;
+    renderNode = view.renderer.createText(parentNode, def.text.prefix, debugContext);
   } else {
     renderNode = document.createTextNode(def.text.prefix);
     if (parentNode) {
@@ -150,6 +155,7 @@ export function checkAndUpdateTextDynamic(view: ViewData, def: NodeDef, values: 
 }
 
 function _addInterpolationPart(value: any, binding: BindingDef): string {
+  value = unwrapValue(value);
   const valueStr = value != null ? value.toString() : '';
   return valueStr + binding.suffix;
 }

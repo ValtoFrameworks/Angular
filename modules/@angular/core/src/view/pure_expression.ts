@@ -8,7 +8,7 @@
 
 import {resolveDep, tokenKey} from './provider';
 import {BindingDef, BindingType, DepDef, DepFlags, NodeData, NodeDef, NodeType, ProviderData, PureExpressionData, PureExpressionType, ViewData, asPureExpressionData} from './types';
-import {checkAndUpdateBinding} from './util';
+import {checkAndUpdateBinding, unwrapValue} from './util';
 
 export function purePipeDef(pipeToken: any, argCount: number): NodeDef {
   return _pureExpressionDef(
@@ -50,6 +50,7 @@ function _pureExpressionDef(
     // regular values
     flags: 0,
     matchedQueries: {},
+    ngContentIndex: undefined,
     childCount: 0, bindings,
     disposableCount: 0,
     element: undefined,
@@ -57,12 +58,13 @@ function _pureExpressionDef(
     text: undefined,
     pureExpression: {type, pipeDep},
     query: undefined,
+    ngContent: undefined
   };
 }
 
 export function createPureExpression(view: ViewData, def: NodeDef): PureExpressionData {
   const pipe = def.pureExpression.pipeDep ?
-      resolveDep(view, def.parent, def.pureExpression.pipeDep) :
+      resolveDep(view, def.index, def.parent, def.pureExpression.pipeDep) :
       undefined;
   return {value: undefined, pipe};
 }
@@ -97,6 +99,17 @@ export function checkAndUpdatePureExpressionInline(
   }
 
   if (changed) {
+    v0 = unwrapValue(v0);
+    v1 = unwrapValue(v1);
+    v2 = unwrapValue(v2);
+    v3 = unwrapValue(v3);
+    v4 = unwrapValue(v4);
+    v5 = unwrapValue(v5);
+    v6 = unwrapValue(v6);
+    v7 = unwrapValue(v7);
+    v8 = unwrapValue(v8);
+    v9 = unwrapValue(v9);
+
     const data = asPureExpressionData(view, def.index);
     let value: any;
     switch (def.pureExpression.type) {
@@ -206,16 +219,23 @@ export function checkAndUpdatePureExpressionDynamic(view: ViewData, def: NodeDef
     let value: any;
     switch (def.pureExpression.type) {
       case PureExpressionType.Array:
-        value = values;
+        value = new Array(values.length);
+        for (let i = 0; i < values.length; i++) {
+          value[i] = unwrapValue(values[i]);
+        }
         break;
       case PureExpressionType.Object:
         value = {};
         for (let i = 0; i < values.length; i++) {
-          value[bindings[i].name] = values[i];
+          value[bindings[i].name] = unwrapValue(values[i]);
         }
         break;
       case PureExpressionType.Pipe:
-        value = data.pipe.transform(values[0], ...values.slice(1));
+        const params = new Array(values.length);
+        for (let i = 0; i < values.length; i++) {
+          params[i] = unwrapValue(values[i]);
+        }
+        value = (<any>data.pipe.transform)(...params);
         break;
     }
     data.value = value;

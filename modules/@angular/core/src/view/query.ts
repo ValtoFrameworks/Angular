@@ -7,12 +7,11 @@
  */
 
 import {ElementRef} from '../linker/element_ref';
-import {ExpressionChangedAfterItHasBeenCheckedError} from '../linker/errors';
 import {QueryList} from '../linker/query_list';
 import {TemplateRef} from '../linker/template_ref';
 import {ViewContainerRef} from '../linker/view_container_ref';
 
-import {NodeDef, NodeFlags, NodeType, QueryBindingDef, QueryBindingType, QueryDef, QueryValueType, ViewData, asElementData, asProviderData, asQueryList} from './types';
+import {NodeDef, NodeFlags, NodeType, QueryBindingDef, QueryBindingType, QueryDef, QueryValueType, Refs, ViewData, asElementData, asProviderData, asQueryList} from './types';
 import {declaredViewContainer} from './util';
 
 export function queryDef(
@@ -35,6 +34,7 @@ export function queryDef(
     disposableIndex: undefined,
     // regular values
     flags,
+    ngContentIndex: undefined,
     matchedQueries: {},
     childCount: 0,
     bindings: [],
@@ -43,7 +43,8 @@ export function queryDef(
     provider: undefined,
     text: undefined,
     pureExpression: undefined,
-    query: {id, bindings: bindingDefs}
+    query: {id, bindings: bindingDefs},
+    ngContent: undefined
   };
 }
 
@@ -110,24 +111,9 @@ function calcQueryValues(
   const len = view.def.nodes.length;
   for (let i = startIndex; i <= endIndex; i++) {
     const nodeDef = view.def.nodes[i];
-    const queryValueType = <QueryValueType>nodeDef.matchedQueries[queryId];
-    if (queryValueType != null) {
+    const value = getQueryValue(view, nodeDef, queryId);
+    if (value != null) {
       // a match
-      let value: any;
-      switch (queryValueType) {
-        case QueryValueType.ElementRef:
-          value = new ElementRef(asElementData(view, i).renderElement);
-          break;
-        case QueryValueType.TemplateRef:
-          value = view.services.createTemplateRef(view, nodeDef);
-          break;
-        case QueryValueType.ViewContainerRef:
-          value = view.services.createViewContainerRef(asElementData(view, i));
-          break;
-        case QueryValueType.Provider:
-          value = asProviderData(view, i).instance;
-          break;
-      }
       values.push(value);
     }
     if (nodeDef.flags & NodeFlags.HasEmbeddedViews &&
@@ -157,4 +143,30 @@ function calcQueryValues(
     }
   }
   return values;
+}
+
+export function getQueryValue(view: ViewData, nodeDef: NodeDef, queryId: string): any {
+  const queryValueType = <QueryValueType>nodeDef.matchedQueries[queryId];
+  if (queryValueType != null) {
+    // a match
+    let value: any;
+    switch (queryValueType) {
+      case QueryValueType.RenderElement:
+        value = asElementData(view, nodeDef.index).renderElement;
+        break;
+      case QueryValueType.ElementRef:
+        value = new ElementRef(asElementData(view, nodeDef.index).renderElement);
+        break;
+      case QueryValueType.TemplateRef:
+        value = Refs.createTemplateRef(view, nodeDef);
+        break;
+      case QueryValueType.ViewContainerRef:
+        value = Refs.createViewContainerRef(view, nodeDef.index);
+        break;
+      case QueryValueType.Provider:
+        value = asProviderData(view, nodeDef.index).instance;
+        break;
+    }
+    return value;
+  }
 }

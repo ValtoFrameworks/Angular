@@ -6,18 +6,21 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
+import {isDevMode} from '../application_ref';
 import {SecurityContext} from '../security';
 
-import {BindingDef, BindingType, DisposableFn, ElementData, ElementOutputDef, NodeData, NodeDef, NodeFlags, NodeType, QueryValueType, ViewData, ViewDefinition, ViewFlags, asElementData} from './types';
-import {checkAndUpdateBinding, setBindingDebugInfo} from './util';
+import {BindingDef, BindingType, DebugContext, DisposableFn, ElementData, ElementOutputDef, EntryAction, NodeData, NodeDef, NodeFlags, NodeType, QueryValueType, Refs, ViewData, ViewDefinition, ViewFlags, asElementData} from './types';
+import {checkAndUpdateBinding, dispatchEvent, entryAction, setBindingDebugInfo, setCurrentNode, sliceErrorStack, unwrapValue} from './util';
 
 export function anchorDef(
-    flags: NodeFlags, matchedQueries: [string, QueryValueType][], childCount: number,
-    template?: ViewDefinition): NodeDef {
+    flags: NodeFlags, matchedQueries: [string, QueryValueType][], ngContentIndex: number,
+    childCount: number, template?: ViewDefinition): NodeDef {
   const matchedQueryDefs: {[queryId: string]: QueryValueType} = {};
   if (matchedQueries) {
     matchedQueries.forEach(([queryId, valueType]) => { matchedQueryDefs[queryId] = valueType; });
   }
+  // skip the call to sliceErrorStack itself + the call to this function.
+  const source = isDevMode() ? sliceErrorStack(2, 3) : '';
   return {
     type: NodeType.Element,
     // will bet set by the view definition
@@ -30,7 +33,7 @@ export function anchorDef(
     disposableIndex: undefined,
     // regular values
     flags,
-    matchedQueries: matchedQueryDefs, childCount,
+    matchedQueries: matchedQueryDefs, ngContentIndex, childCount,
     bindings: [],
     disposableCount: 0,
     element: {
@@ -38,22 +41,25 @@ export function anchorDef(
       attrs: undefined,
       outputs: [], template,
       // will bet set by the view definition
-      providerIndices: undefined,
+      providerIndices: undefined, source,
     },
     provider: undefined,
     text: undefined,
     pureExpression: undefined,
     query: undefined,
+    ngContent: undefined
   };
 }
 
 export function elementDef(
-    flags: NodeFlags, matchedQueries: [string, QueryValueType][], childCount: number, name: string,
-    fixedAttrs: {[name: string]: string} = {},
+    flags: NodeFlags, matchedQueries: [string, QueryValueType][], ngContentIndex: number,
+    childCount: number, name: string, fixedAttrs: {[name: string]: string} = {},
     bindings?:
         ([BindingType.ElementClass, string] | [BindingType.ElementStyle, string, string] |
          [BindingType.ElementAttribute | BindingType.ElementProperty, string, SecurityContext])[],
     outputs?: (string | [string, string])[]): NodeDef {
+  // skip the call to sliceErrorStack itself + the call to this function.
+  const source = isDevMode() ? sliceErrorStack(2, 3) : '';
   const matchedQueryDefs: {[queryId: string]: QueryValueType} = {};
   if (matchedQueries) {
     matchedQueries.forEach(([queryId, valueType]) => { matchedQueryDefs[queryId] = valueType; });
@@ -103,7 +109,7 @@ export function elementDef(
     disposableIndex: undefined,
     // regular values
     flags,
-    matchedQueries: matchedQueryDefs, childCount,
+    matchedQueries: matchedQueryDefs, ngContentIndex, childCount,
     bindings: bindingDefs,
     disposableCount: outputDefs.length,
     element: {
@@ -112,27 +118,41 @@ export function elementDef(
       outputs: outputDefs,
       template: undefined,
       // will bet set by the view definition
-      providerIndices: undefined,
+      providerIndices: undefined, source,
     },
     provider: undefined,
     text: undefined,
     pureExpression: undefined,
     query: undefined,
+    ngContent: undefined
   };
 }
 
 export function createElement(view: ViewData, renderHost: any, def: NodeDef): ElementData {
-  const parentNode =
-      def.parent != null ? asElementData(view, def.parent).renderElement : renderHost;
   const elDef = def.element;
+  const rootSelectorOrNode = view.root.selectorOrNode;
   let el: any;
-  if (view.renderer) {
-    el = elDef.name ? view.renderer.createElement(parentNode, elDef.name) :
-                      view.renderer.createTemplateAnchor(parentNode);
+  if (view.parent || !rootSelectorOrNode) {
+    const parentNode =
+        def.parent != null ? asElementData(view, def.parent).renderElement : renderHost;
+    if (view.renderer) {
+      const debugContext = isDevMode() ? Refs.createDebugContext(view, def.index) : undefined;
+      el = elDef.name ? view.renderer.createElement(parentNode, elDef.name, debugContext) :
+                        view.renderer.createTemplateAnchor(parentNode, debugContext);
+    } else {
+      el = elDef.name ? document.createElement(elDef.name) : document.createComment('');
+      if (parentNode) {
+        parentNode.appendChild(el);
+      }
+    }
   } else {
-    el = elDef.name ? document.createElement(elDef.name) : document.createComment('');
-    if (parentNode) {
-      parentNode.appendChild(el);
+    if (view.renderer) {
+      const debugContext = isDevMode() ? Refs.createDebugContext(view, def.index) : undefined;
+      el = view.renderer.selectRootElement(rootSelectorOrNode, debugContext);
+    } else {
+      el = typeof rootSelectorOrNode === 'string' ? document.querySelector(rootSelectorOrNode) :
+                                                    rootSelectorOrNode;
+      el.textContent = '';
     }
   }
   if (elDef.attrs) {
@@ -183,18 +203,19 @@ export function createElement(view: ViewData, renderHost: any, def: NodeDef): El
 }
 
 function renderEventHandlerClosure(view: ViewData, index: number, eventName: string) {
-  return (event: any) => { return view.def.handleEvent(view, index, eventName, event); };
+  return entryAction(
+      EntryAction.HandleEvent, (event: any) => dispatchEvent(view, index, eventName, event));
 }
 
 
 function directDomEventHandlerClosure(view: ViewData, index: number, eventName: string) {
-  return (event: any) => {
-    const result = view.def.handleEvent(view, index, eventName, event);
+  return entryAction(EntryAction.HandleEvent, (event: any) => {
+    const result = dispatchEvent(view, index, eventName, event);
     if (result === false) {
       event.preventDefault();
     }
     return result;
-  };
+  });
 }
 
 export function checkAndUpdateElementInline(
@@ -235,6 +256,7 @@ function checkAndUpdateElementValue(view: ViewData, def: NodeDef, bindingIdx: nu
   if (!checkAndUpdateBinding(view, def, bindingIdx, value)) {
     return;
   }
+  value = unwrapValue(value);
 
   const binding = def.bindings[bindingIdx];
   const name = binding.name;
@@ -258,7 +280,7 @@ function checkAndUpdateElementValue(view: ViewData, def: NodeDef, bindingIdx: nu
 function setElementAttribute(
     view: ViewData, binding: BindingDef, renderNode: any, name: string, value: any) {
   const securityContext = binding.securityContext;
-  let renderValue = securityContext ? view.services.sanitize(securityContext, value) : value;
+  let renderValue = securityContext ? view.root.sanitizer.sanitize(securityContext, value) : value;
   renderValue = renderValue != null ? renderValue.toString() : null;
   if (view.renderer) {
     view.renderer.setElementAttribute(renderNode, name, renderValue);
@@ -285,7 +307,7 @@ function setElementClass(view: ViewData, renderNode: any, name: string, value: b
 
 function setElementStyle(
     view: ViewData, binding: BindingDef, renderNode: any, name: string, value: any) {
-  let renderValue = view.services.sanitize(SecurityContext.STYLE, value);
+  let renderValue = view.root.sanitizer.sanitize(SecurityContext.STYLE, value);
   if (renderValue != null) {
     renderValue = renderValue.toString();
     const unit = binding.suffix;
@@ -311,10 +333,10 @@ function setElementStyle(
 function setElementProperty(
     view: ViewData, binding: BindingDef, renderNode: any, name: string, value: any) {
   const securityContext = binding.securityContext;
-  let renderValue = securityContext ? view.services.sanitize(securityContext, value) : value;
+  let renderValue = securityContext ? view.root.sanitizer.sanitize(securityContext, value) : value;
   if (view.renderer) {
     view.renderer.setElementProperty(renderNode, name, renderValue);
-    if (view.def.flags & ViewFlags.LogBindingUpdate) {
+    if (isDevMode() && (view.def.flags & ViewFlags.DirectDom) === 0) {
       setBindingDebugInfo(view.renderer, renderNode, name, renderValue);
     }
   } else {

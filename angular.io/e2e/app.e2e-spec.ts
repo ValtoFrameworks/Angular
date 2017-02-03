@@ -7,8 +7,13 @@ describe('site App', function() {
     page = new SitePage();
   });
 
-  it('should display message saying app works', () => {
-    page.navigateTo();
-    expect(page.getParagraphText()).toEqual('app works!');
+  it('should show features text after clicking "Features"', () => {
+    page.navigateTo()
+      .then(() => {
+        return page.featureLink.click();
+      })
+      .then(() => {
+        expect(page.getDocViewerText()).toContain('Progressive web apps');
+      });
   });
 });
