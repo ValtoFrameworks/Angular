@@ -5,7 +5,9 @@ export declare const APP_BASE_HREF: InjectionToken<string>;
 export declare class AsyncPipe implements OnDestroy, PipeTransform {
     constructor(_ref: ChangeDetectorRef);
     ngOnDestroy(): void;
-    transform(obj: Observable<any> | Promise<any> | EventEmitter<any>): any;
+    transform<T>(obj: EventEmitter<T>): T | null;
+    transform<T>(obj: Promise<T>): T | null;
+    transform<T>(obj: Observable<T>): T | null;
 }
 
 /** @stable */
@@ -137,7 +139,7 @@ export declare class NgForOf<T> implements DoCheck, OnChanges {
     ngForOf: NgIterable<T>;
     ngForTemplate: TemplateRef<NgForOfRow<T>>;
     ngForTrackBy: TrackByFunction<T>;
-    constructor(_viewContainer: ViewContainerRef, _template: TemplateRef<NgForOfRow<T>>, _differs: IterableDiffers, _cdr: ChangeDetectorRef);
+    constructor(_viewContainer: ViewContainerRef, _template: TemplateRef<NgForOfRow<T>>, _differs: IterableDiffers);
     ngDoCheck(): void;
     ngOnChanges(changes: SimpleChanges): void;
 }
@@ -231,9 +233,9 @@ export declare class PercentPipe implements PipeTransform {
 
 /** @stable */
 export declare abstract class PlatformLocation {
-    hash: string;
-    pathname: string;
-    search: string;
+    readonly hash: string;
+    readonly pathname: string;
+    readonly search: string;
     abstract back(): void;
     abstract forward(): void;
     abstract getBaseHrefFromDOM(): string;

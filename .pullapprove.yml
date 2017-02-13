@@ -36,7 +36,7 @@ groups:
         include:
           - "*"
         exclude:
-          - "angular.io/*"
+          - "aio/*"
           - "integration/*"
           - "modules/*"
           - "tools/*"
@@ -64,6 +64,7 @@ groups:
         exclude:
           - "tools/@angular/tsc-wrapped/*"
           - "tools/public_api_guard/*"
+          - "aio/*"
     users:
       - IgorMinar #primary
       - mhevery
@@ -236,7 +237,7 @@ groups:
   angular.io:
     conditions:
       files:
-        - "angular.io/*"
+        - "aio/*"
     users:
       - IgorMinar
       - robwormald

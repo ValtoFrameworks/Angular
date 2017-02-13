@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {NodeFlags, QueryValueType, ViewData, ViewDefinition, ViewFlags, anchorDef, checkAndUpdateView, checkNoChangesView, checkNodeDynamic, checkNodeInline, directiveDef, elementDef, setCurrentNode, textDef, viewDef} from '@angular/core/src/view/index';
+import {NodeFlags, QueryValueType, ViewData, ViewDefinition, ViewFlags, anchorDef, directiveDef, elementDef, textDef, viewDef} from '@angular/core/src/view/index';
 
 export function main() {
   describe('viewDef', () => {
@@ -228,10 +228,10 @@ export function main() {
           elementDef(NodeFlags.None, null, null, 1, 'span'),
           anchorDef(
               NodeFlags.None, null, null, 0,
-              viewDef(
+              () => viewDef(
                   ViewFlags.None,
                   [
-                    elementDef(NodeFlags.None, [['q1', QueryValueType.Provider]], null, 1, 'span'),
+                    elementDef(NodeFlags.None, [['q1', QueryValueType.Provider]], null, 0, 'span'),
                   ]))
         ]);
 

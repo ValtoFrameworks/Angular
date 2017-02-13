@@ -9,7 +9,7 @@
 import {ChangeDetectorRef, OnDestroy, Pipe, PipeTransform, WrappedValue} from '@angular/core';
 import {EventEmitter, Observable} from '../facade/async';
 import {isObservable, isPromise} from '../private_import_core';
-import {InvalidPipeArgumentError} from './invalid_pipe_argument_error';
+import {invalidPipeArgumentError} from './invalid_pipe_argument_error';
 
 interface SubscriptionStrategy {
   createSubscription(async: any, updateLatestValue: any): any;
@@ -82,6 +82,9 @@ export class AsyncPipe implements OnDestroy, PipeTransform {
     }
   }
 
+  transform<T>(obj: Observable<T>): T|null;
+  transform<T>(obj: Promise<T>): T|null;
+  transform<T>(obj: EventEmitter<T>): T|null;
   transform(obj: Observable<any>|Promise<any>|EventEmitter<any>): any {
     if (!this._obj) {
       if (obj) {
@@ -93,7 +96,7 @@ export class AsyncPipe implements OnDestroy, PipeTransform {
 
     if (obj !== this._obj) {
       this._dispose();
-      return this.transform(obj);
+      return this.transform(obj as any);
     }
 
     if (this._latestValue === this._latestReturnedValue) {
@@ -120,7 +123,7 @@ export class AsyncPipe implements OnDestroy, PipeTransform {
       return _observableStrategy;
     }
 
-    throw new InvalidPipeArgumentError(AsyncPipe, obj);
+    throw invalidPipeArgumentError(AsyncPipe, obj);
   }
 
   private _dispose(): void {
