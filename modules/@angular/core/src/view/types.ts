@@ -14,6 +14,7 @@ import {TemplateRef} from '../linker/template_ref';
 import {ViewContainerRef} from '../linker/view_container_ref';
 import {ViewRef} from '../linker/view_ref';
 import {ViewEncapsulation} from '../metadata/view';
+import {RendererFactoryV2, RendererTypeV2, RendererV2} from '../render/api';
 import {Sanitizer, SecurityContext} from '../security';
 
 // -------------------------------------
@@ -22,8 +23,8 @@ import {Sanitizer, SecurityContext} from '../security';
 
 export interface ViewDefinition {
   flags: ViewFlags;
-  component: ComponentDefinition;
-  update: ViewUpdateFn;
+  updateDirectives: ViewUpdateFn;
+  updateRenderer: ViewUpdateFn;
   handleEvent: ViewHandleEventFn;
   /**
    * Order: Depth first.
@@ -41,10 +42,11 @@ export interface ViewDefinition {
   bindingCount: number;
   disposableCount: number;
   /**
-   * ids of all queries that are matched by one of the nodes.
+   * Binary or of all query ids that are matched by one of the nodes.
    * This includes query ids from templates as well.
+   * Used as a bloom filter.
    */
-  nodeMatchedQueries: {[queryId: string]: boolean};
+  nodeMatchedQueries: number;
 }
 
 export type ViewDefinitionFactory = () => ViewDefinition;
@@ -72,13 +74,7 @@ export enum ArgumentType {
  */
 export enum ViewFlags {
   None = 0,
-  OnPush = 1 << 1
-}
-
-export interface ComponentDefinition {
-  id: string;
-  encapsulation: ViewEncapsulation;
-  styles: string[];
+  OnPush = 1 << 1,
 }
 
 /**
@@ -92,12 +88,13 @@ export interface NodeDef {
   index: number;
   reverseChildIndex: number;
   flags: NodeFlags;
-  parent: number;
+  parent: NodeDef;
+  renderParent: NodeDef;
   /** this is checked against NgContentDef.index to find matched nodes */
   ngContentIndex: number;
   /** number of transitive children */
   childCount: number;
-  /** aggregated NodeFlags for all children **/
+  /** aggregated NodeFlags for all children (does not include self) **/
   childFlags: NodeFlags;
 
   bindingIndex: number;
@@ -105,14 +102,21 @@ export interface NodeDef {
   disposableIndex: number;
   disposableCount: number;
   /**
+   * references that the user placed on the element
+   */
+  references: {[refId: string]: QueryValueType};
+  /**
    * ids and value types of all queries that are matched by this node.
    */
-  matchedQueries: {[queryId: string]: QueryValueType};
+  matchedQueries: {[queryId: number]: QueryValueType};
+  /** Binary or of all matched query ids of this node. */
+  matchedQueryIds: number;
   /**
-   * ids of all queries that are matched by one of the child nodes.
+   * Binary or of all query ids that are matched by one of the children.
    * This includes query ids from templates as well.
+   * Used as a bloom filter.
    */
-  childMatchedQueries: {[queryId: string]: boolean};
+  childMatchedQueries: number;
   element: ElementDef;
   provider: ProviderDef;
   text: TextDef;
@@ -124,7 +128,9 @@ export interface NodeDef {
 export enum NodeType {
   Element,
   Text,
+  Directive,
   Provider,
+  Pipe,
   PureExpression,
   Query,
   NgContent
@@ -146,12 +152,16 @@ export enum NodeFlags {
   HasEmbeddedViews = 1 << 8,
   HasComponent = 1 << 9,
   HasContentQuery = 1 << 10,
-  HasViewQuery = 1 << 11,
-  LazyProvider = 1 << 12
+  HasStaticQuery = 1 << 11,
+  HasDynamicQuery = 1 << 12,
+  HasViewQuery = 1 << 13,
+  LazyProvider = 1 << 14,
+  PrivateProvider = 1 << 15,
 }
 
 export interface BindingDef {
   type: BindingType;
+  ns: string;
   name: string;
   nonMinifiedName: string;
   securityContext: SecurityContext;
@@ -163,8 +173,8 @@ export enum BindingType {
   ElementClass,
   ElementStyle,
   ElementProperty,
-  ProviderProperty,
-  Interpolation,
+  DirectiveProperty,
+  TextInterpolation,
   PureExpressionProperty
 }
 
@@ -178,14 +188,22 @@ export enum QueryValueType {
 
 export interface ElementDef {
   name: string;
-  attrs: {[name: string]: string};
+  ns: string;
+  /** ns, name, value */
+  attrs: [string, string, string][];
   outputs: ElementOutputDef[];
   template: ViewDefinition;
+  component: NodeDef;
   /**
-   * visible providers for DI in the view,
-   * as see from this element.
+   * visible public providers for DI in the view,
+   * as see from this element. This does not include private providers.
    */
-  providerIndices: {[tokenKey: string]: number};
+  publicProviders: {[tokenKey: string]: NodeDef};
+  /**
+   * same as visiblePublicProviders, but also includes private providers
+   * that are located on this element.
+   */
+  allProviders: {[tokenKey: string]: NodeDef};
   source: string;
 }
 
@@ -200,7 +218,8 @@ export interface ProviderDef {
   tokenKey: string;
   value: any;
   deps: DepDef[];
-  outputs: ProviderOutputDef[];
+  outputs: DirectiveOutputDef[];
+  rendererType: RendererTypeV2;
   // closure to allow recursive components
   component: ViewDefinitionFactory;
 }
@@ -225,10 +244,10 @@ export enum DepFlags {
   None = 0,
   SkipSelf = 1 << 0,
   Optional = 1 << 1,
-  Value = 2 << 2
+  Value = 2 << 2,
 }
 
-export interface ProviderOutputDef {
+export interface DirectiveOutputDef {
   propName: string;
   eventName: string;
 }
@@ -238,10 +257,7 @@ export interface TextDef {
   source: string;
 }
 
-export interface PureExpressionDef {
-  type: PureExpressionType;
-  pipeDep: DepDef;
-}
+export interface PureExpressionDef { type: PureExpressionType; }
 
 export enum PureExpressionType {
   Array,
@@ -250,7 +266,9 @@ export enum PureExpressionType {
 }
 
 export interface QueryDef {
-  id: string;
+  id: number;
+  // variant of the id that can be used to check against NodeDef.matchedQueryIds, ...
+  filterId: number;
   bindings: QueryBindingDef[];
 }
 
@@ -285,9 +303,9 @@ export interface NgContentDef {
 export interface ViewData {
   def: ViewDefinition;
   root: RootData;
-  // index of parent element / anchor. Not the index
-  // of the provider with the component view.
-  parentIndex: number;
+  renderer: RendererV2;
+  // index of component provider / anchor.
+  parentNodeDef: NodeDef;
   parent: ViewData;
   component: any;
   context: any;
@@ -385,10 +403,7 @@ export function asProviderData(view: ViewData, index: number): ProviderData {
  *
  * Attention: Adding fields to this is performance sensitive!
  */
-export interface PureExpressionData {
-  value: any;
-  pipe: PipeTransform;
-}
+export interface PureExpressionData { value: any; }
 
 /**
  * Accessor for view.nodes, enforcing that every usage site stays monomorphic.
@@ -409,54 +424,13 @@ export interface RootData {
   projectableNodes: any[][];
   selectorOrNode: any;
   renderer: RendererV2;
+  rendererFactory: RendererFactoryV2;
   sanitizer: Sanitizer;
 }
 
-/**
- * TODO(tbosch): move this interface into @angular/core/src/render/api,
- * and implement it in @angular/platform-browser, ...
- */
-export interface RendererV2 {
-  createElement(name: string, debugInfo?: RenderDebugContext): any;
-  createComment(value: string, debugInfo?: RenderDebugContext): any;
-  createText(value: string, debugInfo?: RenderDebugContext): any;
-  appendChild(parent: any, newChild: any): void;
-  insertBefore(parent: any, newChild: any, refChild: any): void;
-  removeChild(parent: any, oldChild: any): void;
-  selectRootElement(selectorOrNode: string|any, debugInfo?: RenderDebugContext): any;
-  /**
-   * Attention: On WebWorkers, this will always return a value,
-   * as we are asking for a result synchronously. I.e.
-   * the caller can't rely on checking whether this is null or not.
-   */
-  parentNode(node: any): any;
-  /**
-   * Attention: On WebWorkers, this will always return a value,
-   * as we are asking for a result synchronously. I.e.
-   * the caller can't rely on checking whether this is null or not.
-   */
-  nextSibling(node: any): any;
-  /**
-   * Used only in debug mode to serialize property changes to dom nodes as attributes.
-   */
-  setBindingDebugInfo(el: any, propertyName: string, propertyValue: string): void;
-  /**
-   * Used only in debug mode to serialize property changes to dom nodes as attributes.
-   */
-  removeBindingDebugInfo(el: any, propertyName: string): void;
-  setAttribute(el: any, name: string, value: string): void;
-  removeAttribute(el: any, name: string): void;
-  addClass(el: any, name: string): void;
-  removeClass(el: any, name: string): void;
-  setStyle(el: any, style: string, value: any): void;
-  removeStyle(el: any, style: string): void;
-  setProperty(el: any, name: string, value: any): void;
-  setText(node: any, value: string): void;
-  listen(target: 'window'|'document'|any, eventName: string, callback: (event: any) => boolean):
-      () => void;
-}
-
-export abstract class RenderDebugContext {
+export abstract class DebugContext {
+  abstract get view(): ViewData;
+  abstract get nodeIndex(): number;
   abstract get injector(): Injector;
   abstract get component(): any;
   abstract get providerTokens(): any[];
@@ -465,11 +439,6 @@ export abstract class RenderDebugContext {
   abstract get source(): string;
   abstract get componentRenderElement(): any;
   abstract get renderNode(): any;
-}
-
-export abstract class DebugContext extends RenderDebugContext {
-  abstract get view(): ViewData;
-  abstract get nodeIndex(): number;
 }
 
 // -------------------------------------
@@ -489,11 +458,12 @@ export interface Services {
   moveEmbeddedView(elementData: ElementData, oldViewIndex: number, newViewIndex: number): ViewData;
   destroyView(view: ViewData): void;
   resolveDep(
-      view: ViewData, requestNodeIndex: number, elIndex: number, depDef: DepDef,
+      view: ViewData, elDef: NodeDef, allowPrivateServices: boolean, depDef: DepDef,
       notFoundValue?: any): any;
   createDebugContext(view: ViewData, nodeIndex: number): DebugContext;
   handleEvent: ViewHandleEventFn;
-  updateView: ViewUpdateFn;
+  updateDirectives: ViewUpdateFn;
+  updateRenderer: ViewUpdateFn;
 }
 
 /**
@@ -513,5 +483,6 @@ export const Services: Services = {
   resolveDep: undefined,
   createDebugContext: undefined,
   handleEvent: undefined,
-  updateView: undefined,
+  updateDirectives: undefined,
+  updateRenderer: undefined,
 };

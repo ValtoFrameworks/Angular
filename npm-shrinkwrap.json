@@ -8988,9 +8988,9 @@
       "dev": true
     },
     "ts-api-guardian": {
-      "version": "0.2.0",
-      "from": "ts-api-guardian@0.2.0",
-      "resolved": "https://registry.npmjs.org/ts-api-guardian/-/ts-api-guardian-0.2.0.tgz",
+      "version": "0.2.1",
+      "from": "ts-api-guardian@0.2.1",
+      "resolved": "https://registry.npmjs.org/ts-api-guardian/-/ts-api-guardian-0.2.1.tgz",
       "dev": true,
       "dependencies": {
         "diff": {
@@ -9815,6 +9815,12 @@
       "version": "2.0.0",
       "from": "xdg-basedir@>=2.0.0 <3.0.0",
       "resolved": "https://registry.npmjs.org/xdg-basedir/-/xdg-basedir-2.0.0.tgz",
+      "dev": true
+    },
+    "xhr2": {
+      "version": "0.1.4",
+      "from": "xhr2@>=0.1.4 <0.2.0",
+      "resolved": "https://registry.npmjs.org/xhr2/-/xhr2-0.1.4.tgz",
       "dev": true
     },
     "xml2js": {

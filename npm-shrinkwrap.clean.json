@@ -6146,7 +6146,7 @@
       "dev": true
     },
     "ts-api-guardian": {
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dev": true,
       "dependencies": {
         "diff": {
@@ -6711,6 +6711,10 @@
     },
     "xdg-basedir": {
       "version": "2.0.0",
+      "dev": true
+    },
+    "xhr2": {
+      "version": "0.1.4",
       "dev": true
     },
     "xml2js": {

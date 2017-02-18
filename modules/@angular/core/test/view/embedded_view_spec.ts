@@ -16,9 +16,9 @@ import {createRootView, isBrowser} from './helper';
 export function main() {
   describe(`Embedded Views`, () => {
     function compViewDef(
-        nodes: NodeDef[], update?: ViewUpdateFn, handleEvent?: ViewHandleEventFn,
-        viewFlags: ViewFlags = ViewFlags.None): ViewDefinition {
-      return viewDef(viewFlags, nodes, update, handleEvent);
+        nodes: NodeDef[], updateDirectives?: ViewUpdateFn, updateRenderer?: ViewUpdateFn,
+        handleEvent?: ViewHandleEventFn, viewFlags: ViewFlags = ViewFlags.None): ViewDefinition {
+      return viewDef(viewFlags, nodes, updateDirectives, updateRenderer, handleEvent);
     }
 
     function embeddedViewDef(nodes: NodeDef[], update?: ViewUpdateFn): ViewDefinitionFactory {
@@ -36,7 +36,7 @@ export function main() {
       const parentContext = new Object();
       const childContext = new Object();
 
-      const {view: parentView, rootNodes} = createAndGetRootNodes(
+      const {view: parentView} = createAndGetRootNodes(
           compViewDef([
             elementDef(NodeFlags.None, null, null, 1, 'div'),
             anchorDef(
@@ -55,10 +55,10 @@ export function main() {
       const {view: parentView, rootNodes} = createAndGetRootNodes(compViewDef([
         elementDef(NodeFlags.None, null, null, 2, 'div'),
         anchorDef(NodeFlags.HasEmbeddedViews, null, null, 0, embeddedViewDef([
-                    elementDef(NodeFlags.None, null, null, 0, 'span', {'name': 'child0'})
+                    elementDef(NodeFlags.None, null, null, 0, 'span', [['name', 'child0']])
                   ])),
         anchorDef(NodeFlags.None, null, null, 0, embeddedViewDef([
-                    elementDef(NodeFlags.None, null, null, 0, 'span', {'name': 'child1'})
+                    elementDef(NodeFlags.None, null, null, 0, 'span', [['name', 'child1']])
                   ]))
       ]));
       const viewContainerData = asElementData(parentView, 1);
@@ -85,10 +85,10 @@ export function main() {
       const {view: parentView, rootNodes} = createAndGetRootNodes(compViewDef([
         elementDef(NodeFlags.None, null, null, 2, 'div'),
         anchorDef(NodeFlags.HasEmbeddedViews, null, null, 0, embeddedViewDef([
-                    elementDef(NodeFlags.None, null, null, 0, 'span', {'name': 'child0'})
+                    elementDef(NodeFlags.None, null, null, 0, 'span', [['name', 'child0']])
                   ])),
         anchorDef(NodeFlags.None, null, null, 0, embeddedViewDef([
-                    elementDef(NodeFlags.None, null, null, 0, 'span', {'name': 'child1'})
+                    elementDef(NodeFlags.None, null, null, 0, 'span', [['name', 'child1']])
                   ]))
       ]));
       const viewContainerData = asElementData(parentView, 1);
@@ -112,9 +112,9 @@ export function main() {
     it('should include embedded views in root nodes', () => {
       const {view: parentView} = createAndGetRootNodes(compViewDef([
         anchorDef(NodeFlags.HasEmbeddedViews, null, null, 0, embeddedViewDef([
-                    elementDef(NodeFlags.None, null, null, 0, 'span', {'name': 'child0'})
+                    elementDef(NodeFlags.None, null, null, 0, 'span', [['name', 'child0']])
                   ])),
-        elementDef(NodeFlags.None, null, null, 0, 'span', {'name': 'after'})
+        elementDef(NodeFlags.None, null, null, 0, 'span', [['name', 'after']])
       ]));
 
       const childView0 = Services.createEmbeddedView(parentView, parentView.def.nodes[0]);
@@ -146,7 +146,6 @@ export function main() {
 
       const childView0 = Services.createEmbeddedView(parentView, parentView.def.nodes[1]);
 
-      const rootEl = rootNodes[0];
       attachEmbeddedView(asElementData(parentView, 1), 0, childView0);
 
       Services.checkAndUpdateView(parentView);
@@ -171,7 +170,7 @@ export function main() {
         ngOnDestroy() { log.push('ngOnDestroy'); };
       }
 
-      const {view: parentView, rootNodes} = createAndGetRootNodes(compViewDef([
+      const {view: parentView} = createAndGetRootNodes(compViewDef([
         elementDef(NodeFlags.None, null, null, 1, 'div'),
         anchorDef(NodeFlags.HasEmbeddedViews, null, null, 0, embeddedViewDef([
                     elementDef(NodeFlags.None, null, null, 1, 'span'),

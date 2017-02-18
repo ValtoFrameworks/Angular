@@ -6,13 +6,13 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {AnimationAnimateMetadata, AnimationEntryMetadata, AnimationGroupMetadata, AnimationKeyframesSequenceMetadata, AnimationMetadata, AnimationStateDeclarationMetadata, AnimationStateMetadata, AnimationStateTransitionMetadata, AnimationStyleMetadata, AnimationWithStepsMetadata, Attribute, ChangeDetectionStrategy, Component, ComponentFactory, Directive, Host, Inject, Injectable, InjectionToken, ModuleWithProviders, Optional, Provider, Query, SchemaMetadata, Self, SkipSelf, Type, resolveForwardRef} from '@angular/core';
+import {AnimationAnimateMetadata, AnimationEntryMetadata, AnimationGroupMetadata, AnimationKeyframesSequenceMetadata, AnimationMetadata, AnimationStateDeclarationMetadata, AnimationStateMetadata, AnimationStateTransitionMetadata, AnimationStyleMetadata, AnimationWithStepsMetadata, Attribute, ChangeDetectionStrategy, Component, ComponentFactory, Directive, Host, Inject, Injectable, InjectionToken, ModuleWithProviders, Optional, Provider, Query, RendererTypeV2, SchemaMetadata, Self, SkipSelf, Type, resolveForwardRef} from '@angular/core';
 
 import {StaticSymbol, StaticSymbolCache} from './aot/static_symbol';
 import {ngfactoryFilePath} from './aot/util';
 import {assertArrayOfStrings, assertInterpolationSymbols} from './assertions';
 import * as cpl from './compile_metadata';
-import {USE_VIEW_ENGINE} from './config';
+import {CompilerConfig} from './config';
 import {DirectiveNormalizer} from './directive_normalizer';
 import {DirectiveResolver} from './directive_resolver';
 import {stringify} from './facade/lang';
@@ -48,14 +48,14 @@ export class CompileMetadataResolver {
   private _ngModuleOfTypes = new Map<Type<any>, Type<any>>();
 
   constructor(
-      private _ngModuleResolver: NgModuleResolver, private _directiveResolver: DirectiveResolver,
-      private _pipeResolver: PipeResolver, private _summaryResolver: SummaryResolver<any>,
+      private _config: CompilerConfig, private _ngModuleResolver: NgModuleResolver,
+      private _directiveResolver: DirectiveResolver, private _pipeResolver: PipeResolver,
+      private _summaryResolver: SummaryResolver<any>,
       private _schemaRegistry: ElementSchemaRegistry,
       private _directiveNormalizer: DirectiveNormalizer,
       @Optional() private _staticSymbolCache: StaticSymbolCache,
       private _reflector: ReflectorReader = reflector,
-      @Optional() @Inject(ERROR_COLLECTOR_TOKEN) private _errorCollector?: ErrorCollector,
-      @Optional() @Inject(USE_VIEW_ENGINE) private _useViewEngine?: boolean) {}
+      @Optional() @Inject(ERROR_COLLECTOR_TOKEN) private _errorCollector?: ErrorCollector) {}
 
   clearCacheFor(type: Type<any>) {
     const dirMeta = this._directiveCache.get(type);
@@ -131,13 +131,24 @@ export class CompileMetadataResolver {
     }
   }
 
+  private getRendererType(dirType: any): StaticSymbol|RendererTypeV2 {
+    if (dirType instanceof StaticSymbol) {
+      return this._staticSymbolCache.get(
+          ngfactoryFilePath(dirType.filePath), cpl.rendererTypeName(dirType));
+    } else {
+      // returning an object as proxy,
+      // that we fill later during runtime compilation.
+      return <any>{};
+    }
+  }
+
   private getComponentFactory(selector: string, dirType: any): StaticSymbol|ComponentFactory<any> {
     if (dirType instanceof StaticSymbol) {
       return this._staticSymbolCache.get(
           ngfactoryFilePath(dirType.filePath), cpl.componentFactoryName(dirType));
     } else {
       const hostView = this.getHostComponentViewClass(dirType);
-      if (this._useViewEngine) {
+      if (this._config.useViewEngine) {
         return viewEngine.createComponentFactory(selector, dirType, <any>hostView);
       } else {
         return new ComponentFactory(selector, <any>hostView, dirType);
@@ -235,6 +246,7 @@ export class CompileMetadataResolver {
         entryComponents: metadata.entryComponents,
         wrapperType: metadata.wrapperType,
         componentViewType: metadata.componentViewType,
+        rendererType: metadata.rendererType,
         componentFactory: metadata.componentFactory,
         template: templateMetadata
       });
@@ -372,6 +384,7 @@ export class CompileMetadataResolver {
       wrapperType: this.getDirectiveWrapperClass(directiveType),
       componentViewType: nonNormalizedTemplateMetadata ? this.getComponentViewClass(directiveType) :
                                                          undefined,
+      rendererType: nonNormalizedTemplateMetadata ? this.getRendererType(directiveType) : undefined,
       componentFactory: nonNormalizedTemplateMetadata ?
           this.getComponentFactory(selector, directiveType) :
           undefined

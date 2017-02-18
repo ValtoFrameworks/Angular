@@ -101,11 +101,12 @@ export class AotCompiler {
       });
 
       // compile components
+      const compViewVars = this._compileComponent(
+          compMeta, ngModule, ngModule.transitiveModule.directives,
+          stylesCompileResults.componentStylesheet, fileSuffix, statements);
       exportedVars.push(
           this._compileComponentFactory(compMeta, ngModule, fileSuffix, statements),
-          this._compileComponent(
-              compMeta, ngModule, ngModule.transitiveModule.directives,
-              stylesCompileResults.componentStylesheet, fileSuffix, statements));
+          compViewVars.viewClassVar, compViewVars.compRenderTypeVar);
     });
     if (statements.length > 0) {
       const srcModule = this._codegenSourceModule(
@@ -175,8 +176,10 @@ export class AotCompiler {
     const hostType = this._metadataResolver.getHostComponentType(compMeta.type.reference);
     const hostMeta = createHostComponentMeta(
         hostType, compMeta, this._metadataResolver.getHostComponentViewClass(hostType));
-    const hostViewFactoryVar = this._compileComponent(
-        hostMeta, ngModule, [compMeta.type], null, fileSuffix, targetStatements);
+    const hostViewFactoryVar =
+        this._compileComponent(
+                hostMeta, ngModule, [compMeta.type], null, fileSuffix, targetStatements)
+            .viewClassVar;
     const compFactoryVar = componentFactoryName(compMeta.type.reference);
     targetStatements.push(
         o.variable(compFactoryVar)
@@ -198,28 +201,29 @@ export class AotCompiler {
   private _compileComponent(
       compMeta: CompileDirectiveMetadata, ngModule: CompileNgModuleMetadata,
       directiveIdentifiers: CompileIdentifierMetadata[], componentStyles: CompiledStylesheet,
-      fileSuffix: string, targetStatements: o.Statement[]): string {
+      fileSuffix: string,
+      targetStatements: o.Statement[]): {viewClassVar: string, compRenderTypeVar: string} {
     const parsedAnimations = this._animationParser.parseComponent(compMeta);
     const directives =
         directiveIdentifiers.map(dir => this._metadataResolver.getDirectiveSummary(dir.reference));
     const pipes = ngModule.transitiveModule.pipes.map(
         pipe => this._metadataResolver.getPipeSummary(pipe.reference));
 
-    const parsedTemplate = this._templateParser.parse(
+    const {template: parsedTemplate, pipes: usedPipes} = this._templateParser.parse(
         compMeta, compMeta.template.template, directives, pipes, ngModule.schemas,
         identifierName(compMeta.type));
     const stylesExpr = componentStyles ? o.variable(componentStyles.stylesVar) : o.literalArr([]);
     const compiledAnimations =
         this._animationCompiler.compile(identifierName(compMeta.type), parsedAnimations);
     const viewResult = this._viewCompiler.compileComponent(
-        compMeta, parsedTemplate, stylesExpr, pipes, compiledAnimations);
+        compMeta, parsedTemplate, stylesExpr, usedPipes, compiledAnimations);
     if (componentStyles) {
       targetStatements.push(
           ..._resolveStyleStatements(this._symbolResolver, componentStyles, fileSuffix));
     }
     compiledAnimations.forEach(entry => targetStatements.push(...entry.statements));
     targetStatements.push(...viewResult.statements);
-    return viewResult.viewClassVar;
+    return {viewClassVar: viewResult.viewClassVar, compRenderTypeVar: viewResult.rendererTypeVar};
   }
 
   private _codgenStyles(
