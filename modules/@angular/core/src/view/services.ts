@@ -14,12 +14,11 @@ import {Sanitizer, SecurityContext} from '../security';
 
 import {isViewDebugError, viewDestroyedError, viewWrappedDebugError} from './errors';
 import {resolveDep} from './provider';
-import {getQueryValue} from './query';
+import {dirtyParentQueries, getQueryValue} from './query';
 import {createInjector} from './refs';
-import {ArgumentType, BindingType, DebugContext, DepFlags, ElementData, NodeCheckFn, NodeData, NodeDef, NodeFlags, NodeType, RootData, Services, ViewData, ViewDefinition, ViewDefinitionFactory, ViewState, asElementData, asProviderData} from './types';
+import {ArgumentType, BindingType, CheckType, DebugContext, DepFlags, ElementData, NodeCheckFn, NodeData, NodeDef, NodeFlags, NodeType, RootData, Services, ViewData, ViewDefinition, ViewDefinitionFactory, ViewState, asElementData, asProviderData, asPureExpressionData} from './types';
 import {checkBinding, isComponentView, renderNode, viewParentEl} from './util';
-import {checkAndUpdateView, checkNoChangesView, createEmbeddedView, createRootView, destroyView} from './view';
-import {attachEmbeddedView, detachEmbeddedView, moveEmbeddedView} from './view_attach';
+import {checkAndUpdateNode, checkAndUpdateView, checkNoChangesNode, checkNoChangesView, createEmbeddedView, createRootView, destroyView} from './view';
 
 let initialized = false;
 
@@ -35,14 +34,12 @@ export function initServicesIfNeeded() {
   Services.checkAndUpdateView = services.checkAndUpdateView;
   Services.checkNoChangesView = services.checkNoChangesView;
   Services.destroyView = services.destroyView;
-  Services.attachEmbeddedView = services.attachEmbeddedView,
-  Services.detachEmbeddedView = services.detachEmbeddedView,
-  Services.moveEmbeddedView = services.moveEmbeddedView;
-  Services.resolveDep = services.resolveDep;
+  Services.resolveDep = resolveDep;
   Services.createDebugContext = services.createDebugContext;
   Services.handleEvent = services.handleEvent;
   Services.updateDirectives = services.updateDirectives;
   Services.updateRenderer = services.updateRenderer;
+  Services.dirtyParentQueries = dirtyParentQueries;
 }
 
 function createProdServices() {
@@ -53,16 +50,17 @@ function createProdServices() {
     checkAndUpdateView: checkAndUpdateView,
     checkNoChangesView: checkNoChangesView,
     destroyView: destroyView,
-    attachEmbeddedView: attachEmbeddedView,
-    detachEmbeddedView: detachEmbeddedView,
-    moveEmbeddedView: moveEmbeddedView,
-    resolveDep: resolveDep,
     createDebugContext: (view: ViewData, nodeIndex: number) => new DebugContext_(view, nodeIndex),
     handleEvent: (view: ViewData, nodeIndex: number, eventName: string, event: any) =>
                      view.def.handleEvent(view, nodeIndex, eventName, event),
-    updateDirectives: (check: NodeCheckFn, view: ViewData) =>
-                          view.def.updateDirectives(check, view),
-    updateRenderer: (check: NodeCheckFn, view: ViewData) => view.def.updateRenderer(check, view),
+    updateDirectives: (view: ViewData, checkType: CheckType) => view.def.updateDirectives(
+                          checkType === CheckType.CheckAndUpdate ? prodCheckAndUpdateNode :
+                                                                   prodCheckNoChangesNode,
+                          view),
+    updateRenderer: (view: ViewData, checkType: CheckType) => view.def.updateRenderer(
+                        checkType === CheckType.CheckAndUpdate ? prodCheckAndUpdateNode :
+                                                                 prodCheckNoChangesNode,
+                        view),
   };
 }
 
@@ -74,10 +72,6 @@ function createDebugServices() {
     checkAndUpdateView: debugCheckAndUpdateView,
     checkNoChangesView: debugCheckNoChangesView,
     destroyView: debugDestroyView,
-    attachEmbeddedView: attachEmbeddedView,
-    detachEmbeddedView: detachEmbeddedView,
-    moveEmbeddedView: moveEmbeddedView,
-    resolveDep: resolveDep,
     createDebugContext: (view: ViewData, nodeIndex: number) => new DebugContext_(view, nodeIndex),
     handleEvent: debugHandleEvent,
     updateDirectives: debugUpdateDirectives,
@@ -115,6 +109,24 @@ function createRootData(
   };
 }
 
+function prodCheckAndUpdateNode(
+    view: ViewData, nodeIndex: number, argStyle: ArgumentType, v0?: any, v1?: any, v2?: any,
+    v3?: any, v4?: any, v5?: any, v6?: any, v7?: any, v8?: any, v9?: any): any {
+  const nodeDef = view.def.nodes[nodeIndex];
+  checkAndUpdateNode(view, nodeDef, argStyle, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9);
+  return (nodeDef.type === NodeType.PureExpression) ? asPureExpressionData(view, nodeIndex).value :
+                                                      undefined;
+}
+
+function prodCheckNoChangesNode(
+    view: ViewData, nodeIndex: number, argStyle: ArgumentType, v0?: any, v1?: any, v2?: any,
+    v3?: any, v4?: any, v5?: any, v6?: any, v7?: any, v8?: any, v9?: any): any {
+  const nodeDef = view.def.nodes[nodeIndex];
+  checkNoChangesNode(view, nodeDef, argStyle, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9);
+  return (nodeDef.type === NodeType.PureExpression) ? asPureExpressionData(view, nodeIndex).value :
+                                                      undefined;
+}
+
 function debugCreateEmbeddedView(parent: ViewData, anchorDef: NodeDef, context?: any): ViewData {
   return callWithDebugContext(
       DebugAction.create, createEmbeddedView, null, [parent, anchorDef, context]);
@@ -150,15 +162,12 @@ function debugSetCurrentNode(view: ViewData, nodeIndex: number) {
 }
 
 function debugHandleEvent(view: ViewData, nodeIndex: number, eventName: string, event: any) {
-  if (view.state & ViewState.Destroyed) {
-    throw viewDestroyedError(DebugAction[_currentAction]);
-  }
   debugSetCurrentNode(view, nodeIndex);
   return callWithDebugContext(
       DebugAction.handleEvent, view.def.handleEvent, null, [view, nodeIndex, eventName, event]);
 }
 
-function debugUpdateDirectives(check: NodeCheckFn, view: ViewData) {
+function debugUpdateDirectives(view: ViewData, checkType: CheckType) {
   if (view.state & ViewState.Destroyed) {
     throw viewDestroyedError(DebugAction[_currentAction]);
   }
@@ -167,15 +176,22 @@ function debugUpdateDirectives(check: NodeCheckFn, view: ViewData) {
 
   function debugCheckDirectivesFn(
       view: ViewData, nodeIndex: number, argStyle: ArgumentType, ...values: any[]) {
-    const result = debugCheckFn(check, view, nodeIndex, argStyle, values);
-    if (view.def.nodes[nodeIndex].type === NodeType.Directive) {
+    const nodeDef = view.def.nodes[nodeIndex];
+    if (checkType === CheckType.CheckAndUpdate) {
+      debugCheckAndUpdateNode(view, nodeDef, argStyle, values);
+    } else {
+      debugCheckNoChangesNode(view, nodeDef, argStyle, values);
+    }
+    if (nodeDef.type === NodeType.Directive) {
       debugSetCurrentNode(view, nextDirectiveWithBinding(view, nodeIndex));
     }
-    return result;
+    return (nodeDef.type === NodeType.PureExpression) ?
+        asPureExpressionData(view, nodeDef.index).value :
+        undefined;
   };
 }
 
-function debugUpdateRenderer(check: NodeCheckFn, view: ViewData) {
+function debugUpdateRenderer(view: ViewData, checkType: CheckType) {
   if (view.state & ViewState.Destroyed) {
     throw viewDestroyedError(DebugAction[_currentAction]);
   }
@@ -184,29 +200,34 @@ function debugUpdateRenderer(check: NodeCheckFn, view: ViewData) {
 
   function debugCheckRenderNodeFn(
       view: ViewData, nodeIndex: number, argStyle: ArgumentType, ...values: any[]) {
-    const result = debugCheckFn(check, view, nodeIndex, argStyle, values);
     const nodeDef = view.def.nodes[nodeIndex];
+    if (checkType === CheckType.CheckAndUpdate) {
+      debugCheckAndUpdateNode(view, nodeDef, argStyle, values);
+    } else {
+      debugCheckNoChangesNode(view, nodeDef, argStyle, values);
+    }
     if (nodeDef.type === NodeType.Element || nodeDef.type === NodeType.Text) {
       debugSetCurrentNode(view, nextRenderNodeWithBinding(view, nodeIndex));
     }
-    return result;
+    return (nodeDef.type === NodeType.PureExpression) ?
+        asPureExpressionData(view, nodeDef.index).value :
+        undefined;
   }
 }
 
-function debugCheckFn(
-    delegate: NodeCheckFn, view: ViewData, nodeIndex: number, argStyle: ArgumentType,
-    givenValues: any[]) {
-  if (_currentAction === DebugAction.detectChanges) {
+function debugCheckAndUpdateNode(
+    view: ViewData, nodeDef: NodeDef, argStyle: ArgumentType, givenValues: any[]): void {
+  const changed = (<any>checkAndUpdateNode)(view, nodeDef, argStyle, ...givenValues);
+  if (changed) {
     const values = argStyle === ArgumentType.Dynamic ? givenValues[0] : givenValues;
-    const nodeDef = view.def.nodes[nodeIndex];
     if (nodeDef.type === NodeType.Directive || nodeDef.type === NodeType.Element) {
       const bindingValues: {[key: string]: string} = {};
       for (let i = 0; i < nodeDef.bindings.length; i++) {
         const binding = nodeDef.bindings[i];
         const value = values[i];
         if ((binding.type === BindingType.ElementProperty ||
-             binding.type === BindingType.DirectiveProperty) &&
-            checkBinding(view, nodeDef, i, value)) {
+             binding.type === BindingType.ComponentHostProperty ||
+             binding.type === BindingType.DirectiveProperty)) {
           bindingValues[normalizeDebugBindingName(binding.nonMinifiedName)] =
               normalizeDebugBindingValue(value);
         }
@@ -219,17 +240,26 @@ function debugCheckFn(
       } else {
         // a regular element.
         for (let attr in bindingValues) {
-          view.renderer.setAttribute(el, attr, bindingValues[attr]);
+          const value = bindingValues[attr];
+          if (value != null) {
+            view.renderer.setAttribute(el, attr, value);
+          } else {
+            view.renderer.removeAttribute(el, attr);
+          }
         }
       }
     }
   }
-  return (<any>delegate)(view, nodeIndex, argStyle, ...givenValues);
-};
+}
+
+function debugCheckNoChangesNode(
+    view: ViewData, nodeDef: NodeDef, argStyle: ArgumentType, values: any[]): void {
+  (<any>checkNoChangesNode)(view, nodeDef, argStyle, ...values);
+}
 
 function normalizeDebugBindingName(name: string) {
   // Attribute names with `$` (eg `x-y$`) are valid per spec, but unsupported by some browsers
-  name = camelCaseToDashCase(name.replace(/\$/g, '_'));
+  name = camelCaseToDashCase(name.replace(/[$@]/g, '_'));
   return `ng-reflect-${name}`;
 }
 
@@ -242,7 +272,7 @@ function camelCaseToDashCase(input: string): string {
 function normalizeDebugBindingValue(value: any): string {
   try {
     // Limit the size of the value as otherwise the DOM just gets polluted.
-    return value ? value.toString().slice(0, 20) : value;
+    return value ? value.toString().slice(0, 30) : value;
   } catch (e) {
     return '[ERROR] Exception while trying to serialize the value';
   }
@@ -273,7 +303,6 @@ class DebugContext_ implements DebugContext {
   private nodeDef: NodeDef;
   private elView: ViewData;
   private elDef: NodeDef;
-  private compProviderDef: NodeDef;
   constructor(public view: ViewData, public nodeIndex: number) {
     if (nodeIndex == null) {
       this.nodeIndex = nodeIndex = 0;
@@ -292,21 +321,14 @@ class DebugContext_ implements DebugContext {
     }
     this.elDef = elDef;
     this.elView = elView;
-    this.compProviderDef = elView ? this.elDef.element.component : null;
+  }
+  private get elOrCompView() {
+    // Has to be done lazily as we use the DebugContext also during creation of elements...
+    return asElementData(this.elView, this.elDef.index).componentView || this.view;
   }
   get injector(): Injector { return createInjector(this.elView, this.elDef); }
-  get component(): any {
-    if (this.compProviderDef) {
-      return asProviderData(this.elView, this.compProviderDef.index).instance;
-    }
-    return this.view.component;
-  }
-  get context(): any {
-    if (this.compProviderDef) {
-      return asProviderData(this.elView, this.compProviderDef.index).instance;
-    }
-    return this.view.context;
-  }
+  get component(): any { return this.elOrCompView.component; }
+  get context(): any { return this.elOrCompView.context; }
   get providerTokens(): any[] {
     const tokens: any[] = [];
     if (this.elDef) {
@@ -343,10 +365,7 @@ class DebugContext_ implements DebugContext {
     }
   }
   get componentRenderElement() {
-    const view = this.compProviderDef ?
-        asProviderData(this.elView, this.compProviderDef.index).componentView :
-        this.view;
-    const elData = findHostElement(view);
+    const elData = findHostElement(this.elOrCompView);
     return elData ? elData.renderElement : undefined;
   }
   get renderNode(): any {
@@ -407,6 +426,8 @@ class DebugRendererFactoryV2 implements RendererFactoryV2 {
 
 class DebugRendererV2 implements RendererV2 {
   constructor(private delegate: RendererV2) {}
+
+  get data() { return this.delegate.data; }
 
   destroyNode(node: any) {
     removeDebugNodeFromIndex(getDebugNode(node));

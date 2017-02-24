@@ -6,10 +6,9 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {APP_ID, Inject, Injectable, RenderComponentType, Renderer, RendererFactoryV2, RendererTypeV2, RendererV2, RootRenderer, ViewEncapsulation} from '@angular/core';
+import {APP_ID, Inject, Injectable, RenderComponentType, Renderer, RendererFactoryV2, RendererTypeV2, RendererV2, RootRenderer, ViewEncapsulation, ɵAnimationKeyframe as AnimationKeyframe, ɵAnimationPlayer as AnimationPlayer, ɵAnimationStyles as AnimationStyles, ɵDirectRenderer as DirectRenderer, ɵNoOpAnimationPlayer as NoOpAnimationPlayer, ɵRenderDebugInfo as RenderDebugInfo} from '@angular/core';
 
 import {isPresent, stringify} from '../facade/lang';
-import {AnimationKeyframe, AnimationPlayer, AnimationStyles, DirectRenderer, NoOpAnimationPlayer, RenderDebugInfo} from '../private_import_core';
 
 import {AnimationDriver} from './animation_driver';
 import {DOCUMENT} from './dom_tokens';
@@ -19,7 +18,8 @@ import {DomSharedStylesHost} from './shared_styles_host';
 export const NAMESPACE_URIS: {[ns: string]: string} = {
   'xlink': 'http://www.w3.org/1999/xlink',
   'svg': 'http://www.w3.org/2000/svg',
-  'xhtml': 'http://www.w3.org/1999/xhtml'
+  'xhtml': 'http://www.w3.org/1999/xhtml',
+  'xml': 'http://www.w3.org/XML/1998/namespace'
 };
 const TEMPLATE_COMMENT_TEXT = 'template bindings={}';
 const TEMPLATE_BINDINGS_EXP = /^template bindings=(.*)$/;
@@ -50,6 +50,8 @@ export class DomRootRenderer_ extends DomRootRenderer {
       sharedStylesHost: DomSharedStylesHost, animationDriver: AnimationDriver,
       @Inject(APP_ID) appId: string) {
     super(_document, _eventManager, sharedStylesHost, animationDriver, appId);
+    throw new Error(
+        'RootRenderer is no longer supported. Please use the `RendererFactoryV2` instead!');
   }
 }
 
@@ -344,23 +346,6 @@ export function splitNamespace(name: string): string[] {
 }
 
 
-let attrCache: Map<string, Attr>;
-
-function createAttributeNode(name: string): Attr {
-  if (!attrCache) {
-    attrCache = new Map<string, Attr>();
-  }
-  if (attrCache.has(name)) {
-    return attrCache.get(name);
-  }
-
-  const div = document.createElement('div');
-  div.innerHTML = `<div ${name}>`;
-  const attr: Attr = div.firstChild.attributes[0];
-  attrCache.set(name, attr);
-  return attr;
-}
-
 @Injectable()
 export class DomRendererFactoryV2 implements RendererFactoryV2 {
   private rendererByCompId = new Map<string, RendererV2>();
@@ -400,6 +385,8 @@ export class DomRendererFactoryV2 implements RendererFactoryV2 {
 }
 
 class DefaultDomRendererV2 implements RendererV2 {
+  data: {[key: string]: any} = Object.create(null);
+
   constructor(private eventManager: EventManager) {}
 
   destroy(): void {}

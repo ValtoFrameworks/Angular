@@ -60,9 +60,22 @@ export function createRendererTypeV2(values: {
 
 export function checkBinding(
     view: ViewData, def: NodeDef, bindingIdx: number, value: any): boolean {
-  const oldValue = view.oldValues[def.bindingIndex + bindingIdx];
-  return unwrapCounter > 0 || !!(view.state & ViewState.FirstCheck) ||
-      !devModeEqual(oldValue, value);
+  const oldValues = view.oldValues;
+  if (unwrapCounter > 0 || !!(view.state & ViewState.FirstCheck) ||
+      !looseIdentical(oldValues[def.bindingIndex + bindingIdx], value)) {
+    unwrapCounter = 0;
+    return true;
+  }
+  return false;
+}
+
+export function checkAndUpdateBinding(
+    view: ViewData, def: NodeDef, bindingIdx: number, value: any): boolean {
+  if (checkBinding(view, def, bindingIdx, value)) {
+    view.oldValues[def.bindingIndex + bindingIdx] = value;
+    return true;
+  }
+  return false;
 }
 
 export function checkBindingNoChanges(
@@ -76,27 +89,19 @@ export function checkBindingNoChanges(
   }
 }
 
-export function checkAndUpdateBinding(
-    view: ViewData, def: NodeDef, bindingIdx: number, value: any): boolean {
-  const oldValues = view.oldValues;
-  if (unwrapCounter || (view.state & ViewState.FirstCheck) ||
-      !looseIdentical(oldValues[def.bindingIndex + bindingIdx], value)) {
-    unwrapCounter = 0;
-    oldValues[def.bindingIndex + bindingIdx] = value;
-    return true;
-  }
-  return false;
-}
-
-export function dispatchEvent(
-    view: ViewData, nodeIndex: number, eventName: string, event: any): boolean {
+export function markParentViewsForCheck(view: ViewData) {
   let currView = view;
   while (currView) {
     if (currView.def.flags & ViewFlags.OnPush) {
       currView.state |= ViewState.ChecksEnabled;
     }
-    currView = currView.parent;
+    currView = currView.viewContainerParent || currView.parent;
   }
+}
+
+export function dispatchEvent(
+    view: ViewData, nodeIndex: number, eventName: string, event: any): boolean {
+  markParentViewsForCheck(view);
   return Services.handleEvent(view, nodeIndex, eventName, event);
 }
 
@@ -171,11 +176,10 @@ export function splitMatchedQueriesDsl(matchedQueriesDsl: [string | number, Quer
 export function getParentRenderElement(view: ViewData, renderHost: any, def: NodeDef): any {
   let renderParent = def.renderParent;
   if (renderParent) {
-    const parent = def.parent;
-    if (parent && (parent.type !== NodeType.Element || !parent.element.component ||
-                   (parent.element.component.provider.rendererType &&
-                    parent.element.component.provider.rendererType.encapsulation ===
-                        ViewEncapsulation.Native))) {
+    if (renderParent.type !== NodeType.Element ||
+        (renderParent.flags & NodeFlags.HasComponent) === 0 ||
+        (renderParent.element.componentRendererType &&
+         renderParent.element.componentRendererType.encapsulation === ViewEncapsulation.Native)) {
       // only children of non components, or children of components with native encapsulation should
       // be attached.
       return asElementData(view, def.renderParent.index).renderElement;
@@ -230,7 +234,7 @@ export function visitRootRenderNodes(
     view: ViewData, action: RenderNodeAction, parentNode: any, nextSibling: any, target: any[]) {
   // We need to re-compute the parent node in case the nodes have been moved around manually
   if (action === RenderNodeAction.RemoveChild) {
-    parentNode = view.renderer.parentNode(renderNode(view, view.def.lastRootNode));
+    parentNode = view.renderer.parentNode(renderNode(view, view.def.lastRenderRootNode));
   }
   visitSiblingRenderNodes(
       view, action, 0, view.def.nodes.length - 1, parentNode, nextSibling, target);

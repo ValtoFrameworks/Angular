@@ -7,9 +7,12 @@
  */
 
 import {AnimationQueue} from '../animation/animation_queue';
+import {ApplicationRef} from '../application_ref';
 import {ChangeDetectorRef} from '../change_detection/change_detector_ref';
 import {ChangeDetectorStatus} from '../change_detection/constants';
+
 import {AppView} from './view';
+
 
 /**
  * @stable
@@ -54,7 +57,7 @@ export abstract class ViewRef extends ChangeDetectorRef {
  * ```
  * Count: {{items.length}}
  * <ul>
- *   <template ngFor let-item [ngForOf]="items"></template>
+ *   <ng-template ngFor let-item [ngForOf]="items"></ng-template>
  * </ul>
  * ```
  *
@@ -71,7 +74,7 @@ export abstract class ViewRef extends ChangeDetectorRef {
  * <!-- ViewRef: outer-0 -->
  * Count: 2
  * <ul>
- *   <template view-container-ref></template>
+ *   <ng-template view-container-ref></ng-template>
  *   <!-- ViewRef: inner-1 --><li>first</li><!-- /ViewRef: inner-1 -->
  *   <!-- ViewRef: inner-2 --><li>second</li><!-- /ViewRef: inner-2 -->
  * </ul>
@@ -85,7 +88,12 @@ export abstract class EmbeddedViewRef<C> extends ViewRef {
   abstract get rootNodes(): any[];
 }
 
-export class ViewRef_<C> implements EmbeddedViewRef<C>, ChangeDetectorRef {
+export interface InternalViewRef extends ViewRef {
+  detachFromAppRef(): void;
+  attachToAppRef(appRef: ApplicationRef): void;
+}
+
+export class ViewRef_<C> implements EmbeddedViewRef<C>, ChangeDetectorRef, InternalViewRef {
   /** @internal */
   _originalMode: ChangeDetectorStatus;
 
@@ -122,4 +130,8 @@ export class ViewRef_<C> implements EmbeddedViewRef<C>, ChangeDetectorRef {
   }
 
   destroy() { this._view.detachAndDestroy(); }
+
+  detachFromAppRef() { this._view.detach(); }
+
+  attachToAppRef(appRef: ApplicationRef) { this._view.attachToAppRef(appRef); }
 }

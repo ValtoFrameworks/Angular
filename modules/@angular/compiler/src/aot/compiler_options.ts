@@ -11,4 +11,6 @@ export interface AotCompilerOptions {
   locale?: string;
   i18nFormat?: string;
   translations?: string;
+  useViewEngine?: boolean;
+  enableLegacyTemplate?: boolean;
 }

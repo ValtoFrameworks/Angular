@@ -6,9 +6,9 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {Compiler, ComponentFactory, Inject, Injector, ModuleWithComponentFactories, NgModuleFactory, RendererTypeV2, Type} from '@angular/core';
+import {Compiler, ComponentFactory, Inject, Injector, ModuleWithComponentFactories, NgModuleFactory, Type, ɵgetComponentFactoryViewClass as getComponentFactoryViewClass} from '@angular/core';
 
-import {AnimationCompiler} from '../animation/animation_compiler';
+import {AnimationCompiler, AnimationEntryCompileResult} from '../animation/animation_compiler';
 import {AnimationParser} from '../animation/animation_parser';
 import {CompileDirectiveMetadata, CompileIdentifierMetadata, CompileNgModuleMetadata, ProviderMeta, ProxyClass, createHostComponentMeta, identifierName} from '../compile_metadata';
 import {CompilerConfig} from '../config';
@@ -20,7 +20,6 @@ import {NgModuleCompiler} from '../ng_module_compiler';
 import * as ir from '../output/output_ast';
 import {interpretStatements} from '../output/output_interpreter';
 import {jitStatements} from '../output/output_jit';
-import {view_utils} from '../private_import_core';
 import {CompiledStylesheet, StyleCompiler} from '../style_compiler';
 import {TemplateParser} from '../template_parser/template_parser';
 import {SyncAsyncResult} from '../util';
@@ -222,7 +221,7 @@ export class JitCompiler implements Compiler {
       const componentFactory = <ComponentFactory<any>>compMeta.componentFactory;
       const hostClass = this._metadataResolver.getHostComponentType(compType);
       const hostMeta = createHostComponentMeta(
-          hostClass, compMeta, <any>view_utils.getComponentFactoryViewClass(componentFactory));
+          hostClass, compMeta, <any>getComponentFactoryViewClass(componentFactory));
       compiledTemplate =
           new CompiledTemplate(true, compMeta.type, hostMeta, ngModule, [compMeta.type]);
       this._compiledHostTemplateCache.set(compType, compiledTemplate);
@@ -273,7 +272,8 @@ export class JitCompiler implements Compiler {
         (r) => { externalStylesheetsByModuleUrl.set(r.meta.moduleUrl, r); });
     this._resolveStylesCompileResult(
         stylesCompileResult.componentStylesheet, externalStylesheetsByModuleUrl);
-    const parsedAnimations = this._animationParser.parseComponent(compMeta);
+    const parsedAnimations =
+        this._compilerConfig.useViewEngine ? [] : this._animationParser.parseComponent(compMeta);
     const directives =
         template.directives.map(dir => this._metadataResolver.getDirectiveSummary(dir.reference));
     const pipes = template.ngModule.transitiveModule.pipes.map(
@@ -281,7 +281,8 @@ export class JitCompiler implements Compiler {
     const {template: parsedTemplate, pipes: usedPipes} = this._templateParser.parse(
         compMeta, compMeta.template.template, directives, pipes, template.ngModule.schemas,
         identifierName(compMeta.type));
-    const compiledAnimations =
+    const compiledAnimations = this._compilerConfig.useViewEngine ?
+        [] :
         this._animationCompiler.compile(identifierName(compMeta.type), parsedAnimations);
     const compileResult = this._viewCompiler.compileComponent(
         compMeta, parsedTemplate, ir.variable(stylesCompileResult.componentStylesheet.stylesVar),

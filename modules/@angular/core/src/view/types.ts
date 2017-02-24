@@ -38,9 +38,9 @@ export interface ViewDefinition {
    * Especially providers are after elements / anchors.
    */
   reverseChildNodes: NodeDef[];
-  lastRootNode: NodeDef;
+  lastRenderRootNode: NodeDef;
   bindingCount: number;
-  disposableCount: number;
+  outputCount: number;
   /**
    * Binary or of all query ids that are matched by one of the nodes.
    * This includes query ids from templates as well.
@@ -99,8 +99,8 @@ export interface NodeDef {
 
   bindingIndex: number;
   bindings: BindingDef[];
-  disposableIndex: number;
-  disposableCount: number;
+  outputIndex: number;
+  outputs: OutputDef[];
   /**
    * references that the user placed on the element
    */
@@ -151,12 +151,13 @@ export enum NodeFlags {
   AfterViewChecked = 1 << 7,
   HasEmbeddedViews = 1 << 8,
   HasComponent = 1 << 9,
-  HasContentQuery = 1 << 10,
-  HasStaticQuery = 1 << 11,
-  HasDynamicQuery = 1 << 12,
-  HasViewQuery = 1 << 13,
-  LazyProvider = 1 << 14,
-  PrivateProvider = 1 << 15,
+  IsComponent = 1 << 10,
+  HasContentQuery = 1 << 11,
+  HasStaticQuery = 1 << 12,
+  HasDynamicQuery = 1 << 13,
+  HasViewQuery = 1 << 14,
+  LazyProvider = 1 << 15,
+  PrivateProvider = 1 << 16,
 }
 
 export interface BindingDef {
@@ -173,9 +174,22 @@ export enum BindingType {
   ElementClass,
   ElementStyle,
   ElementProperty,
+  ComponentHostProperty,
   DirectiveProperty,
   TextInterpolation,
   PureExpressionProperty
+}
+
+export interface OutputDef {
+  type: OutputType;
+  target: 'window'|'document'|'body'|'component';
+  eventName: string;
+  propName: string;
+}
+
+export enum OutputType {
+  ElementOutput,
+  DirectiveOutput
 }
 
 export enum QueryValueType {
@@ -191,9 +205,11 @@ export interface ElementDef {
   ns: string;
   /** ns, name, value */
   attrs: [string, string, string][];
-  outputs: ElementOutputDef[];
   template: ViewDefinition;
-  component: NodeDef;
+  componentProvider: NodeDef;
+  componentRendererType: RendererTypeV2;
+  // closure to allow recursive components
+  componentView: ViewDefinitionFactory;
   /**
    * visible public providers for DI in the view,
    * as see from this element. This does not include private providers.
@@ -205,12 +221,10 @@ export interface ElementDef {
    */
   allProviders: {[tokenKey: string]: NodeDef};
   source: string;
+  handleEvent: ElementHandleEventFn;
 }
 
-export interface ElementOutputDef {
-  target: string;
-  eventName: string;
-}
+export type ElementHandleEventFn = (view: ViewData, eventName: string, event: any) => boolean;
 
 export interface ProviderDef {
   type: ProviderType;
@@ -218,10 +232,6 @@ export interface ProviderDef {
   tokenKey: string;
   value: any;
   deps: DepDef[];
-  outputs: DirectiveOutputDef[];
-  rendererType: RendererTypeV2;
-  // closure to allow recursive components
-  component: ViewDefinitionFactory;
 }
 
 export enum ProviderType {
@@ -245,11 +255,6 @@ export enum DepFlags {
   SkipSelf = 1 << 0,
   Optional = 1 << 1,
   Value = 2 << 2,
-}
-
-export interface DirectiveOutputDef {
-  propName: string;
-  eventName: string;
 }
 
 export interface TextDef {
@@ -307,6 +312,7 @@ export interface ViewData {
   // index of component provider / anchor.
   parentNodeDef: NodeDef;
   parent: ViewData;
+  viewContainerParent: ViewData;
   component: any;
   context: any;
   // Attention: Never loop over this, as this will
@@ -366,6 +372,7 @@ export function asTextData(view: ViewData, index: number): TextData {
  */
 export interface ElementData {
   renderElement: any;
+  componentView: ViewData;
   embeddedViews: ViewData[];
   // views that have been created from the template
   // of this element,
@@ -386,10 +393,7 @@ export function asElementData(view: ViewData, index: number): ElementData {
  *
  * Attention: Adding fields to this is performance sensitive!
  */
-export interface ProviderData {
-  instance: any;
-  componentView: ViewData;
-}
+export interface ProviderData { instance: any; }
 
 /**
  * Accessor for view.nodes, enforcing that every usage site stays monomorphic.
@@ -445,6 +449,11 @@ export abstract class DebugContext {
 // Other
 // -------------------------------------
 
+export enum CheckType {
+  CheckAndUpdate,
+  CheckNoChanges
+}
+
 export interface Services {
   setCurrentNode(view: ViewData, nodeIndex: number): void;
   createRootView(
@@ -453,17 +462,15 @@ export interface Services {
   createEmbeddedView(parent: ViewData, anchorDef: NodeDef, context?: any): ViewData;
   checkAndUpdateView(view: ViewData): void;
   checkNoChangesView(view: ViewData): void;
-  attachEmbeddedView(elementData: ElementData, viewIndex: number, view: ViewData): void;
-  detachEmbeddedView(elementData: ElementData, viewIndex: number): ViewData;
-  moveEmbeddedView(elementData: ElementData, oldViewIndex: number, newViewIndex: number): ViewData;
   destroyView(view: ViewData): void;
   resolveDep(
       view: ViewData, elDef: NodeDef, allowPrivateServices: boolean, depDef: DepDef,
       notFoundValue?: any): any;
   createDebugContext(view: ViewData, nodeIndex: number): DebugContext;
   handleEvent: ViewHandleEventFn;
-  updateDirectives: ViewUpdateFn;
-  updateRenderer: ViewUpdateFn;
+  updateDirectives: (view: ViewData, checkType: CheckType) => void;
+  updateRenderer: (view: ViewData, checkType: CheckType) => void;
+  dirtyParentQueries: (view: ViewData) => void;
 }
 
 /**
@@ -477,12 +484,10 @@ export const Services: Services = {
   checkAndUpdateView: undefined,
   checkNoChangesView: undefined,
   destroyView: undefined,
-  attachEmbeddedView: undefined,
-  detachEmbeddedView: undefined,
-  moveEmbeddedView: undefined,
   resolveDep: undefined,
   createDebugContext: undefined,
   handleEvent: undefined,
   updateDirectives: undefined,
   updateRenderer: undefined,
+  dirtyParentQueries: undefined,
 };

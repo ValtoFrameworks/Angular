@@ -9,6 +9,7 @@
 import {AnimationCompiler} from '../animation/animation_compiler';
 import {AnimationParser} from '../animation/animation_parser';
 import {CompileDirectiveMetadata, CompileIdentifierMetadata, CompileNgModuleMetadata, CompileProviderMetadata, componentFactoryName, createHostComponentMeta, identifierName} from '../compile_metadata';
+import {CompilerConfig} from '../config';
 import {DirectiveWrapperCompiler} from '../directive_wrapper_compiler';
 import {ListWrapper} from '../facade/collection';
 import {Identifiers, createIdentifier, createIdentifierToken} from '../identifiers';
@@ -33,9 +34,10 @@ export class AotCompiler {
   private _animationCompiler = new AnimationCompiler();
 
   constructor(
-      private _host: AotCompilerHost, private _metadataResolver: CompileMetadataResolver,
-      private _templateParser: TemplateParser, private _styleCompiler: StyleCompiler,
-      private _viewCompiler: ViewCompiler, private _dirWrapperCompiler: DirectiveWrapperCompiler,
+      private _config: CompilerConfig, private _host: AotCompilerHost,
+      private _metadataResolver: CompileMetadataResolver, private _templateParser: TemplateParser,
+      private _styleCompiler: StyleCompiler, private _viewCompiler: ViewCompiler,
+      private _dirWrapperCompiler: DirectiveWrapperCompiler,
       private _ngModuleCompiler: NgModuleCompiler, private _outputEmitter: OutputEmitter,
       private _summaryResolver: SummaryResolver<StaticSymbol>, private _localeId: string,
       private _translationFormat: string, private _animationParser: AnimationParser,
@@ -77,8 +79,10 @@ export class AotCompiler {
         ...ngModules.map((ngModuleType) => this._compileModule(ngModuleType, statements)));
 
     // compile directive wrappers
-    exportedVars.push(...directives.map(
-        (directiveType) => this._compileDirectiveWrapper(directiveType, statements)));
+    if (!this._config.useViewEngine) {
+      exportedVars.push(...directives.map(
+          (directiveType) => this._compileDirectiveWrapper(directiveType, statements)));
+    }
 
     // compile components
     directives.forEach((dirType) => {
@@ -181,20 +185,35 @@ export class AotCompiler {
                 hostMeta, ngModule, [compMeta.type], null, fileSuffix, targetStatements)
             .viewClassVar;
     const compFactoryVar = componentFactoryName(compMeta.type.reference);
-    targetStatements.push(
-        o.variable(compFactoryVar)
-            .set(o.importExpr(
-                      createIdentifier(Identifiers.ComponentFactory), [o.importType(compMeta.type)])
-                     .instantiate(
-                         [
-                           o.literal(compMeta.selector),
-                           o.variable(hostViewFactoryVar),
-                           o.importExpr(compMeta.type),
-                         ],
-                         o.importType(
-                             createIdentifier(Identifiers.ComponentFactory),
-                             [o.importType(compMeta.type)], [o.TypeModifier.Const])))
-            .toDeclStmt(null, [o.StmtModifier.Final]));
+    if (this._config.useViewEngine) {
+      targetStatements.push(
+          o.variable(compFactoryVar)
+              .set(o.importExpr(createIdentifier(Identifiers.createComponentFactory)).callFn([
+                o.literal(compMeta.selector),
+                o.importExpr(compMeta.type),
+                o.variable(hostViewFactoryVar),
+              ]))
+              .toDeclStmt(
+                  o.importType(
+                      createIdentifier(Identifiers.ComponentFactory), [o.importType(compMeta.type)],
+                      [o.TypeModifier.Const]),
+                  [o.StmtModifier.Final]));
+    } else {
+      targetStatements.push(
+          o.variable(compFactoryVar)
+              .set(o.importExpr(createIdentifier(Identifiers.ComponentFactory), [o.importType(
+                                                                                    compMeta.type)])
+                       .instantiate(
+                           [
+                             o.literal(compMeta.selector),
+                             o.variable(hostViewFactoryVar),
+                             o.importExpr(compMeta.type),
+                           ],
+                           o.importType(
+                               createIdentifier(Identifiers.ComponentFactory),
+                               [o.importType(compMeta.type)], [o.TypeModifier.Const])))
+              .toDeclStmt(null, [o.StmtModifier.Final]));
+    }
     return compFactoryVar;
   }
 
@@ -203,7 +222,6 @@ export class AotCompiler {
       directiveIdentifiers: CompileIdentifierMetadata[], componentStyles: CompiledStylesheet,
       fileSuffix: string,
       targetStatements: o.Statement[]): {viewClassVar: string, compRenderTypeVar: string} {
-    const parsedAnimations = this._animationParser.parseComponent(compMeta);
     const directives =
         directiveIdentifiers.map(dir => this._metadataResolver.getDirectiveSummary(dir.reference));
     const pipes = ngModule.transitiveModule.pipes.map(
@@ -213,15 +231,12 @@ export class AotCompiler {
         compMeta, compMeta.template.template, directives, pipes, ngModule.schemas,
         identifierName(compMeta.type));
     const stylesExpr = componentStyles ? o.variable(componentStyles.stylesVar) : o.literalArr([]);
-    const compiledAnimations =
-        this._animationCompiler.compile(identifierName(compMeta.type), parsedAnimations);
-    const viewResult = this._viewCompiler.compileComponent(
-        compMeta, parsedTemplate, stylesExpr, usedPipes, compiledAnimations);
+    const viewResult =
+        this._viewCompiler.compileComponent(compMeta, parsedTemplate, stylesExpr, usedPipes, null);
     if (componentStyles) {
       targetStatements.push(
           ..._resolveStyleStatements(this._symbolResolver, componentStyles, fileSuffix));
     }
-    compiledAnimations.forEach(entry => targetStatements.push(...entry.statements));
     targetStatements.push(...viewResult.statements);
     return {viewClassVar: viewResult.viewClassVar, compRenderTypeVar: viewResult.rendererTypeVar};
   }

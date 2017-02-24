@@ -6,9 +6,6 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import * as view_utils from './linker/view_utils';
-import * as viewEngine from './view/index';
-
 export {AnimationGroupPlayer as ɵAnimationGroupPlayer} from './animation/animation_group_player';
 export {AnimationKeyframe as ɵAnimationKeyframe} from './animation/animation_keyframe';
 export {NoOpAnimationPlayer as ɵNoOpAnimationPlayer} from './animation/animation_player';
@@ -27,6 +24,6 @@ export {TemplateRef_ as ɵTemplateRef_} from './linker/template_ref';
 export {AppView as ɵAppView, DebugAppView as ɵDebugAppView} from './linker/view';
 export {ViewContainer as ɵViewContainer} from './linker/view_container';
 export {ViewType as ɵViewType} from './linker/view_type';
+export {EMPTY_ARRAY as ɵEMPTY_ARRAY, EMPTY_INLINE_ARRAY as ɵEMPTY_INLINE_ARRAY, EMPTY_MAP as ɵEMPTY_MAP, InlineArray16 as ɵInlineArray16, InlineArray2 as ɵInlineArray2, InlineArray4 as ɵInlineArray4, InlineArray8 as ɵInlineArray8, InlineArrayDynamic as ɵInlineArrayDynamic, ViewUtils as ɵViewUtils, castByValue as ɵcastByValue, checkBinding as ɵcheckBinding, checkBindingChange as ɵcheckBindingChange, checkRenderAttribute as ɵcheckRenderAttribute, checkRenderClass as ɵcheckRenderClass, checkRenderProperty as ɵcheckRenderProperty, checkRenderStyle as ɵcheckRenderStyle, checkRenderText as ɵcheckRenderText, createRenderComponentType as ɵcreateRenderComponentType, createRenderElement as ɵcreateRenderElement, getComponentFactoryViewClass as ɵgetComponentFactoryViewClass, inlineInterpolate as ɵinlineInterpolate, interpolate as ɵinterpolate, noop as ɵnoop, pureProxy1 as ɵpureProxy1, pureProxy10 as ɵpureProxy10, pureProxy2 as ɵpureProxy2, pureProxy3 as ɵpureProxy3, pureProxy4 as ɵpureProxy4, pureProxy5 as ɵpureProxy5, pureProxy6 as ɵpureProxy6, pureProxy7 as ɵpureProxy7, pureProxy8 as ɵpureProxy8, pureProxy9 as ɵpureProxy9, selectOrCreateRenderHostElement as ɵselectOrCreateRenderHostElement, setBindingDebugInfo as ɵsetBindingDebugInfo, setBindingDebugInfoForChanges as ɵsetBindingDebugInfoForChanges, subscribeToRenderElement as ɵsubscribeToRenderElement} from './linker/view_utils';
 export {reflector as ɵreflector} from './reflection/reflection';
-export {view_utils as ɵview_utils};
-export {viewEngine as ɵviewEngine};
+export {ArgumentType as ɵArgumentType, BindingType as ɵBindingType, DepFlags as ɵDepFlags, NodeFlags as ɵNodeFlags, ProviderType as ɵProviderType, QueryBindingType as ɵQueryBindingType, QueryValueType as ɵQueryValueType, ViewDefinition as ɵViewDefinition, ViewFlags as ɵViewFlags, anchorDef as ɵanchorDef, createComponentFactory as ɵcreateComponentFactory, createRendererTypeV2 as ɵcreateRendererTypeV2, directiveDef as ɵdirectiveDef, elementDef as ɵelementDef, elementEventFullName as ɵelementEventFullName, ngContentDef as ɵngContentDef, nodeValue as ɵnodeValue, pipeDef as ɵpipeDef, providerDef as ɵproviderDef, pureArrayDef as ɵpureArrayDef, pureObjectDef as ɵpureObjectDef, purePipeDef as ɵpurePipeDef, queryDef as ɵqueryDef, textDef as ɵtextDef, unwrapValue as ɵunwrapValue, viewDef as ɵviewDef} from './view/index';

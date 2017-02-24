@@ -8,7 +8,7 @@
 
 import {Injector, RenderComponentType, RootRenderer, Sanitizer, SecurityContext, ViewEncapsulation, WrappedValue, getDebugNode} from '@angular/core';
 import {getDebugContext} from '@angular/core/src/errors';
-import {ArgumentType, BindingType, DebugContext, NodeDef, NodeFlags, RootData, Services, ViewData, ViewDefinition, ViewFlags, ViewHandleEventFn, ViewUpdateFn, anchorDef, asElementData, elementDef, rootRenderNodes, textDef, viewDef} from '@angular/core/src/view/index';
+import {ArgumentType, BindingType, DebugContext, NodeDef, NodeFlags, OutputType, RootData, Services, ViewData, ViewDefinition, ViewFlags, ViewHandleEventFn, ViewUpdateFn, anchorDef, asElementData, elementDef, rootRenderNodes, textDef, viewDef} from '@angular/core/src/view/index';
 import {getDOM} from '@angular/platform-browser/src/dom/dom_adapter';
 
 import {ARG_TYPE_VALUES, checkNodeInlineOrDynamic, createRootView, isBrowser, removeNodes} from './helper';
@@ -17,8 +17,8 @@ export function main() {
   describe(`View Elements`, () => {
     function compViewDef(
         nodes: NodeDef[], updateDirectives?: ViewUpdateFn, updateRenderer?: ViewUpdateFn,
-        handleEvent?: ViewHandleEventFn, viewFlags: ViewFlags = ViewFlags.None): ViewDefinition {
-      return viewDef(viewFlags, nodes, updateDirectives, updateRenderer, handleEvent);
+        viewFlags: ViewFlags = ViewFlags.None): ViewDefinition {
+      return viewDef(viewFlags, nodes, updateDirectives, updateRenderer);
     }
 
     function createAndGetRootNodes(
@@ -189,18 +189,17 @@ export function main() {
           const handleEventSpy = jasmine.createSpy('handleEvent');
           const removeListenerSpy =
               spyOn(HTMLElement.prototype, 'removeEventListener').and.callThrough();
-          const {view, rootNodes} = createAndAttachAndGetRootNodes(compViewDef(
-              [elementDef(NodeFlags.None, null, null, 0, 'button', null, null, ['click'])], null,
-              null, handleEventSpy));
+          const {view, rootNodes} = createAndAttachAndGetRootNodes(compViewDef([elementDef(
+              NodeFlags.None, null, null, 0, 'button', null, null, [[null, 'click']],
+              handleEventSpy)]));
 
           rootNodes[0].click();
 
           expect(handleEventSpy).toHaveBeenCalled();
           let handleEventArgs = handleEventSpy.calls.mostRecent().args;
           expect(handleEventArgs[0]).toBe(view);
-          expect(handleEventArgs[1]).toBe(0);
-          expect(handleEventArgs[2]).toBe('click');
-          expect(handleEventArgs[3]).toBeTruthy();
+          expect(handleEventArgs[1]).toBe('click');
+          expect(handleEventArgs[2]).toBeTruthy();
 
           Services.destroyView(view);
 
@@ -211,11 +210,9 @@ export function main() {
           const handleEventSpy = jasmine.createSpy('handleEvent');
           const addListenerSpy = spyOn(window, 'addEventListener');
           const removeListenerSpy = spyOn(window, 'removeEventListener');
-          const {view, rootNodes} = createAndAttachAndGetRootNodes(compViewDef(
-              [elementDef(
-                  NodeFlags.None, null, null, 0, 'button', null, null,
-                  [['window', 'windowClick']])],
-              null, null, handleEventSpy));
+          const {view, rootNodes} = createAndAttachAndGetRootNodes(compViewDef([elementDef(
+              NodeFlags.None, null, null, 0, 'button', null, null, [['window', 'windowClick']],
+              handleEventSpy)]));
 
           expect(addListenerSpy).toHaveBeenCalled();
           expect(addListenerSpy.calls.mostRecent().args[0]).toBe('windowClick');
@@ -224,9 +221,8 @@ export function main() {
           expect(handleEventSpy).toHaveBeenCalled();
           const handleEventArgs = handleEventSpy.calls.mostRecent().args;
           expect(handleEventArgs[0]).toBe(view);
-          expect(handleEventArgs[1]).toBe(0);
-          expect(handleEventArgs[2]).toBe('window:windowClick');
-          expect(handleEventArgs[3]).toBeTruthy();
+          expect(handleEventArgs[1]).toBe('window:windowClick');
+          expect(handleEventArgs[2]).toBeTruthy();
 
           Services.destroyView(view);
 
@@ -237,11 +233,9 @@ export function main() {
           const handleEventSpy = jasmine.createSpy('handleEvent');
           const addListenerSpy = spyOn(document, 'addEventListener');
           const removeListenerSpy = spyOn(document, 'removeEventListener');
-          const {view, rootNodes} = createAndAttachAndGetRootNodes(compViewDef(
-              [elementDef(
-                  NodeFlags.None, null, null, 0, 'button', null, null,
-                  [['document', 'documentClick']])],
-              null, null, handleEventSpy));
+          const {view, rootNodes} = createAndAttachAndGetRootNodes(compViewDef([elementDef(
+              NodeFlags.None, null, null, 0, 'button', null, null, [['document', 'documentClick']],
+              handleEventSpy)]));
 
           expect(addListenerSpy).toHaveBeenCalled();
           expect(addListenerSpy.calls.mostRecent().args[0]).toBe('documentClick');
@@ -250,9 +244,8 @@ export function main() {
           expect(handleEventSpy).toHaveBeenCalled();
           const handleEventArgs = handleEventSpy.calls.mostRecent().args;
           expect(handleEventArgs[0]).toBe(view);
-          expect(handleEventArgs[1]).toBe(0);
-          expect(handleEventArgs[2]).toBe('document:documentClick');
-          expect(handleEventArgs[3]).toBeTruthy();
+          expect(handleEventArgs[1]).toBe('document:documentClick');
+          expect(handleEventArgs[2]).toBeTruthy();
 
           Services.destroyView(view);
 
@@ -263,12 +256,12 @@ export function main() {
           let eventHandlerResult: any;
           let preventDefaultSpy: jasmine.Spy;
 
-          const {view, rootNodes} = createAndAttachAndGetRootNodes(compViewDef(
-              [elementDef(NodeFlags.None, null, null, 0, 'button', null, null, ['click'])], null,
-              null, (view, index, eventName, event) => {
+          const {view, rootNodes} = createAndAttachAndGetRootNodes(compViewDef([elementDef(
+              NodeFlags.None, null, null, 0, 'button', null, null, [[null, 'click']],
+              (view, eventName, event) => {
                 preventDefaultSpy = spyOn(event, 'preventDefault').and.callThrough();
                 return eventHandlerResult;
-              }));
+              })]));
 
           eventHandlerResult = undefined;
           rootNodes[0].click();
@@ -289,9 +282,9 @@ export function main() {
 
         it('should report debug info on event errors', () => {
           const addListenerSpy = spyOn(HTMLElement.prototype, 'addEventListener').and.callThrough();
-          const {view, rootNodes} = createAndAttachAndGetRootNodes(compViewDef(
-              [elementDef(NodeFlags.None, null, null, 0, 'button', null, null, ['click'])], null,
-              null, () => { throw new Error('Test'); }));
+          const {view, rootNodes} = createAndAttachAndGetRootNodes(compViewDef([elementDef(
+              NodeFlags.None, null, null, 0, 'button', null, null, [[null, 'click']],
+              () => { throw new Error('Test'); })]));
 
           let err: any;
           try {

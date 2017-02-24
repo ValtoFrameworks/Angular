@@ -7,12 +7,10 @@
  */
 
 import {DomElementSchemaRegistry} from '@angular/compiler';
-import {APP_ID, Inject, Injectable, NgZone, RenderComponentType, Renderer, RendererFactoryV2, RendererTypeV2, RendererV2, RootRenderer, ViewEncapsulation} from '@angular/core';
-import {AnimationDriver, DOCUMENT} from '@angular/platform-browser';
+import {APP_ID, Inject, Injectable, NgZone, RenderComponentType, Renderer, RendererFactoryV2, RendererTypeV2, RendererV2, RootRenderer, ViewEncapsulation, ɵAnimationKeyframe as AnimationKeyframe, ɵAnimationPlayer as AnimationPlayer, ɵAnimationStyles as AnimationStyles, ɵRenderDebugInfo as RenderDebugInfo} from '@angular/core';
+import {AnimationDriver, DOCUMENT, ɵNAMESPACE_URIS as NAMESPACE_URIS, ɵSharedStylesHost as SharedStylesHost, ɵflattenStyles as flattenStyles, ɵgetDOM as getDOM, ɵisNamespaced as isNamespaced, ɵshimContentAttribute as shimContentAttribute, ɵshimHostAttribute as shimHostAttribute, ɵsplitNamespace as splitNamespace} from '@angular/platform-browser';
 
 import {isBlank, isPresent, stringify} from './facade/lang';
-import {AnimationKeyframe, AnimationPlayer, AnimationStyles, RenderDebugInfo} from './private_import_core';
-import {NAMESPACE_URIS, SharedStylesHost, flattenStyles, getDOM, isNamespaced, shimContentAttribute, shimHostAttribute, splitNamespace} from './private_import_platform-browser';
 
 const TEMPLATE_COMMENT_TEXT = 'template bindings={}';
 const TEMPLATE_BINDINGS_EXP = /^template bindings=(.*)$/;
@@ -27,7 +25,11 @@ export class ServerRootRenderer implements RootRenderer {
   constructor(
       @Inject(DOCUMENT) public document: any, public sharedStylesHost: SharedStylesHost,
       public animationDriver: AnimationDriver, @Inject(APP_ID) public appId: string,
-      private _zone: NgZone) {}
+      private _zone: NgZone) {
+    throw new Error(
+        'RootRenderer is no longer supported. Please use the `RendererFactoryV2` instead!');
+  }
+
   renderComponent(componentProto: RenderComponentType): Renderer {
     let renderer = this.registeredComponents.get(componentProto.id);
     if (!renderer) {
@@ -266,11 +268,12 @@ function appendNodes(parent: any, nodes: any) {
 export class ServerRendererFactoryV2 implements RendererFactoryV2 {
   private rendererByCompId = new Map<string, RendererV2>();
   private defaultRenderer: RendererV2;
+  private schema = new DomElementSchemaRegistry();
 
   constructor(
       private ngZone: NgZone, @Inject(DOCUMENT) private document: any,
       private sharedStylesHost: SharedStylesHost) {
-    this.defaultRenderer = new DefaultServerRendererV2(document, ngZone);
+    this.defaultRenderer = new DefaultServerRendererV2(document, ngZone, this.schema);
   };
 
   createRenderer(element: any, type: RendererTypeV2): RendererV2 {
@@ -282,7 +285,7 @@ export class ServerRendererFactoryV2 implements RendererFactoryV2 {
         let renderer = this.rendererByCompId.get(type.id);
         if (!renderer) {
           renderer = new EmulatedEncapsulationServerRendererV2(
-              this.document, this.ngZone, this.sharedStylesHost, type);
+              this.document, this.ngZone, this.sharedStylesHost, this.schema, type);
           this.rendererByCompId.set(type.id, renderer);
         }
         (<EmulatedEncapsulationServerRendererV2>renderer).applyToHost(element);
@@ -303,7 +306,10 @@ export class ServerRendererFactoryV2 implements RendererFactoryV2 {
 }
 
 class DefaultServerRendererV2 implements RendererV2 {
-  constructor(private document: any, private ngZone: NgZone) {}
+  data: {[key: string]: any} = Object.create(null);
+
+  constructor(
+      private document: any, private ngZone: NgZone, private schema: DomElementSchemaRegistry) {}
 
   destroy(): void {}
 
@@ -382,7 +388,26 @@ class DefaultServerRendererV2 implements RendererV2 {
     getDOM().removeStyle(el, style);
   }
 
-  setProperty(el: any, name: string, value: any): void { getDOM().setProperty(el, name, value); }
+  // The value was validated already as a property binding, against the property name.
+  // To know this value is safe to use as an attribute, the security context of the
+  // attribute with the given name is checked against that security context of the
+  // property.
+  private _isSafeToReflectProperty(tagName: string, propertyName: string): boolean {
+    return this.schema.securityContext(tagName, propertyName, true) ===
+        this.schema.securityContext(tagName, propertyName, false);
+  }
+
+  setProperty(el: any, name: string, value: any): void {
+    getDOM().setProperty(el, name, value);
+    // Mirror property values for known HTML element properties in the attributes.
+    const tagName = (el.tagName as string).toLowerCase();
+    if (isPresent(value) && (typeof value === 'number' || typeof value == 'string') &&
+        this.schema.hasElement(tagName, EMPTY_ARRAY) &&
+        this.schema.hasProperty(tagName, name, EMPTY_ARRAY) &&
+        this._isSafeToReflectProperty(tagName, name)) {
+      this.setAttribute(el, name, value.toString());
+    }
+  }
 
   setValue(node: any, value: string): void { getDOM().setText(node, value); }
 
@@ -404,8 +429,8 @@ class EmulatedEncapsulationServerRendererV2 extends DefaultServerRendererV2 {
 
   constructor(
       document: any, ngZone: NgZone, sharedStylesHost: SharedStylesHost,
-      private component: RendererTypeV2) {
-    super(document, ngZone);
+      schema: DomElementSchemaRegistry, private component: RendererTypeV2) {
+    super(document, ngZone, schema);
     const styles = flattenStyles(component.id, component.styles, []);
     sharedStylesHost.addStyles(styles);
 

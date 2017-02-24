@@ -20,7 +20,8 @@ let destroyViewLogs: any[];
 export function main() {
   // Don't run on server...
   if (!getDOM().supportsDOMEvents()) return;
-  describe('direct dom integration tests', function() {
+  // TODO(tbosch): delete the tests here as they use the old renderer.
+  xdescribe('direct dom integration tests', function() {
 
     beforeEach(() => {
       directRenderer = DIRECT_DOM_RENDERER;
@@ -129,7 +130,7 @@ export function main() {
     it('should support using structural directives with ngTemplateOutlet', () => {
       @Component({
         template:
-            '<child [templateCtx]="templateCtx"><template let-shown="shown" #tpl><span *ngIf="shown">hello</span></template></child>'
+            '<child [templateCtx]="templateCtx"><ng-template let-shown="shown" #tpl><span *ngIf="shown">hello</span></ng-template></child>'
       })
       class Parent {
         templateCtx = {shown: false};
