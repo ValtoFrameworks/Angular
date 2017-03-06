@@ -9,7 +9,7 @@
 import {isDevMode} from '../application_ref';
 import {looseIdentical} from '../facade/lang';
 
-import {BindingDef, BindingType, DebugContext, NodeData, NodeDef, NodeFlags, NodeType, RootData, Services, TextData, ViewData, ViewFlags, asElementData, asTextData} from './types';
+import {BindingDef, BindingType, DebugContext, NodeData, NodeDef, NodeFlags, RootData, Services, TextData, ViewData, ViewFlags, asElementData, asTextData} from './types';
 import {checkAndUpdateBinding, getParentRenderElement, sliceErrorStack} from './util';
 
 export function textDef(ngContentIndex: number, constants: string[]): NodeDef {
@@ -26,18 +26,18 @@ export function textDef(ngContentIndex: number, constants: string[]): NodeDef {
       suffix: constants[i]
     };
   }
+  const flags = NodeFlags.TypeText;
   return {
-    type: NodeType.Text,
     // will bet set by the view definition
     index: undefined,
-    reverseChildIndex: undefined,
     parent: undefined,
     renderParent: undefined,
     bindingIndex: undefined,
     outputIndex: undefined,
     // regular values
-    flags: 0,
+    flags,
     childFlags: 0,
+    directChildFlags: 0,
     childMatchedQueries: 0,
     matchedQueries: {},
     matchedQueryIds: 0,
@@ -47,7 +47,6 @@ export function textDef(ngContentIndex: number, constants: string[]): NodeDef {
     element: undefined,
     provider: undefined,
     text: {prefix: constants[0], source},
-    pureExpression: undefined,
     query: undefined,
     ngContent: undefined
   };

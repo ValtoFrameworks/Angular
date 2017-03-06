@@ -10,7 +10,12 @@ addons:
       # needed to install g++ that is used by npms's native modules
       - ubuntu-toolchain-r-test
     packages:
+      # needed to install g++ that is used by npms's native modules
       - g++-4.8
+  # https://docs.travis-ci.com/user/jwt
+  jwt:
+    # NGBUILDS_IO_KEY=<secret in valentine>
+    secure: Z+BZX6qzO4QIk1mOt8hNobltUmrO3Fh8CxKY6eiyBZRqlqVjkhwnvcXylt70luAw7uNU1G8eSUUN/n/o0SnuZ/Okayejj/5gsjzNPwUS5Wzdod+UfsLxZNG9vNVxYyH1pRdANQtnNHV0uj+aR0oSUp3ZsFIlbo9gizcM4Qj01Yc=
 
 branches:
   except:
@@ -49,14 +54,19 @@ matrix:
     - env: "CI_MODE=saucelabs_optional"
     - env: "CI_MODE=browserstack_optional"
 
+before_install:
+  # source the env.sh script so that the exported variables are available to other scripts later on
+  - source ./scripts/ci/env.sh print
+
 install:
-  - ./scripts/ci-lite/install.sh
+  - ./scripts/ci/install.sh
 
 script:
-  - ./scripts/ci-lite/build.sh && ./scripts/ci-lite/test.sh
-
-after_success:
-  - ./scripts/ci-lite/deploy_aio_staging.sh
-
-after_script:
-  - ./scripts/ci-lite/cleanup.sh
+  - ./scripts/ci/build.sh
+  - ./scripts/ci/test.sh
+  # deploy is part of 'script' and not 'after_success' so that we fail the build if the deployment fails
+  - ./scripts/ci/deploy.sh
+  - ./scripts/ci/angular.sh
+  # all the scripts under this line will not quickly abort in case ${TRAVIS_TEST_RESULT} is 1 (job failure)
+  - ./scripts/ci/cleanup.sh
+  - ./scripts/ci/print-logs.sh

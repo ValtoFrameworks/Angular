@@ -6,25 +6,15 @@
  * found in the LICENSE file at https://angular.io/license
  */
 import {animate, state, style, transition, trigger} from '@angular/animations';
-import {USE_VIEW_ENGINE} from '@angular/compiler/src/config';
 import {Component} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 import {ɵAnimationEngine} from '@angular/platform-browser/animations';
-import {NoopAnimationsModule} from '../src/noop_animations_module';
+import {NoopAnimationsModule} from '../src/module';
 import {NoopAnimationEngine} from '../src/render/noop_animation_engine';
 
 export function main() {
   describe('NoopAnimationsModule', () => {
-    beforeEach(() => {
-      TestBed.configureTestingModule({imports: [NoopAnimationsModule]});
-      TestBed.configureCompiler({
-        useJit: true,
-        providers: [{
-          provide: USE_VIEW_ENGINE,
-          useValue: true,
-        }]
-      });
-    });
+    beforeEach(() => { TestBed.configureTestingModule({imports: [NoopAnimationsModule]}); });
 
     it('the engine should be a Noop engine', () => {
       const engine = TestBed.get(ɵAnimationEngine);

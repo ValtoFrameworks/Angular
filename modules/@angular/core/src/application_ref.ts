@@ -26,7 +26,6 @@ import {CompilerFactory, CompilerOptions} from './linker/compiler';
 import {ComponentFactory, ComponentRef} from './linker/component_factory';
 import {ComponentFactoryResolver} from './linker/component_factory_resolver';
 import {NgModuleFactory, NgModuleInjector, NgModuleRef} from './linker/ng_module_factory';
-import {AppView} from './linker/view';
 import {InternalViewRef, ViewRef} from './linker/view_ref';
 import {WtfScopeFn, wtfCreateScope, wtfLeave} from './profile/profile';
 import {Testability, TestabilityRegistry} from './testability/testability';
@@ -434,9 +433,7 @@ export class ApplicationRef_ extends ApplicationRef {
       private _zone: NgZone, private _console: Console, private _injector: Injector,
       private _exceptionHandler: ErrorHandler,
       private _componentFactoryResolver: ComponentFactoryResolver,
-      private _initStatus: ApplicationInitStatus,
-      @Optional() private _testabilityRegistry: TestabilityRegistry,
-      @Optional() private _testability: Testability) {
+      private _initStatus: ApplicationInitStatus) {
     super();
     this._enforceNoNewChanges = isDevMode();
 

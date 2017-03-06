@@ -16,7 +16,7 @@ import {callLifecycleHooksChildrenFirst, checkAndUpdateDirectiveDynamic, checkAn
 import {checkAndUpdatePureExpressionDynamic, checkAndUpdatePureExpressionInline, createPureExpression} from './pure_expression';
 import {checkAndUpdateQuery, createQuery, queryDef} from './query';
 import {checkAndUpdateTextDynamic, checkAndUpdateTextInline, createText} from './text';
-import {ArgumentType, CheckType, ElementData, ElementDef, NodeData, NodeDef, NodeFlags, NodeType, ProviderData, ProviderDef, RootData, Services, TextDef, ViewData, ViewDefinition, ViewDefinitionFactory, ViewFlags, ViewHandleEventFn, ViewState, ViewUpdateFn, asElementData, asProviderData, asPureExpressionData, asQueryList, asTextData} from './types';
+import {ArgumentType, CheckType, ElementData, ElementDef, NodeData, NodeDef, NodeFlags, ProviderData, ProviderDef, RootData, Services, TextDef, ViewData, ViewDefinition, ViewDefinitionFactory, ViewFlags, ViewHandleEventFn, ViewState, ViewUpdateFn, asElementData, asProviderData, asPureExpressionData, asQueryList, asTextData} from './types';
 import {checkBindingNoChanges, isComponentView, resolveViewDefinition, viewParentEl} from './util';
 
 const NOOP = (): any => undefined;
@@ -33,6 +33,7 @@ export function viewDef(
   let viewBindingCount = 0;
   let viewDisposableCount = 0;
   let viewNodeFlags = 0;
+  let viewRootNodeFlags = 0;
   let viewMatchedQueries = 0;
   let currentParent: NodeDef = null;
   let currentElementHasPublicProviders = false;
@@ -52,12 +53,11 @@ export function viewDef(
     node.parent = currentParent;
     node.bindingIndex = viewBindingCount;
     node.outputIndex = viewDisposableCount;
-    node.reverseChildIndex =
-        calculateReverseChildIndex(currentParent, i, node.childCount, nodes.length);
 
     // renderParent needs to account for ng-container!
     let currentRenderParent: NodeDef;
-    if (currentParent && currentParent.type === NodeType.Element && !currentParent.element.name) {
+    if (currentParent && currentParent.flags & NodeFlags.TypeElement &&
+        !currentParent.element.name) {
       currentRenderParent = currentParent.renderParent;
     } else {
       currentRenderParent = currentParent;
@@ -73,7 +73,6 @@ export function viewDef(
       currentElementHasPublicProviders = false;
       currentElementHasPrivateProviders = false;
     }
-    reverseChildNodes[node.reverseChildIndex] = node;
     validateNode(currentParent, node, nodes.length);
 
     viewNodeFlags |= node.flags;
@@ -83,19 +82,22 @@ export function viewDef(
     }
     if (currentParent) {
       currentParent.childFlags |= node.flags;
+      currentParent.directChildFlags |= node.flags;
       currentParent.childMatchedQueries |= node.matchedQueryIds;
       if (node.element && node.element.template) {
         currentParent.childMatchedQueries |= node.element.template.nodeMatchedQueries;
       }
+    } else {
+      viewRootNodeFlags |= node.flags;
     }
 
     viewBindingCount += node.bindings.length;
     viewDisposableCount += node.outputs.length;
 
-    if (!currentRenderParent && (node.type === NodeType.Element || node.type === NodeType.Text)) {
+    if (!currentRenderParent && (node.flags & NodeFlags.CatRenderNode)) {
       lastRenderRootNode = node;
     }
-    if (node.type === NodeType.Provider || node.type === NodeType.Directive) {
+    if (node.flags & NodeFlags.CatProvider) {
       if (!currentElementHasPublicProviders) {
         currentElementHasPublicProviders = true;
         // Use protoypical inheritance to not get O(n^2) complexity...
@@ -104,7 +106,7 @@ export function viewDef(
         currentParent.element.allProviders = currentParent.element.publicProviders;
       }
       const isPrivateService = (node.flags & NodeFlags.PrivateProvider) !== 0;
-      const isComponent = (node.flags & NodeFlags.IsComponent) !== 0;
+      const isComponent = (node.flags & NodeFlags.Component) !== 0;
       if (!isPrivateService || isComponent) {
         currentParent.element.publicProviders[node.provider.tokenKey] = node;
       } else {
@@ -135,8 +137,9 @@ export function viewDef(
       nodes[nodeIndex].element.handleEvent(view, eventName, event);
   return {
     nodeFlags: viewNodeFlags,
+    rootNodeFlags: viewRootNodeFlags,
     nodeMatchedQueries: viewMatchedQueries, flags,
-    nodes: nodes, reverseChildNodes,
+    nodes: nodes,
     updateDirectives: updateDirectives || NOOP,
     updateRenderer: updateRenderer || NOOP,
     handleEvent: handleEvent || NOOP,
@@ -145,69 +148,29 @@ export function viewDef(
   };
 }
 
-
-
-function calculateReverseChildIndex(
-    currentParent: NodeDef, i: number, childCount: number, nodeCount: number) {
-  // Notes about reverse child order:
-  // - Every node is directly before its children, in dfs and reverse child order.
-  // - node.childCount contains all children, in dfs and reverse child order.
-  // - In dfs order, every node is before its first child
-  // - In reverse child order, every node is before its last child
-
-  // Algorithm, main idea:
-  // - In reverse child order, the ranges for each child + its transitive children are mirrored
-  //   regarding their position inside of their parent
-
-  // Visualization:
-  // Given the following tree:
-  // Nodes: n0
-  //             n1         n2
-  //                n11 n12    n21 n22
-  // dfs:    0   1   2   3  4   5   6
-  // result: 0   4   6   5  1   3   2
-  //
-  // Example:
-  // Current node = 1
-  // 1) lastChildIndex = 3
-  // 2) lastChildOffsetRelativeToParentInDfsOrder = 2
-  // 3) parentEndIndexInReverseChildOrder = 6
-  // 4) result = 4
-  let lastChildOffsetRelativeToParentInDfsOrder: number;
-  let parentEndIndexInReverseChildOrder: number;
-  if (currentParent) {
-    const lastChildIndex = i + childCount;
-    lastChildOffsetRelativeToParentInDfsOrder = lastChildIndex - currentParent.index - 1;
-    parentEndIndexInReverseChildOrder = currentParent.reverseChildIndex + currentParent.childCount;
-  } else {
-    lastChildOffsetRelativeToParentInDfsOrder = i + childCount;
-    parentEndIndexInReverseChildOrder = nodeCount - 1;
-  }
-  return parentEndIndexInReverseChildOrder - lastChildOffsetRelativeToParentInDfsOrder;
-}
-
 function validateNode(parent: NodeDef, node: NodeDef, nodeCount: number) {
   const template = node.element && node.element.template;
   if (template) {
     if (template.lastRenderRootNode &&
-        template.lastRenderRootNode.flags & NodeFlags.HasEmbeddedViews) {
+        template.lastRenderRootNode.flags & NodeFlags.EmbeddedViews) {
       throw new Error(
           `Illegal State: Last root node of a template can't have embedded views, at index ${node.index}!`);
     }
   }
-  if (node.type === NodeType.Provider || node.type === NodeType.Directive) {
-    const parentType = parent ? parent.type : null;
-    if (parentType !== NodeType.Element) {
+  if (node.flags & NodeFlags.CatProvider) {
+    const parentFlags = parent ? parent.flags : null;
+    if ((parentFlags & NodeFlags.TypeElement) === 0) {
       throw new Error(
           `Illegal State: Provider/Directive nodes need to be children of elements or anchors, at index ${node.index}!`);
     }
   }
   if (node.query) {
-    if (node.flags & NodeFlags.HasContentQuery && (!parent || parent.type !== NodeType.Directive)) {
+    if (node.flags & NodeFlags.TypeContentQuery &&
+        (!parent || (parent.flags & NodeFlags.TypeDirective) === 0)) {
       throw new Error(
           `Illegal State: Content Query nodes need to be children of directives, at index ${node.index}!`);
     }
-    if (node.flags & NodeFlags.HasViewQuery && parent) {
+    if (node.flags & NodeFlags.TypeViewQuery && parent) {
       throw new Error(
           `Illegal State: View Query nodes have to be top level nodes, at index ${node.index}!`);
     }
@@ -272,11 +235,11 @@ function createViewNodes(view: ViewData) {
     const nodeDef = def.nodes[i];
     Services.setCurrentNode(view, i);
     let nodeData: any;
-    switch (nodeDef.type) {
-      case NodeType.Element:
+    switch (nodeDef.flags & NodeFlags.Types) {
+      case NodeFlags.TypeElement:
         const el = createElement(view, renderHost, nodeDef) as any;
         let componentView: ViewData;
-        if (nodeDef.flags & NodeFlags.HasComponent) {
+        if (nodeDef.flags & NodeFlags.ComponentView) {
           const compViewDef = resolveViewDefinition(nodeDef.element.componentView);
           const rendererType = nodeDef.element.componentRendererType;
           let compRenderer: RendererV2;
@@ -292,39 +255,45 @@ function createViewNodes(view: ViewData) {
         nodeData = <ElementData>{
           renderElement: el,
           componentView,
-          embeddedViews: (nodeDef.flags & NodeFlags.HasEmbeddedViews) ? [] : undefined,
+          embeddedViews: (nodeDef.flags & NodeFlags.EmbeddedViews) ? [] : undefined,
           projectedViews: undefined
         };
         break;
-      case NodeType.Text:
+      case NodeFlags.TypeText:
         nodeData = createText(view, renderHost, nodeDef) as any;
         break;
-      case NodeType.Provider: {
+      case NodeFlags.TypeClassProvider:
+      case NodeFlags.TypeFactoryProvider:
+      case NodeFlags.TypeUseExistingProvider:
+      case NodeFlags.TypeValueProvider: {
         const instance = createProviderInstance(view, nodeDef);
         nodeData = <ProviderData>{instance};
         break;
       }
-      case NodeType.Pipe: {
+      case NodeFlags.TypePipe: {
         const instance = createPipeInstance(view, nodeDef);
         nodeData = <ProviderData>{instance};
         break;
       }
-      case NodeType.Directive: {
+      case NodeFlags.TypeDirective: {
         const instance = createDirectiveInstance(view, nodeDef);
         nodeData = <ProviderData>{instance};
-        if (nodeDef.flags & NodeFlags.IsComponent) {
+        if (nodeDef.flags & NodeFlags.Component) {
           const compView = asElementData(view, nodeDef.parent.index).componentView;
           initView(compView, instance, instance);
         }
         break;
       }
-      case NodeType.PureExpression:
+      case NodeFlags.TypePureArray:
+      case NodeFlags.TypePureObject:
+      case NodeFlags.TypePurePipe:
         nodeData = createPureExpression(view, nodeDef) as any;
         break;
-      case NodeType.Query:
+      case NodeFlags.TypeContentQuery:
+      case NodeFlags.TypeViewQuery:
         nodeData = createQuery() as any;
         break;
-      case NodeType.NgContent:
+      case NodeFlags.TypeNgContent:
         appendNgContent(view, renderHost, nodeDef);
         // no runtime data needed for NgContent...
         nodeData = undefined;
@@ -338,7 +307,7 @@ function createViewNodes(view: ViewData) {
 
   // fill static content and view queries
   execQueriesAction(
-      view, NodeFlags.HasContentQuery | NodeFlags.HasViewQuery, NodeFlags.HasStaticQuery,
+      view, NodeFlags.TypeContentQuery | NodeFlags.TypeViewQuery, NodeFlags.StaticQuery,
       CheckType.CheckAndUpdate);
 }
 
@@ -346,18 +315,18 @@ export function checkNoChangesView(view: ViewData) {
   Services.updateDirectives(view, CheckType.CheckNoChanges);
   execEmbeddedViewsAction(view, ViewAction.CheckNoChanges);
   execQueriesAction(
-      view, NodeFlags.HasContentQuery, NodeFlags.HasDynamicQuery, CheckType.CheckNoChanges);
+      view, NodeFlags.TypeContentQuery, NodeFlags.DynamicQuery, CheckType.CheckNoChanges);
   Services.updateRenderer(view, CheckType.CheckNoChanges);
   execComponentViewsAction(view, ViewAction.CheckNoChanges);
   execQueriesAction(
-      view, NodeFlags.HasViewQuery, NodeFlags.HasDynamicQuery, CheckType.CheckNoChanges);
+      view, NodeFlags.TypeViewQuery, NodeFlags.DynamicQuery, CheckType.CheckNoChanges);
 }
 
 export function checkAndUpdateView(view: ViewData) {
   Services.updateDirectives(view, CheckType.CheckAndUpdate);
   execEmbeddedViewsAction(view, ViewAction.CheckAndUpdate);
   execQueriesAction(
-      view, NodeFlags.HasContentQuery, NodeFlags.HasDynamicQuery, CheckType.CheckAndUpdate);
+      view, NodeFlags.TypeContentQuery, NodeFlags.DynamicQuery, CheckType.CheckAndUpdate);
 
   callLifecycleHooksChildrenFirst(
       view, NodeFlags.AfterContentChecked |
@@ -367,7 +336,7 @@ export function checkAndUpdateView(view: ViewData) {
 
   execComponentViewsAction(view, ViewAction.CheckAndUpdate);
   execQueriesAction(
-      view, NodeFlags.HasViewQuery, NodeFlags.HasDynamicQuery, CheckType.CheckAndUpdate);
+      view, NodeFlags.TypeViewQuery, NodeFlags.DynamicQuery, CheckType.CheckAndUpdate);
 
   callLifecycleHooksChildrenFirst(
       view, NodeFlags.AfterViewChecked |
@@ -393,18 +362,20 @@ function checkAndUpdateNodeInline(
     view: ViewData, nodeDef: NodeDef, v0?: any, v1?: any, v2?: any, v3?: any, v4?: any, v5?: any,
     v6?: any, v7?: any, v8?: any, v9?: any): boolean {
   let changed = false;
-  switch (nodeDef.type) {
-    case NodeType.Element:
+  switch (nodeDef.flags & NodeFlags.Types) {
+    case NodeFlags.TypeElement:
       changed = checkAndUpdateElementInline(view, nodeDef, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9);
       break;
-    case NodeType.Text:
+    case NodeFlags.TypeText:
       changed = checkAndUpdateTextInline(view, nodeDef, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9);
       break;
-    case NodeType.Directive:
+    case NodeFlags.TypeDirective:
       changed =
           checkAndUpdateDirectiveInline(view, nodeDef, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9);
       break;
-    case NodeType.PureExpression:
+    case NodeFlags.TypePureArray:
+    case NodeFlags.TypePureObject:
+    case NodeFlags.TypePurePipe:
       changed =
           checkAndUpdatePureExpressionInline(view, nodeDef, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9);
       break;
@@ -414,17 +385,19 @@ function checkAndUpdateNodeInline(
 
 function checkAndUpdateNodeDynamic(view: ViewData, nodeDef: NodeDef, values: any[]): boolean {
   let changed = false;
-  switch (nodeDef.type) {
-    case NodeType.Element:
+  switch (nodeDef.flags & NodeFlags.Types) {
+    case NodeFlags.TypeElement:
       changed = checkAndUpdateElementDynamic(view, nodeDef, values);
       break;
-    case NodeType.Text:
+    case NodeFlags.TypeText:
       changed = checkAndUpdateTextDynamic(view, nodeDef, values);
       break;
-    case NodeType.Directive:
+    case NodeFlags.TypeDirective:
       changed = checkAndUpdateDirectiveDynamic(view, nodeDef, values);
       break;
-    case NodeType.PureExpression:
+    case NodeFlags.TypePureArray:
+    case NodeFlags.TypePureObject:
+    case NodeFlags.TypePurePipe:
       changed = checkAndUpdatePureExpressionDynamic(view, nodeDef, values);
       break;
   }
@@ -509,9 +482,9 @@ function destroyViewNodes(view: ViewData) {
   const len = view.def.nodes.length;
   for (let i = 0; i < len; i++) {
     const def = view.def.nodes[i];
-    if (def.type === NodeType.Element) {
+    if (def.flags & NodeFlags.TypeElement) {
       view.renderer.destroyNode(asElementData(view, i).renderElement);
-    } else if (def.type === NodeType.Text) {
+    } else if (def.flags & NodeFlags.TypeText) {
       view.renderer.destroyNode(asTextData(view, i).renderText);
     }
   }
@@ -526,15 +499,15 @@ enum ViewAction {
 
 function execComponentViewsAction(view: ViewData, action: ViewAction) {
   const def = view.def;
-  if (!(def.nodeFlags & NodeFlags.HasComponent)) {
+  if (!(def.nodeFlags & NodeFlags.ComponentView)) {
     return;
   }
   for (let i = 0; i < def.nodes.length; i++) {
     const nodeDef = def.nodes[i];
-    if (nodeDef.flags & NodeFlags.HasComponent) {
+    if (nodeDef.flags & NodeFlags.ComponentView) {
       // a leaf
       callViewAction(asElementData(view, i).componentView, action);
-    } else if ((nodeDef.childFlags & NodeFlags.HasComponent) === 0) {
+    } else if ((nodeDef.childFlags & NodeFlags.ComponentView) === 0) {
       // a parent with leafs
       // no child is a component,
       // then skip the children
@@ -545,12 +518,12 @@ function execComponentViewsAction(view: ViewData, action: ViewAction) {
 
 function execEmbeddedViewsAction(view: ViewData, action: ViewAction) {
   const def = view.def;
-  if (!(def.nodeFlags & NodeFlags.HasEmbeddedViews)) {
+  if (!(def.nodeFlags & NodeFlags.EmbeddedViews)) {
     return;
   }
   for (let i = 0; i < def.nodes.length; i++) {
     const nodeDef = def.nodes[i];
-    if (nodeDef.flags & NodeFlags.HasEmbeddedViews) {
+    if (nodeDef.flags & NodeFlags.EmbeddedViews) {
       // a leaf
       const embeddedViews = asElementData(view, i).embeddedViews;
       if (embeddedViews) {
@@ -558,7 +531,7 @@ function execEmbeddedViewsAction(view: ViewData, action: ViewAction) {
           callViewAction(embeddedViews[k], action);
         }
       }
-    } else if ((nodeDef.childFlags & NodeFlags.HasEmbeddedViews) === 0) {
+    } else if ((nodeDef.childFlags & NodeFlags.EmbeddedViews) === 0) {
       // a parent with leafs
       // no child is a component,
       // then skip the children

@@ -33,11 +33,7 @@ export interface ViewDefinition {
   nodes: NodeDef[];
   /** aggregated NodeFlags for all nodes **/
   nodeFlags: NodeFlags;
-  /**
-   * Order: parents before children, but children in reverse order.
-   * Especially providers are after elements / anchors.
-   */
-  reverseChildNodes: NodeDef[];
+  rootNodeFlags: NodeFlags;
   lastRenderRootNode: NodeDef;
   bindingCount: number;
   outputCount: number;
@@ -64,15 +60,12 @@ export interface NodeCheckFn {
 export type ViewHandleEventFn =
     (view: ViewData, nodeIndex: number, eventName: string, event: any) => boolean;
 
-export enum ArgumentType {
-  Inline,
-  Dynamic
-}
+export const enum ArgumentType {Inline, Dynamic}
 
 /**
  * Bitmask for ViewDefintion.flags.
  */
-export enum ViewFlags {
+export const enum ViewFlags {
   None = 0,
   OnPush = 1 << 1,
 }
@@ -84,18 +77,18 @@ export enum ViewFlags {
  * of a ViewDefinition stay monomorphic!
  */
 export interface NodeDef {
-  type: NodeType;
-  index: number;
-  reverseChildIndex: number;
   flags: NodeFlags;
+  index: number;
   parent: NodeDef;
   renderParent: NodeDef;
   /** this is checked against NgContentDef.index to find matched nodes */
   ngContentIndex: number;
   /** number of transitive children */
   childCount: number;
-  /** aggregated NodeFlags for all children (does not include self) **/
+  /** aggregated NodeFlags for all transitive children (does not include self) **/
   childFlags: NodeFlags;
+  /** aggregated NodeFlags for all direct children (does not include self) **/
+  directChildFlags: NodeFlags;
 
   bindingIndex: number;
   bindings: BindingDef[];
@@ -120,44 +113,55 @@ export interface NodeDef {
   element: ElementDef;
   provider: ProviderDef;
   text: TextDef;
-  pureExpression: PureExpressionDef;
   query: QueryDef;
   ngContent: NgContentDef;
 }
 
-export enum NodeType {
-  Element,
-  Text,
-  Directive,
-  Provider,
-  Pipe,
-  PureExpression,
-  Query,
-  NgContent
-}
-
 /**
  * Bitmask for NodeDef.flags.
+ * Naming convention:
+ * - `Type...`: flags that are mutually exclusive
+ * - `Cat...`: union of multiple `Type...` (short for category).
  */
-export enum NodeFlags {
+export const enum NodeFlags {
   None = 0,
-  OnInit = 1 << 0,
-  OnDestroy = 1 << 1,
-  DoCheck = 1 << 2,
-  OnChanges = 1 << 3,
-  AfterContentInit = 1 << 4,
-  AfterContentChecked = 1 << 5,
-  AfterViewInit = 1 << 6,
-  AfterViewChecked = 1 << 7,
-  HasEmbeddedViews = 1 << 8,
-  HasComponent = 1 << 9,
-  IsComponent = 1 << 10,
-  HasContentQuery = 1 << 11,
-  HasStaticQuery = 1 << 12,
-  HasDynamicQuery = 1 << 13,
-  HasViewQuery = 1 << 14,
-  LazyProvider = 1 << 15,
-  PrivateProvider = 1 << 16,
+  TypeElement = 1 << 0,
+  TypeText = 1 << 1,
+  CatRenderNode = TypeElement | TypeText,
+  TypeNgContent = 1 << 2,
+  TypePipe = 1 << 3,
+  TypePureArray = 1 << 4,
+  TypePureObject = 1 << 5,
+  TypePurePipe = 1 << 6,
+  CatPureExpression = TypePureArray | TypePureObject | TypePurePipe,
+  TypeValueProvider = 1 << 7,
+  TypeClassProvider = 1 << 8,
+  TypeFactoryProvider = 1 << 9,
+  TypeUseExistingProvider = 1 << 10,
+  LazyProvider = 1 << 11,
+  PrivateProvider = 1 << 12,
+  TypeDirective = 1 << 13,
+  Component = 1 << 14,
+  CatProvider = TypeValueProvider | TypeClassProvider | TypeFactoryProvider |
+      TypeUseExistingProvider | TypeDirective,
+  OnInit = 1 << 15,
+  OnDestroy = 1 << 16,
+  DoCheck = 1 << 17,
+  OnChanges = 1 << 18,
+  AfterContentInit = 1 << 19,
+  AfterContentChecked = 1 << 20,
+  AfterViewInit = 1 << 21,
+  AfterViewChecked = 1 << 22,
+  EmbeddedViews = 1 << 23,
+  ComponentView = 1 << 24,
+  TypeContentQuery = 1 << 25,
+  TypeViewQuery = 1 << 26,
+  StaticQuery = 1 << 27,
+  DynamicQuery = 1 << 28,
+  CatQuery = TypeContentQuery | TypeViewQuery,
+
+  // mutually exclusive values...
+  Types = CatRenderNode | TypeNgContent | TypePipe | CatPureExpression | CatProvider | CatQuery
 }
 
 export interface BindingDef {
@@ -169,7 +173,7 @@ export interface BindingDef {
   suffix: string;
 }
 
-export enum BindingType {
+export const enum BindingType {
   ElementAttribute,
   ElementClass,
   ElementStyle,
@@ -187,12 +191,9 @@ export interface OutputDef {
   propName: string;
 }
 
-export enum OutputType {
-  ElementOutput,
-  DirectiveOutput
-}
+export const enum OutputType {ElementOutput, DirectiveOutput}
 
-export enum QueryValueType {
+export const enum QueryValueType {
   ElementRef,
   RenderElement,
   TemplateRef,
@@ -227,18 +228,10 @@ export interface ElementDef {
 export type ElementHandleEventFn = (view: ViewData, eventName: string, event: any) => boolean;
 
 export interface ProviderDef {
-  type: ProviderType;
   token: any;
   tokenKey: string;
   value: any;
   deps: DepDef[];
-}
-
-export enum ProviderType {
-  Value,
-  Class,
-  Factory,
-  UseExisting
 }
 
 export interface DepDef {
@@ -250,7 +243,7 @@ export interface DepDef {
 /**
  * Bitmask for DI flags
  */
-export enum DepFlags {
+export const enum DepFlags {
   None = 0,
   SkipSelf = 1 << 0,
   Optional = 1 << 1,
@@ -260,14 +253,6 @@ export enum DepFlags {
 export interface TextDef {
   prefix: string;
   source: string;
-}
-
-export interface PureExpressionDef { type: PureExpressionType; }
-
-export enum PureExpressionType {
-  Array,
-  Object,
-  Pipe
 }
 
 export interface QueryDef {
@@ -282,10 +267,7 @@ export interface QueryBindingDef {
   bindingType: QueryBindingType;
 }
 
-export enum QueryBindingType {
-  First,
-  All
-}
+export const enum QueryBindingType {First, All}
 
 export interface NgContentDef {
   /**
@@ -329,7 +311,7 @@ export interface ViewData {
 /**
  * Bitmask of states
  */
-export enum ViewState {
+export const enum ViewState {
   FirstCheck = 1 << 0,
   ChecksEnabled = 1 << 1,
   Errored = 1 << 2,
@@ -449,10 +431,7 @@ export abstract class DebugContext {
 // Other
 // -------------------------------------
 
-export enum CheckType {
-  CheckAndUpdate,
-  CheckNoChanges
-}
+export const enum CheckType {CheckAndUpdate, CheckNoChanges}
 
 export interface Services {
   setCurrentNode(view: ViewData, nodeIndex: number): void;

@@ -10,7 +10,7 @@ import {isDevMode} from '../application_ref';
 import {RendererTypeV2, RendererV2} from '../render/api';
 import {SecurityContext} from '../security';
 
-import {BindingDef, BindingType, DebugContext, DisposableFn, ElementData, ElementHandleEventFn, NodeData, NodeDef, NodeFlags, NodeType, OutputDef, OutputType, QueryValueType, Services, ViewData, ViewDefinition, ViewDefinitionFactory, ViewFlags, asElementData, asProviderData} from './types';
+import {BindingDef, BindingType, DebugContext, DisposableFn, ElementData, ElementHandleEventFn, NodeData, NodeDef, NodeFlags, OutputDef, OutputType, QueryValueType, Services, ViewData, ViewDefinition, ViewDefinitionFactory, ViewFlags, asElementData, asProviderData} from './types';
 import {checkAndUpdateBinding, dispatchEvent, elementEventFullName, filterQueryId, getParentRenderElement, resolveViewDefinition, sliceErrorStack, splitMatchedQueriesDsl, splitNamespace} from './util';
 
 const NOOP: any = () => {};
@@ -22,16 +22,15 @@ export function anchorDef(
   if (!handleEvent) {
     handleEvent = NOOP;
   }
+  flags |= NodeFlags.TypeElement;
   const {matchedQueries, references, matchedQueryIds} = splitMatchedQueriesDsl(matchedQueriesDsl);
   // skip the call to sliceErrorStack itself + the call to this function.
   const source = isDevMode() ? sliceErrorStack(2, 3) : '';
   const template = templateFactory ? resolveViewDefinition(templateFactory) : null;
 
   return {
-    type: NodeType.Element,
     // will bet set by the view definition
     index: undefined,
-    reverseChildIndex: undefined,
     parent: undefined,
     renderParent: undefined,
     bindingIndex: undefined,
@@ -39,6 +38,7 @@ export function anchorDef(
     // regular values
     flags,
     childFlags: 0,
+    directChildFlags: 0,
     childMatchedQueries: 0, matchedQueries, matchedQueryIds, references, ngContentIndex, childCount,
     bindings: [],
     outputs: [],
@@ -54,7 +54,6 @@ export function anchorDef(
     },
     provider: undefined,
     text: undefined,
-    pureExpression: undefined,
     query: undefined,
     ngContent: undefined
   };
@@ -126,13 +125,12 @@ export function elementDef(
     componentRendererType = null;
   }
   if (componentView) {
-    flags |= NodeFlags.HasComponent;
+    flags |= NodeFlags.ComponentView;
   }
+  flags |= NodeFlags.TypeElement;
   return {
-    type: NodeType.Element,
     // will bet set by the view definition
     index: undefined,
-    reverseChildIndex: undefined,
     parent: undefined,
     renderParent: undefined,
     bindingIndex: undefined,
@@ -140,6 +138,7 @@ export function elementDef(
     // regular values
     flags,
     childFlags: 0,
+    directChildFlags: 0,
     childMatchedQueries: 0, matchedQueries, matchedQueryIds, references, ngContentIndex, childCount,
     bindings: bindingDefs,
     outputs: outputDefs,
@@ -156,7 +155,6 @@ export function elementDef(
     },
     provider: undefined,
     text: undefined,
-    pureExpression: undefined,
     query: undefined,
     ngContent: undefined
   };

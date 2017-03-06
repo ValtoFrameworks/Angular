@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 
-set -e -o pipefail
+set -u -e -o pipefail
 
-cd `dirname $0`
+readonly currentDir=$(cd $(dirname $0); pwd)
+source ${currentDir}/scripts/ci/_travis-fold.sh
+
+# TODO(i): wrap into subshell, so that we don't pollute CWD, but not yet to minimize diff collision with Jason
+cd ${currentDir}
 
 PACKAGES=(core
   compiler
@@ -67,7 +71,7 @@ getPackageContents() {
 #   None
 #######################################
 downlevelES2015() {
-  echo '{"presets": [ ["es2015", { "modules": false }] ], "compact": true }' > ${1}/.babelrc
+  echo '{"presets": [ ["es2015", { "modules": false }] ], "compact": false }' > ${1}/.babelrc
   $BABELJS ${2} -o ${3}
   rm -f ${1}/.babelrc
 }
@@ -76,66 +80,75 @@ VERSION="${VERSION_PREFIX}${VERSION_SUFFIX}"
 ROUTER_VERSION="${ROUTER_VERSION_PREFIX}${VERSION_SUFFIX}"
 echo "====== BUILDING: Version ${VERSION} (Router ${ROUTER_VERSION})"
 
-export NODE_PATH=${NODE_PATH}:$(pwd)/dist/all:$(pwd)/dist/tools
 TSC="node --max-old-space-size=3000 dist/tools/@angular/tsc-wrapped/src/main"
 UGLIFYJS=`pwd`/node_modules/.bin/uglifyjs
 BABELJS=`pwd`/node_modules/.bin/babel
 BABILI=`pwd`/node_modules/.bin/babili
 TSCONFIG=./tools/tsconfig.json
-echo "====== (tools)COMPILING: \$(npm bin)/tsc -p ${TSCONFIG} ====="
-rm -rf ./dist/tools/
-mkdir -p ./dist/tools/
-$(npm bin)/tsc -p ${TSCONFIG}
 
-cp ./tools/@angular/tsc-wrapped/package.json ./dist/tools/@angular/tsc-wrapped
+
+travisFoldStart "build tools"
+  echo "====== (tools)COMPILING: \$(npm bin)/tsc -p ${TSCONFIG} ====="
+  rm -rf ./dist/tools/
+  mkdir -p ./dist/tools/
+  $(npm bin)/tsc -p ${TSCONFIG}
+
+  cp ./tools/@angular/tsc-wrapped/package.json ./dist/tools/@angular/tsc-wrapped
+travisFoldEnd "build tools"
+
 
 if [[ ${BUILD_ALL} == true ]]; then
-  rm -rf ./dist/all/
-  mkdir -p ./dist/all/
+  travisFoldStart "clean dist"
+    rm -rf ./dist/all/
+    rm -rf ./dist/packages-dist
+  travisFoldEnd "clean dist"
 
-  echo "====== Copying files needed for e2e tests ====="
-  cp -r ./modules/playground ./dist/all/
-  cp -r ./modules/playground/favicon.ico ./dist/
-  #rsync -aP ./modules/playground/* ./dist/all/playground/
-  mkdir ./dist/all/playground/vendor
-  cd ./dist/all/playground/vendor
-  ln -s ../../../../node_modules/core-js/client/core.js .
-  ln -s ../../../../node_modules/zone.js/dist/zone.js .
-  ln -s ../../../../node_modules/zone.js/dist/long-stack-trace-zone.js .
-  ln -s ../../../../node_modules/systemjs/dist/system.src.js .
-  ln -s ../../../../node_modules/base64-js .
-  ln -s ../../../../node_modules/reflect-metadata/Reflect.js .
-  ln -s ../../../../node_modules/rxjs .
-  ln -s ../../../../node_modules/angular/angular.js .
-  ln -s ../../../../node_modules/hammerjs/hammer.js .
-  cd -
+  travisFoldStart "copy e2e files"
+    mkdir -p ./dist/all/
 
-  echo "====== Copying files needed for benchmarks ====="
-  cp -r ./modules/benchmarks ./dist/all/
-  cp -r ./modules/benchmarks/favicon.ico ./dist/
-  mkdir ./dist/all/benchmarks/vendor
-  cd ./dist/all/benchmarks/vendor
-  ln -s ../../../../node_modules/core-js/client/core.js .
-  ln -s ../../../../node_modules/zone.js/dist/zone.js .
-  ln -s ../../../../node_modules/zone.js/dist/long-stack-trace-zone.js .
-  ln -s ../../../../node_modules/systemjs/dist/system.src.js .
-  ln -s ../../../../node_modules/reflect-metadata/Reflect.js .
-  ln -s ../../../../node_modules/rxjs .
-  ln -s ../../../../node_modules/angular/angular.js .
-  ln -s ../../../../bower_components/polymer .
-  ln -s ../../../../node_modules/incremental-dom/dist/incremental-dom-cjs.js
-  cd -
+    echo "====== Copying files needed for e2e tests ====="
+    cp -r ./modules/playground ./dist/all/
+    cp -r ./modules/playground/favicon.ico ./dist/
+    #rsync -aP ./modules/playground/* ./dist/all/playground/
+    mkdir ./dist/all/playground/vendor
+    cd ./dist/all/playground/vendor
+    ln -s ../../../../node_modules/core-js/client/core.js .
+    ln -s ../../../../node_modules/zone.js/dist/zone.js .
+    ln -s ../../../../node_modules/zone.js/dist/long-stack-trace-zone.js .
+    ln -s ../../../../node_modules/systemjs/dist/system.src.js .
+    ln -s ../../../../node_modules/base64-js .
+    ln -s ../../../../node_modules/reflect-metadata/Reflect.js .
+    ln -s ../../../../node_modules/rxjs .
+    ln -s ../../../../node_modules/angular/angular.js .
+    ln -s ../../../../node_modules/hammerjs/hammer.js .
+    cd -
 
-  TSCONFIG=./modules/tsconfig.json
-  echo "====== (all)COMPILING: \$(npm bin)/tsc -p ${TSCONFIG} ====="
-  # compile ts code
-  $TSC -p modules/tsconfig.json
+    echo "====== Copying files needed for benchmarks ====="
+    cp -r ./modules/benchmarks ./dist/all/
+    cp -r ./modules/benchmarks/favicon.ico ./dist/
+    mkdir ./dist/all/benchmarks/vendor
+    cd ./dist/all/benchmarks/vendor
+    ln -s ../../../../node_modules/core-js/client/core.js .
+    ln -s ../../../../node_modules/zone.js/dist/zone.js .
+    ln -s ../../../../node_modules/zone.js/dist/long-stack-trace-zone.js .
+    ln -s ../../../../node_modules/systemjs/dist/system.src.js .
+    ln -s ../../../../node_modules/reflect-metadata/Reflect.js .
+    ln -s ../../../../node_modules/rxjs .
+    ln -s ../../../../node_modules/angular/angular.js .
+    ln -s ../../../../bower_components/polymer .
+    ln -s ../../../../node_modules/incremental-dom/dist/incremental-dom-cjs.js
+    cd -
+  travisFoldEnd "copy e2e files"
 
-  rm -rf ./dist/packages-dist
+  TSCONFIG=modules/tsconfig.json
+  travisFoldStart "tsc -p ${TSCONFIG}"
+    $TSC -p ${TSCONFIG}
+  travisFoldEnd "tsc -p ${TSCONFIG}"
 fi
 
 for PACKAGE in ${PACKAGES[@]}
 do
+  travisFoldStart "build package: ${PACKAGE}"
   PWD=`pwd`
   ROOTDIR=${PWD}/modules/@angular
   SRCDIR=${PWD}/modules/@angular/${PACKAGE}
@@ -235,9 +248,9 @@ do
     $TSC -p ${SRCDIR}/tsconfig-static.json
   fi
 
-  if [[ -e ${SRCDIR}/tsconfig-2015.json ]]; then
-    echo "======      [${PACKAGE}]: COMPILING (ES2015): ${TSC} -p ${SRCDIR}/tsconfig-2015.json"
-    ${TSC} -p ${SRCDIR}/tsconfig-2015.json
+  if [[ -e ${SRCDIR}/tsconfig-esm5.json ]]; then
+    echo "======      [${PACKAGE}]: COMPILING (ESM/ES5): ${TSC} -p ${SRCDIR}/tsconfig-esm5.json"
+    ${TSC} -p ${SRCDIR}/tsconfig-esm5.json
   fi
 
   if [[ ${PACKAGE} == benchpress ]]; then
@@ -290,10 +303,10 @@ do
         $UGLIFYJS -c --screw-ie8 --comments -o ${UMD_ES5_MIN_PATH} ${UMD_ES5_PATH}
       fi
 
-      rm -f ${DISTDIR}/.babelrc
+      rm -f ${DESTDIR}/.babelrc
       if [[ -d ${DEST_MODULE} ]]; then
         echo "======         Downleveling ES2015 to ESM/ES5"
-        downlevelES2015 ${DEST_MODULE} ${JS_PATH} ${JS_PATH_ES5}
+        downlevelES2015 ${DESTDIR} ${JS_PATH} ${JS_PATH_ES5}
       fi
 
       if [[ -d testing ]]; then
@@ -315,7 +328,7 @@ do
         getPackageContents "${PACKAGE}" "testing" "index" > ${DESTDIR}/testing/package.json
 
         mv ${DESTDIR}/testing.tmp.js ${JS_TESTING_PATH}
-        $BABELJS ${JS_TESTING_PATH} -o ${JS_TESTING_PATH_ES5}
+        downlevelES2015 ${DESTDIR} ${JS_TESTING_PATH} ${JS_TESTING_PATH_ES5}
         cat ${LICENSE_BANNER} > ${UMD_TESTING_ES5_PATH}.tmp
         cat ${UMD_TESTING_ES5_PATH} >> ${UMD_TESTING_ES5_PATH}.tmp
         mv ${UMD_TESTING_ES5_PATH}.tmp ${UMD_TESTING_ES5_PATH}
@@ -341,7 +354,7 @@ do
         getPackageContents "${PACKAGE}" "static"> ${DESTDIR}/static/package.json
 
         mv ${DESTDIR}/static.tmp.js ${JS_STATIC_PATH}
-        $BABELJS ${JS_STATIC_PATH} -o ${JS_STATIC_PATH_ES5}
+        downlevelES2015 ${DESTDIR} ${JS_STATIC_PATH} ${JS_STATIC_PATH_ES5}
         cat ${LICENSE_BANNER} > ${UMD_STATIC_ES5_PATH}.tmp
         cat ${UMD_STATIC_ES5_PATH} >> ${UMD_STATIC_ES5_PATH}.tmp
         mv ${UMD_STATIC_ES5_PATH}.tmp ${UMD_STATIC_ES5_PATH}
@@ -368,7 +381,7 @@ do
         getPackageContents "${PACKAGE}" "upgrade" > ${DESTDIR}/upgrade/package.json
 
         mv ${DESTDIR}/upgrade.tmp.js ${JS_UPGRADE_PATH}
-        $BABELJS ${JS_UPGRADE_PATH} -o ${JS_UPGRADE_PATH_ES5}
+        downlevelES2015 ${DESTDIR} ${JS_UPGRADE_PATH} ${JS_UPGRADE_PATH_ES5}
         cat ${LICENSE_BANNER} > ${UMD_UPGRADE_ES5_PATH}.tmp
         cat ${UMD_UPGRADE_ES5_PATH} >> ${UMD_UPGRADE_ES5_PATH}.tmp
         mv ${UMD_UPGRADE_ES5_PATH}.tmp ${UMD_UPGRADE_ES5_PATH}
@@ -408,9 +421,11 @@ do
         getPackageContents "${PACKAGE}" "animations" > ${DESTDIR}/animations/package.json
 
         echo '{"typings": "../../typings/animations/testing/index.d.ts", "main": "../../bundles/platform-browser-animations-testing.umd.js", "module": "../../@angular/platform-browser/animations/testing.es5.js", "es2015": "../../@angular/platform-browser/animations/testing.js"}' > ${DESTDIR}/animations/testing/package.json
+        # This is needed for Compiler to be able to find the bundle index.
+        echo '{"typings": "animations.d.ts"}' > ${DESTDIR}/typings/animations/package.json
 
         mv ${DESTDIR}/animations.tmp.js ${JS_ANIMATIONS_PATH}
-        $BABELJS ${JS_ANIMATIONS_PATH} -o ${JS_ANIMATIONS_PATH_ES5}
+        downlevelES2015 ${DESTDIR} ${JS_ANIMATIONS_PATH} ${JS_ANIMATIONS_PATH_ES5}
         cat ${LICENSE_BANNER} > ${UMD_ANIMATIONS_ES5_PATH}.tmp
         cat ${UMD_ANIMATIONS_ES5_PATH} >> ${UMD_ANIMATIONS_ES5_PATH}.tmp
         mv ${UMD_ANIMATIONS_ES5_PATH}.tmp ${UMD_ANIMATIONS_ES5_PATH}
@@ -419,7 +434,7 @@ do
         mkdir ${DEST_MODULE}/${PACKAGE}/animations
 
         mv ${DESTDIR}/animations-testing.tmp.js ${JS_ANIMATIONS_TESTING_PATH}
-        $BABELJS ${JS_ANIMATIONS_TESTING_PATH} -o ${JS_ANIMATIONS_TESTING_PATH_ES5}
+        downlevelES2015 ${DESTDIR} ${JS_ANIMATIONS_TESTING_PATH} ${JS_ANIMATIONS_TESTING_PATH_ES5}
         cat ${LICENSE_BANNER} > ${UMD_ANIMATIONS_TESTING_ES5_PATH}.tmp
         cat ${UMD_ANIMATIONS_TESTING_ES5_PATH} >> ${UMD_ANIMATIONS_TESTING_ES5_PATH}.tmp
         mv ${UMD_ANIMATIONS_TESTING_ES5_PATH}.tmp ${UMD_ANIMATIONS_TESTING_ES5_PATH}
@@ -441,16 +456,25 @@ do
     echo "======       EXECUTE: perl -p -i -e \"s/0\.0\.0\-ROUTERPLACEHOLDER/${ROUTER_VERSION}/g\" $""(grep -ril 0\.0\.0\-ROUTERPLACEHOLDER .)"
     perl -p -i -e "s/0\.0\.0\-ROUTERPLACEHOLDER/${ROUTER_VERSION}/g" $(grep -ril 0\.0\.0\-ROUTERPLACEHOLDER .) < /dev/null 2> /dev/null
   )
+
+  travisFoldEnd "build package: ${PACKAGE}"
 done
 
 if [[ ${BUILD_EXAMPLES} == true ]]; then
-  echo ""
-  echo "====== Building examples: ./modules/@angular/examples/build.sh ====="
-  ./modules/@angular/examples/build.sh
+  travisFoldStart "build examples"
+    echo "====== Building examples: ./modules/@angular/examples/build.sh ====="
+    ./modules/@angular/examples/build.sh
+  travisFoldEnd "build examples"
 fi
 
 if [[ ${REMOVE_BENCHPRESS} == true ]]; then
-  echo ""
-  echo "==== Removing benchpress from publication"
-  rm -r dist/packages-dist/benchpress
+  travisFoldStart "remove benchpress"
+    echo ""
+    echo "==== Removing benchpress from publication"
+    rm -r dist/packages-dist/benchpress
+  travisFoldEnd "remove benchpress"
 fi
+
+
+# Print return arrows as a log separator
+travisFoldReturnArrows

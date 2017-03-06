@@ -92,6 +92,16 @@ module.exports =
               include: CONTENTS_PATH + '/{cookbook,guide,tutorial}/**/*.md',
               fileReader: 'contentFileReader'
             },
+            {
+              basePath: CONTENTS_PATH + '/marketing',
+              include: CONTENTS_PATH + '/marketing/**/*.html',
+              fileReader: 'contentFileReader'
+            },
+            {
+              basePath: CONTENTS_PATH,
+              include: CONTENTS_PATH + '/file-not-found.md',
+              fileReader: 'contentFileReader'
+            },
             {basePath: CONTENTS_PATH, include: CONTENTS_PATH + '/cheatsheet/*.md'},
             {
               basePath: API_SOURCE_PATH,

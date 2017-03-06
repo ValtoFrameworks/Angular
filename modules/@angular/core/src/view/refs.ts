@@ -6,7 +6,6 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {NoOpAnimationPlayer} from '../animation/animation_player';
 import {ApplicationRef} from '../application_ref';
 import {ChangeDetectorRef} from '../change_detection/change_detection';
 import {Injector} from '../di';
@@ -19,7 +18,7 @@ import {Renderer as RendererV1, RendererV2} from '../render/api';
 import {Type} from '../type';
 import {VERSION} from '../version';
 
-import {ArgumentType, BindingType, DebugContext, DepFlags, ElementData, NodeCheckFn, NodeData, NodeDef, NodeFlags, NodeType, RootData, Services, ViewData, ViewDefinition, ViewDefinitionFactory, ViewState, asElementData, asProviderData, asTextData} from './types';
+import {ArgumentType, BindingType, DebugContext, DepFlags, ElementData, NodeCheckFn, NodeData, NodeDef, NodeFlags, RootData, Services, ViewData, ViewDefinition, ViewDefinitionFactory, ViewState, asElementData, asProviderData, asTextData} from './types';
 import {isComponentView, markParentViewsForCheck, renderNode, resolveViewDefinition, rootRenderNodes, splitNamespace, tokenKey, viewParentEl} from './util';
 import {attachEmbeddedView, detachEmbeddedView, moveEmbeddedView, renderDetachView} from './view_attach';
 
@@ -31,9 +30,22 @@ export function createComponentFactory(
   return new ComponentFactory_(selector, componentType, viewDefFactory);
 }
 
+export function getComponentViewDefinitionFactory(componentFactory: ComponentFactory<any>):
+    ViewDefinitionFactory {
+  return (componentFactory as ComponentFactory_).viewDefFactory;
+}
+
 class ComponentFactory_ extends ComponentFactory<any> {
-  constructor(selector: string, componentType: Type<any>, viewDefFactory: ViewDefinitionFactory) {
-    super(selector, <any>viewDefFactory, componentType);
+  /**
+   * @internal
+   */
+  viewDefFactory: ViewDefinitionFactory;
+
+  constructor(
+      public selector: string, public componentType: Type<any>,
+      viewDefFactory: ViewDefinitionFactory) {
+    super();
+    this.viewDefFactory = viewDefFactory;
   }
 
   /**
@@ -42,7 +54,7 @@ class ComponentFactory_ extends ComponentFactory<any> {
   create(
       injector: Injector, projectableNodes: any[][] = null,
       rootSelectorOrNode: string|any = null): ComponentRef<any> {
-    const viewDef = resolveViewDefinition(this._viewClass);
+    const viewDef = resolveViewDefinition(this.viewDefFactory);
     const componentNodeIndex = viewDef.nodes[0].element.componentProvider.index;
     const view = Services.createRootView(
         injector, projectableNodes || [], rootSelectorOrNode, viewDef, EMPTY_CONTEXT);
@@ -251,7 +263,7 @@ export function createInjector(view: ViewData, elDef: NodeDef): Injector {
 class Injector_ implements Injector {
   constructor(private view: ViewData, private elDef: NodeDef) {}
   get(token: any, notFoundValue: any = Injector.THROW_IF_NOT_FOUND): any {
-    const allowPrivateServices = (this.elDef.flags & NodeFlags.HasComponent) !== 0;
+    const allowPrivateServices = (this.elDef.flags & NodeFlags.ComponentView) !== 0;
     return Services.resolveDep(
         this.view, this.elDef, allowPrivateServices,
         {flags: DepFlags.None, token, tokenKey: tokenKey(token)}, notFoundValue);
@@ -260,21 +272,18 @@ class Injector_ implements Injector {
 
 export function nodeValue(view: ViewData, index: number): any {
   const def = view.def.nodes[index];
-  switch (def.type) {
-    case NodeType.Element:
-      if (def.element.template) {
-        return createTemplateRef(view, def);
-      } else {
-        return asElementData(view, def.index).renderElement;
-      }
-    case NodeType.Text:
-      return asTextData(view, def.index).renderText;
-    case NodeType.Directive:
-    case NodeType.Pipe:
-    case NodeType.Provider:
-      return asProviderData(view, def.index).instance;
+  if (def.flags & NodeFlags.TypeElement) {
+    if (def.element.template) {
+      return createTemplateRef(view, def);
+    } else {
+      return asElementData(view, def.index).renderElement;
+    }
+  } else if (def.flags & NodeFlags.TypeText) {
+    return asTextData(view, def.index).renderText;
+  } else if (def.flags & (NodeFlags.CatProvider | NodeFlags.TypePipe)) {
+    return asProviderData(view, def.index).instance;
   }
-  return undefined;
+  throw new Error(`Illegal state: read nodeValue for node index ${index}`);
 }
 
 export function createRendererV1(view: ViewData): RendererV1 {
@@ -389,5 +398,5 @@ class RendererAdapter implements RendererV1 {
 
   setText(renderNode: Text, text: string): void { this.delegate.setValue(renderNode, text); }
 
-  animate(): NoOpAnimationPlayer { return new NoOpAnimationPlayer(); }
+  animate(): any { throw new Error('Renderer.animate is no longer supported!'); }
 }
