@@ -76,7 +76,7 @@ export declare type Event = NavigationStart | NavigationEnd | NavigationCancel |
 export interface ExtraOptions {
     enableTracing?: boolean;
     errorHandler?: ErrorHandler;
-    initialNavigation?: boolean;
+    initialNavigation?: InitialNavigation;
     preloadingStrategy?: any;
     useHash?: boolean;
 }
@@ -308,7 +308,7 @@ export declare class RouterLinkWithHref implements OnChanges, OnDestroy {
 
 /** @stable */
 export declare class RouterModule {
-    constructor(guard: any);
+    constructor(guard: any, router: Router);
     static forChild(routes: Routes): ModuleWithProviders;
     static forRoot(routes: Routes, config?: ExtraOptions): ModuleWithProviders;
 }
