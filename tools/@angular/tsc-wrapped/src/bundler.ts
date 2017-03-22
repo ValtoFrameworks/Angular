@@ -9,8 +9,8 @@ import * as path from 'path';
 import * as ts from 'typescript';
 
 import {MetadataCollector} from './collector';
+import {ClassMetadata, ConstructorMetadata, FunctionMetadata, MemberMetadata, MetadataArray, MetadataEntry, MetadataError, MetadataImportedSymbolReferenceExpression, MetadataMap, MetadataObject, MetadataSymbolicBinaryExpression, MetadataSymbolicCallExpression, MetadataSymbolicExpression, MetadataSymbolicIfExpression, MetadataSymbolicIndexExpression, MetadataSymbolicPrefixExpression, MetadataSymbolicReferenceExpression, MetadataSymbolicSelectExpression, MetadataSymbolicSpreadExpression, MetadataValue, MethodMetadata, ModuleMetadata, VERSION, isClassMetadata, isConstructorMetadata, isFunctionMetadata, isInterfaceMetadata, isMetadataError, isMetadataGlobalReferenceExpression, isMetadataImportedSymbolReferenceExpression, isMetadataModuleReferenceExpression, isMetadataSymbolicExpression, isMetadataSymbolicReferenceExpression, isMethodMetadata} from './schema';
 
-import {ClassMetadata, ConstructorMetadata, FunctionMetadata, MemberMetadata, MetadataArray, MetadataEntry, MetadataError, MetadataImportedSymbolReferenceExpression, MetadataMap, MetadataObject, MetadataSymbolicBinaryExpression, MetadataSymbolicCallExpression, MetadataSymbolicExpression, MetadataSymbolicIfExpression, MetadataSymbolicIndexExpression, MetadataSymbolicPrefixExpression, MetadataSymbolicReferenceExpression, MetadataSymbolicSelectExpression, MetadataSymbolicSpreadExpression, MetadataValue, MethodMetadata, ModuleMetadata, VERSION, isClassMetadata, isConstructorMetadata, isFunctionMetadata, isMetadataError, isMetadataGlobalReferenceExpression, isMetadataImportedSymbolReferenceExpression, isMetadataModuleReferenceExpression, isMetadataSymbolicExpression, isMetadataSymbolicReferenceExpression, isMethodMetadata} from './schema';
 
 // The character set used to produce private names.
 const PRIVATE_NAME_CHARS = [
@@ -92,7 +92,7 @@ export class MetadataBundler {
     const exportedSymbols = this.exportAll(this.rootModule);
     this.canonicalizeSymbols(exportedSymbols);
     // TODO: exports? e.g. a module re-exports a symbol from another bundle
-    const entries = this.getEntries(exportedSymbols);
+    const metadata = this.getEntries(exportedSymbols);
     const privates = Array.from(this.symbolMap.values())
                          .filter(s => s.referenced && s.isPrivate)
                          .map(s => ({
@@ -100,9 +100,15 @@ export class MetadataBundler {
                                 name: s.declaration.name,
                                 module: s.declaration.module
                               }));
+    const origins = Array.from(this.symbolMap.values())
+                        .filter(s => s.referenced)
+                        .reduce<{[name: string]: string}>((p, s) => {
+                          p[s.isPrivate ? s.privateName : s.name] = s.declaration.module;
+                          return p;
+                        }, {});
     return {
       metadata:
-          {__symbolic: 'module', version: VERSION, metadata: entries, importAs: this.importAs},
+          {__symbolic: 'module', version: VERSION, metadata, origins, importAs: this.importAs},
       privates
     };
   }
@@ -235,7 +241,6 @@ export class MetadataBundler {
         let name = symbol.name;
         if (symbol.isPrivate && !symbol.privateName) {
           name = newPrivateName();
-          ;
           symbol.privateName = name;
         }
         result[name] = symbol.value;
@@ -267,6 +272,9 @@ export class MetadataBundler {
     }
     if (isFunctionMetadata(value)) {
       return this.convertFunction(moduleName, value);
+    }
+    if (isInterfaceMetadata(value)) {
+      return value;
     }
     return this.convertValue(moduleName, value);
   }
@@ -514,32 +522,14 @@ export class CompilerHostAdapter implements MetadataBundlerHost {
 
 function resolveModule(importName: string, from: string): string {
   if (importName.startsWith('.') && from) {
-    return normalize(path.join(path.dirname(from), importName));
+    const normalPath = path.normalize(path.join(path.dirname(from), importName));
+    if (!normalPath.startsWith('.') && from.startsWith('.')) {
+      // path.normalize() preserves leading '../' but not './'. This adds it back.
+      return `.${path.sep}${normalPath}`;
+    }
+    return normalPath;
   }
   return importName;
-}
-
-function normalize(path: string): string {
-  const parts = path.split('/');
-  const segments: string[] = [];
-  for (const part of parts) {
-    switch (part) {
-      case '':
-      case '.':
-        continue;
-      case '..':
-        segments.pop();
-        break;
-      default:
-        segments.push(part);
-    }
-  }
-  if (segments.length) {
-    segments.unshift(path.startsWith('/') ? '' : '.');
-    return segments.join('/');
-  } else {
-    return '.';
-  }
 }
 
 function isPrimitive(o: any): o is boolean|string|number {

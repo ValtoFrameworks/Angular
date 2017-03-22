@@ -7,16 +7,16 @@
  */
 
 import {CommonModule, Location} from '@angular/common';
-import {Component, NgModule, NgModuleFactoryLoader} from '@angular/core';
+import {Component, Injectable, NgModule, NgModuleFactoryLoader, NgModuleRef} from '@angular/core';
 import {ComponentFixture, TestBed, fakeAsync, inject, tick} from '@angular/core/testing';
 import {By} from '@angular/platform-browser/src/dom/debug/by';
 import {expect} from '@angular/platform-browser/testing/src/matchers';
 import {Observable} from 'rxjs/Observable';
 import {map} from 'rxjs/operator/map';
 
-import {ActivatedRoute, ActivatedRouteSnapshot, CanActivate, CanDeactivate, DetachedRouteHandle, Event, NavigationCancel, NavigationEnd, NavigationError, NavigationStart, PRIMARY_OUTLET, Params, PreloadAllModules, PreloadingStrategy, Resolve, RouteConfigLoadEnd, RouteConfigLoadStart, RouteReuseStrategy, Router, RouterModule, RouterStateSnapshot, RoutesRecognized, UrlHandlingStrategy, UrlSegmentGroup, UrlTree} from '../index';
+import {ActivatedRoute, ActivatedRouteSnapshot, CanActivate, CanDeactivate, DetachedRouteHandle, Event, NavigationCancel, NavigationEnd, NavigationError, NavigationStart, PRIMARY_OUTLET, ParamMap, Params, PreloadAllModules, PreloadingStrategy, Resolve, RouteConfigLoadEnd, RouteConfigLoadStart, RouteReuseStrategy, Router, RouterModule, RouterStateSnapshot, RoutesRecognized, UrlHandlingStrategy, UrlSegmentGroup, UrlTree} from '../index';
 import {RouterPreloader} from '../src/router_preloader';
-import {forEach, shallowEqual} from '../src/utils/collection';
+import {forEach} from '../src/utils/collection';
 import {RouterTestingModule, SpyNgModuleFactoryLoader} from '../testing';
 
 describe('Integration', () => {
@@ -1443,7 +1443,7 @@ describe('Integration', () => {
             providers: [{
               provide: 'CanActivate',
               useValue: (a: ActivatedRouteSnapshot, b: RouterStateSnapshot) => {
-                if (a.params['id'] == '22') {
+                if (a.params['id'] === '22') {
                   return Promise.resolve(true);
                 } else {
                   return Promise.resolve(false);
@@ -1995,7 +1995,7 @@ describe('Integration', () => {
           TestBed.configureTestingModule({
             providers: [{
               provide: 'alwaysFalse',
-              useValue: (a: any, b: any) => a.params.id === '22',
+              useValue: (a: any, b: any) => a.paramMap.get('id') === '22',
             }]
           });
         });
@@ -2422,6 +2422,184 @@ describe('Integration', () => {
              expect(fixture.nativeElement).toHaveText('lazy-loaded-parent [lazy-loaded-child]');
            })));
 
+    it('should have 2 injector trees: module and element',
+       fakeAsync(inject(
+           [Router, Location, NgModuleFactoryLoader],
+           (router: Router, location: Location, loader: SpyNgModuleFactoryLoader) => {
+             @Component({
+               selector: 'lazy',
+               template: 'parent[<router-outlet></router-outlet>]',
+               viewProviders: [
+                 {provide: 'shadow', useValue: 'from parent component'},
+               ],
+             })
+             class Parent {
+             }
+
+             @Component({selector: 'lazy', template: 'child'})
+             class Child {
+             }
+
+             @NgModule({
+               declarations: [Parent],
+               imports: [RouterModule.forChild([{
+                 path: 'parent',
+                 component: Parent,
+                 children: [
+                   {path: 'child', loadChildren: 'child'},
+                 ]
+               }])],
+               providers: [
+                 {provide: 'moduleName', useValue: 'parent'},
+                 {provide: 'fromParent', useValue: 'from parent'},
+               ],
+             })
+             class ParentModule {
+             }
+
+             @NgModule({
+               declarations: [Child],
+               imports: [RouterModule.forChild([{path: '', component: Child}])],
+               providers: [
+                 {provide: 'moduleName', useValue: 'child'},
+                 {provide: 'fromChild', useValue: 'from child'},
+                 {provide: 'shadow', useValue: 'from child module'},
+               ],
+             })
+             class ChildModule {
+             }
+
+             loader.stubbedModules = {
+               parent: ParentModule,
+               child: ChildModule,
+             };
+
+             const fixture = createRoot(router, RootCmp);
+             router.resetConfig([{path: 'lazy', loadChildren: 'parent'}]);
+             router.navigateByUrl('/lazy/parent/child');
+             advance(fixture);
+             expect(location.path()).toEqual('/lazy/parent/child');
+             expect(fixture.nativeElement).toHaveText('parent[child]');
+
+             const pInj = fixture.debugElement.query(By.directive(Parent)).injector;
+             const cInj = fixture.debugElement.query(By.directive(Child)).injector;
+
+             expect(pInj.get('moduleName')).toEqual('parent');
+             expect(pInj.get('fromParent')).toEqual('from parent');
+             expect(pInj.get(Parent)).toBeAnInstanceOf(Parent);
+             expect(pInj.get('fromChild', null)).toEqual(null);
+             expect(pInj.get(Child, null)).toEqual(null);
+
+             expect(cInj.get('moduleName')).toEqual('child');
+             expect(cInj.get('fromParent')).toEqual('from parent');
+             expect(cInj.get('fromChild')).toEqual('from child');
+             expect(cInj.get(Parent)).toBeAnInstanceOf(Parent);
+             expect(cInj.get(Child)).toBeAnInstanceOf(Child);
+             // The child module can not shadow the parent component
+             expect(cInj.get('shadow')).toEqual('from parent component');
+
+             const pmInj = pInj.get(NgModuleRef).injector;
+             const cmInj = cInj.get(NgModuleRef).injector;
+
+             expect(pmInj.get('moduleName')).toEqual('parent');
+             expect(cmInj.get('moduleName')).toEqual('child');
+
+             expect(pmInj.get(Parent, '-')).toEqual('-');
+             expect(cmInj.get(Parent, '-')).toEqual('-');
+             expect(pmInj.get(Child, '-')).toEqual('-');
+             expect(cmInj.get(Child, '-')).toEqual('-');
+           })));
+
+    // https://github.com/angular/angular/issues/12889
+    it('should create a single instance of lazy-loaded modules',
+       fakeAsync(inject(
+           [Router, Location, NgModuleFactoryLoader],
+           (router: Router, location: Location, loader: SpyNgModuleFactoryLoader) => {
+             @Component({
+               selector: 'lazy',
+               template: 'lazy-loaded-parent [<router-outlet></router-outlet>]'
+             })
+             class ParentLazyLoadedComponent {
+             }
+
+             @Component({selector: 'lazy', template: 'lazy-loaded-child'})
+             class ChildLazyLoadedComponent {
+             }
+
+             @NgModule({
+               declarations: [ParentLazyLoadedComponent, ChildLazyLoadedComponent],
+               imports: [RouterModule.forChild([{
+                 path: 'loaded',
+                 component: ParentLazyLoadedComponent,
+                 children: [{path: 'child', component: ChildLazyLoadedComponent}]
+               }])]
+             })
+             class LoadedModule {
+               static instances = 0;
+               constructor() { LoadedModule.instances++; }
+             }
+
+             loader.stubbedModules = {expected: LoadedModule};
+             const fixture = createRoot(router, RootCmp);
+             router.resetConfig([{path: 'lazy', loadChildren: 'expected'}]);
+             router.navigateByUrl('/lazy/loaded/child');
+             advance(fixture);
+             expect(fixture.nativeElement).toHaveText('lazy-loaded-parent [lazy-loaded-child]');
+             expect(LoadedModule.instances).toEqual(1);
+           })));
+
+    // https://github.com/angular/angular/issues/13870
+    it('should create a single instance of guards for lazy-loaded modules',
+       fakeAsync(inject(
+           [Router, Location, NgModuleFactoryLoader],
+           (router: Router, location: Location, loader: SpyNgModuleFactoryLoader) => {
+             @Injectable()
+             class Service {
+             }
+
+             @Injectable()
+             class Resolver implements Resolve<Service> {
+               constructor(public service: Service) {}
+               resolve(route: ActivatedRouteSnapshot, state: RouterStateSnapshot) {
+                 return this.service;
+               }
+             }
+
+             @Component({selector: 'lazy', template: 'lazy'})
+             class LazyLoadedComponent {
+               resolvedService: Service;
+               constructor(public injectedService: Service, route: ActivatedRoute) {
+                 this.resolvedService = route.snapshot.data['service'];
+               }
+             }
+
+             @NgModule({
+               declarations: [LazyLoadedComponent],
+               providers: [Service, Resolver],
+               imports: [
+                 RouterModule.forChild([{
+                   path: 'loaded',
+                   component: LazyLoadedComponent,
+                   resolve: {'service': Resolver},
+                 }]),
+               ]
+             })
+             class LoadedModule {
+             }
+
+             loader.stubbedModules = {expected: LoadedModule};
+             const fixture = createRoot(router, RootCmp);
+             router.resetConfig([{path: 'lazy', loadChildren: 'expected'}]);
+             router.navigateByUrl('/lazy/loaded');
+             advance(fixture);
+
+             expect(fixture.nativeElement).toHaveText('lazy');
+             const lzc =
+                 fixture.debugElement.query(By.directive(LazyLoadedComponent)).componentInstance;
+             expect(lzc.injectedService).toBe(lzc.resolvedService);
+           })));
+
+
     it('should emit RouteConfigLoadStart and RouteConfigLoadEnd event when route is lazy loaded',
        fakeAsync(inject(
            [Router, Location, NgModuleFactoryLoader],
@@ -2547,7 +2725,6 @@ describe('Integration', () => {
 
     describe('should use the injector of the lazily-loaded configuration', () => {
       class LazyLoadedServiceDefinedInModule {}
-      class LazyLoadedServiceDefinedInCmp {}
 
       @Component({
         selector: 'eager-parent',
@@ -2556,11 +2733,17 @@ describe('Integration', () => {
       class EagerParentComponent {
       }
 
-      @Component({selector: 'lazy-parent', template: 'lazy-parent <router-outlet></router-outlet>'})
+      @Component({
+        selector: 'lazy-parent',
+        template: 'lazy-parent <router-outlet></router-outlet>',
+      })
       class LazyParentComponent {
       }
 
-      @Component({selector: 'lazy-child', template: 'lazy-child'})
+      @Component({
+        selector: 'lazy-child',
+        template: 'lazy-child',
+      })
       class LazyChildComponent {
         constructor(
             lazy: LazyParentComponent,  // should be able to inject lazy/direct parent
@@ -2593,7 +2776,11 @@ describe('Integration', () => {
       class TestModule {
       }
 
-      beforeEach(() => { TestBed.configureTestingModule({imports: [TestModule]}); });
+      beforeEach(() => {
+        TestBed.configureTestingModule({
+          imports: [TestModule],
+        });
+      });
 
       it('should use the injector of the lazily-loaded configuration',
          fakeAsync(inject(
@@ -3046,7 +3233,9 @@ class AbsoluteLinkCmp {
 })
 class DummyLinkCmp {
   private exact: boolean;
-  constructor(route: ActivatedRoute) { this.exact = (<any>route.snapshot.params).exact === 'true'; }
+  constructor(route: ActivatedRoute) {
+    this.exact = route.snapshot.paramMap.get('exact') === 'true';
+  }
 }
 
 @Component({selector: 'link-cmp', template: `<a [routerLink]="['../simple']">link</a>`})
@@ -3139,7 +3328,7 @@ class QueryParamsAndFragmentCmp {
   fragment: Observable<string>;
 
   constructor(route: ActivatedRoute) {
-    this.name = map.call(route.queryParams, (p: any) => p['name']);
+    this.name = map.call(route.queryParamMap, (p: ParamMap) => p.get('name'));
     this.fragment = route.fragment;
   }
 }

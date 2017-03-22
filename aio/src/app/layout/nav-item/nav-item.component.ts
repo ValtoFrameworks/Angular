@@ -4,7 +4,6 @@ import { NavigationNode } from 'app/navigation/navigation.service';
 @Component({
   selector: 'aio-nav-item',
   templateUrl: 'nav-item.component.html',
-  styleUrls: ['nav-item.component.scss']
 })
 export class NavItemComponent implements OnChanges {
   @Input() selectedNodes: NavigationNode[];
@@ -18,6 +17,7 @@ export class NavItemComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges) {
     if (changes['selectedNodes'] || changes['node']) {
       this.isSelected = this.selectedNodes.indexOf(this.node) !== -1;
+      this.isExpanded = this.isExpanded || this.isSelected;
     }
     this.setClasses();
   }

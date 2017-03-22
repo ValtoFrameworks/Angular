@@ -10,7 +10,9 @@ import {ApplicationRef} from '../application_ref';
 import {ChangeDetectorRef} from '../change_detection/change_detection';
 import {Injector} from '../di';
 import {ComponentFactory, ComponentRef} from '../linker/component_factory';
+import {ComponentFactoryBoundToModule} from '../linker/component_factory_resolver';
 import {ElementRef} from '../linker/element_ref';
+import {NgModuleRef} from '../linker/ng_module_factory';
 import {TemplateRef} from '../linker/template_ref';
 import {ViewContainerRef} from '../linker/view_container_ref';
 import {EmbeddedViewRef, InternalViewRef, ViewRef} from '../linker/view_ref';
@@ -18,16 +20,20 @@ import {Renderer as RendererV1, Renderer2} from '../render/api';
 import {Type} from '../type';
 import {VERSION} from '../version';
 
-import {ArgumentType, BindingType, DebugContext, DepFlags, ElementData, NodeCheckFn, NodeData, NodeDef, NodeFlags, RootData, Services, TemplateData, ViewContainerData, ViewData, ViewDefinition, ViewDefinitionFactory, ViewState, asElementData, asProviderData, asTextData} from './types';
-import {isComponentView, markParentViewsForCheck, renderNode, resolveViewDefinition, rootRenderNodes, splitNamespace, tokenKey, viewParentEl} from './util';
+import {DepFlags, ElementData, NodeDef, NodeFlags, Services, TemplateData, ViewContainerData, ViewData, ViewDefinitionFactory, ViewState, asElementData, asProviderData, asTextData} from './types';
+import {markParentViewsForCheck, resolveViewDefinition, rootRenderNodes, splitNamespace, tokenKey, viewParentEl} from './util';
 import {attachEmbeddedView, detachEmbeddedView, moveEmbeddedView, renderDetachView} from './view_attach';
 
 const EMPTY_CONTEXT = new Object();
 
+// Attention: this function is called as top level function.
+// Putting any logic in here will destroy closure tree shaking!
 export function createComponentFactory(
-    selector: string, componentType: Type<any>,
-    viewDefFactory: ViewDefinitionFactory): ComponentFactory<any> {
-  return new ComponentFactory_(selector, componentType, viewDefFactory);
+    selector: string, componentType: Type<any>, viewDefFactory: ViewDefinitionFactory,
+    inputs: {[propName: string]: string}, outputs: {[propName: string]: string},
+    ngContentSelectors: string[]): ComponentFactory<any> {
+  return new ComponentFactory_(
+      selector, componentType, viewDefFactory, inputs, outputs, ngContentSelectors);
 }
 
 export function getComponentViewDefinitionFactory(componentFactory: ComponentFactory<any>):
@@ -43,21 +49,45 @@ class ComponentFactory_ extends ComponentFactory<any> {
 
   constructor(
       public selector: string, public componentType: Type<any>,
-      viewDefFactory: ViewDefinitionFactory) {
+      viewDefFactory: ViewDefinitionFactory, private _inputs: {[propName: string]: string},
+      private _outputs: {[propName: string]: string}, public ngContentSelectors: string[]) {
+    // Attention: this ctor is called as top level function.
+    // Putting any logic in here will destroy closure tree shaking!
     super();
     this.viewDefFactory = viewDefFactory;
+  }
+
+  get inputs() {
+    const inputsArr: {propName: string, templateName: string}[] = [];
+    for (let propName in this._inputs) {
+      const templateName = this._inputs[propName];
+      inputsArr.push({propName, templateName});
+    }
+    return inputsArr;
+  }
+
+  get outputs() {
+    const outputsArr: {propName: string, templateName: string}[] = [];
+    for (let propName in this._outputs) {
+      const templateName = this._outputs[propName];
+      outputsArr.push({propName, templateName});
+    }
+    return outputsArr;
   }
 
   /**
    * Creates a new component.
    */
   create(
-      injector: Injector, projectableNodes: any[][] = null,
-      rootSelectorOrNode: string|any = null): ComponentRef<any> {
+      injector: Injector, projectableNodes?: any[][], rootSelectorOrNode?: string|any,
+      ngModule?: NgModuleRef<any>): ComponentRef<any> {
+    if (!ngModule) {
+      throw new Error('ngModule should be provided');
+    }
     const viewDef = resolveViewDefinition(this.viewDefFactory);
     const componentNodeIndex = viewDef.nodes[0].element.componentProvider.index;
     const view = Services.createRootView(
-        injector, projectableNodes || [], rootSelectorOrNode, viewDef, EMPTY_CONTEXT);
+        injector, projectableNodes || [], rootSelectorOrNode, viewDef, ngModule, EMPTY_CONTEXT);
     const component = asProviderData(view, componentNodeIndex).instance;
     view.renderer.setAttribute(asElementData(view, 0).renderElement, 'ng-version', VERSION.full);
 
@@ -107,7 +137,8 @@ class ViewContainerRef_ implements ViewContainerData {
       elDef = viewParentEl(view);
       view = view.parent;
     }
-    return view ? new Injector_(view, elDef) : this._view.root.injector;
+
+    return view ? new Injector_(view, elDef) : new Injector_(this._view, null);
   }
 
   clear(): void {
@@ -139,9 +170,13 @@ class ViewContainerRef_ implements ViewContainerData {
 
   createComponent<C>(
       componentFactory: ComponentFactory<C>, index?: number, injector?: Injector,
-      projectableNodes?: any[][]): ComponentRef<C> {
+      projectableNodes?: any[][], ngModuleRef?: NgModuleRef<any>): ComponentRef<C> {
     const contextInjector = injector || this.parentInjector;
-    const componentRef = componentFactory.create(contextInjector, projectableNodes);
+    if (!ngModuleRef && !(componentFactory instanceof ComponentFactoryBoundToModule)) {
+      ngModuleRef = contextInjector.get(NgModuleRef);
+    }
+    const componentRef =
+        componentFactory.create(contextInjector, projectableNodes, undefined, ngModuleRef);
     this.insert(componentRef.hostView, index);
     return componentRef;
   }
@@ -268,9 +303,10 @@ export function createInjector(view: ViewData, elDef: NodeDef): Injector {
 }
 
 class Injector_ implements Injector {
-  constructor(private view: ViewData, private elDef: NodeDef) {}
+  constructor(private view: ViewData, private elDef: NodeDef|null) {}
   get(token: any, notFoundValue: any = Injector.THROW_IF_NOT_FOUND): any {
-    const allowPrivateServices = (this.elDef.flags & NodeFlags.ComponentView) !== 0;
+    const allowPrivateServices =
+        this.elDef ? (this.elDef.flags & NodeFlags.ComponentView) !== 0 : false;
     return Services.resolveDep(
         this.view, this.elDef, allowPrivateServices,
         {flags: DepFlags.None, token, tokenKey: tokenKey(token)}, notFoundValue);

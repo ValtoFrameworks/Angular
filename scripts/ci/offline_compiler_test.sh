@@ -17,6 +17,7 @@ PKGS=(
   @types/{node@6.0.38,jasmine@2.2.33}
   jasmine@2.4.1
   webpack@2.1.0-beta.21
+  source-map-loader@0.2.0
   @angular2-material/{core,button}@2.0.0-alpha.8-1
 )
 
@@ -48,12 +49,19 @@ cp -v package.json $TMP
   # Generate the metadata for the third-party modules
   node ./node_modules/@angular/tsc-wrapped/src/main -p third_party_src/tsconfig-build.json
 
+  # Generate the the bundle modules
+  node ./node_modules/@angular/tsc-wrapped/src/main -p flat_module/tsconfig-build.json
+
+  # Copy the html files from source to the emitted output
+  cp flat_module/src/*.html node_modules/flat_module/src
+
   ./node_modules/.bin/ngc -p tsconfig-build.json --i18nFile=src/messages.fi.xlf --locale=fi --i18nFormat=xlf
 
   ./node_modules/.bin/ng-xi18n -p tsconfig-xi18n.json --i18nFormat=xlf --locale=fr
   ./node_modules/.bin/ng-xi18n -p tsconfig-xi18n.json --i18nFormat=xmb --outFile=custom_file.xmb
 
-  node test/test_summaries.js
+  # Removed until #15219 is fixed
+  # node test/test_summaries.js
   node test/test_ngtools_api.js
 
   ./node_modules/.bin/jasmine init

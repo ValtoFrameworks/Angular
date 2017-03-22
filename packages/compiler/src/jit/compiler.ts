@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {Compiler, ComponentFactory, Inject, Injector, ModuleWithComponentFactories, NgModuleFactory, Type, ɵgetComponentViewDefinitionFactory as getComponentViewDefinitionFactory, ɵstringify as stringify} from '@angular/core';
+import {Compiler, ComponentFactory, Inject, Injector, ModuleWithComponentFactories, NgModuleFactory, Type, ɵConsole as Console, ɵgetComponentViewDefinitionFactory as getComponentViewDefinitionFactory, ɵstringify as stringify} from '@angular/core';
 
 import {CompileDirectiveMetadata, CompileIdentifierMetadata, CompileNgModuleMetadata, CompileStylesheetMetadata, ProviderMeta, ProxyClass, createHostComponentMeta, identifierName, ngModuleJitUrl, sharedStylesheetJitUrl, templateJitUrl, templateSourceUrl} from '../compile_metadata';
 import {CompilerConfig} from '../config';
@@ -44,7 +44,7 @@ export class JitCompiler implements Compiler {
       private _injector: Injector, private _metadataResolver: CompileMetadataResolver,
       private _templateParser: TemplateParser, private _styleCompiler: StyleCompiler,
       private _viewCompiler: ViewCompiler, private _ngModuleCompiler: NgModuleCompiler,
-      private _compilerConfig: CompilerConfig) {}
+      private _compilerConfig: CompilerConfig, private _console: Console) {}
 
   get injector(): Injector { return this._injector; }
 
@@ -66,6 +66,8 @@ export class JitCompiler implements Compiler {
   }
 
   getNgContentSelectors(component: Type<any>): string[] {
+    this._console.warn(
+        'Compiler.getNgContentSelectors is deprecated. Use ComponentFactory.ngContentSelectors instead!');
     const template = this._compiledTemplateCache.get(component);
     if (!template) {
       throw new Error(`The component ${stringify(component)} is not yet compiled!`);
@@ -258,15 +260,17 @@ export class JitCompiler implements Compiler {
         usedPipes);
     const statements =
         stylesCompileResult.componentStylesheet.statements.concat(compileResult.statements);
+    let viewClassAndRendererTypeVars = compMeta.isHost ?
+        [compileResult.viewClassVar] :
+        [compileResult.viewClassVar, compileResult.rendererTypeVar];
     let viewClass: any;
     let rendererType: any;
     if (!this._compilerConfig.useJit) {
-      [viewClass, rendererType] = interpretStatements(
-          statements, [compileResult.viewClassVar, compileResult.rendererTypeVar]);
+      [viewClass, rendererType] = interpretStatements(statements, viewClassAndRendererTypeVars);
     } else {
       [viewClass, rendererType] = jitStatements(
           templateJitUrl(template.ngModule.type, template.compMeta), statements,
-          [compileResult.viewClassVar, compileResult.rendererTypeVar]);
+          viewClassAndRendererTypeVars);
     }
     template.compiled(viewClass, rendererType);
   }

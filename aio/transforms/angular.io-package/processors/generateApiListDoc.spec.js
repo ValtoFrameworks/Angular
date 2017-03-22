@@ -11,12 +11,12 @@ describe('generateApiListDoc processor', () => {
     expect(processor.$process).toBeDefined();
   });
 
-  it('should run after "extra-docs-added"', () => {
+  it('should run after the correct processor', () => {
     const processor = processorFactory();
     expect(processor.$runAfter).toEqual(['extra-docs-added']);
   });
 
-  it('should run before "rendering-docs"', () => {
+  it('should run before the correct processor', () => {
     const processor = processorFactory();
     expect(processor.$runBefore).toEqual(['rendering-docs']);
   });
@@ -83,11 +83,12 @@ describe('generateApiListDoc processor', () => {
     ]);
   });
 
-  it('should ignore internal exports', () => {
+  it('should ignore internal and private exports', () => {
     const processor = processorFactory();
     const docs = [
       { docType: 'module', id: '@angular/common/index', exports: [
         { docType: 'directive', name: 'AaaAaa', path: 'aaa', internal: true },
+        { docType: 'class', name: 'XxxXxx', path: 'xxx', privateExport: true },
         { docType: 'pipe', name: 'BbbBbb', path: 'bbb' }
       ]}
     ];

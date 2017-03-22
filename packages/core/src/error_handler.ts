@@ -42,12 +42,12 @@ export class ErrorHandler {
    */
   _console: Console = console;
 
-  /**
-   * @internal
-   */
-  rethrowError: boolean;
-
-  constructor(rethrowError: boolean = false) { this.rethrowError = rethrowError; }
+  constructor(
+      /**
+       * @deprecated since v4.0 parameter no longer has an effect, as ErrorHandler will never
+       * rethrow.
+       */
+      deprecatedParameter?: boolean) {}
 
   handleError(error: any): void {
     const originalError = this._findOriginalError(error);
@@ -63,8 +63,6 @@ export class ErrorHandler {
     if (context) {
       errorLogger(this._console, 'ERROR CONTEXT', context);
     }
-
-    if (this.rethrowError) throw error;
   }
 
   /** @internal */

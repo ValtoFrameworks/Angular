@@ -1,20 +1,37 @@
-import { browser, element, by, promise } from 'protractor';
+import { browser, element, by, promise, ElementFinder } from 'protractor';
+
+const githubRegex = /https:\/\/github.com\/angular\/angular\//;
 
 export class SitePage {
   links = element.all(by.css('md-toolbar a'));
   docViewer = element(by.css('aio-doc-viewer'));
   codeExample = element.all(by.css('aio-doc-viewer pre > code'));
-  featureLink = element(by.css('md-toolbar a[href="features"]'));
+  ghLink = this.docViewer
+    .all(by.css('a'))
+    .filter((a: ElementFinder) => a.getAttribute('href').then(href => githubRegex.test(href)))
+    .first();
   gaReady: promise.Promise<any>;
-  ga = () => browser.executeScript('return window["gaCalls"]') as promise.Promise<any[][]>;
-  locationPath = () => browser.executeScript('return document.location.pathname') as promise.Promise<string>;
+  getNavHeading(pattern: RegExp) {
+    return element.all(by.css('aio-nav-item a'))
+                  .filter(element => element.getText().then(text => pattern.test(text)))
+                  .first();
+  }
+  getLink(path) { return element(by.css(`a[href="${path}"]`)); }
+  ga() { return browser.executeScript('return window["gaCalls"]') as promise.Promise<any[][]>; }
+  locationPath() { return browser.executeScript('return document.location.pathname') as promise.Promise<string>; }
 
-  navigateTo() {
-    return browser.get('/').then(_ => this.replaceGa(_));
+  navigateTo(pageUrl = '') {
+    return browser.get('/' + pageUrl).then(_ => this.replaceGa(_));
   }
 
   getDocViewerText() {
     return this.docViewer.getText();
+  }
+
+  getInnerHtml(element) {
+    // `getInnerHtml` was removed from webDriver and this is the workaround.
+    // See https://github.com/angular/protractor/blob/master/CHANGELOG.md#breaking-changes
+    return browser.executeScript('return arguments[0].innerHTML;', element);
   }
 
   /**

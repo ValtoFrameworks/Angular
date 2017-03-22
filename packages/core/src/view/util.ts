@@ -7,17 +7,12 @@
  */
 
 import {WrappedValue, devModeEqual} from '../change_detection/change_detection';
-import {SimpleChange} from '../change_detection/change_detection_util';
-import {Injector} from '../di';
-import {TemplateRef} from '../linker/template_ref';
-import {ViewContainerRef} from '../linker/view_container_ref';
-import {ViewRef} from '../linker/view_ref';
 import {ViewEncapsulation} from '../metadata/view';
-import {Renderer, RendererType2} from '../render/api';
+import {RendererType2} from '../render/api';
 import {looseIdentical, stringify} from '../util';
 
-import {expressionChangedAfterItHasBeenCheckedError, isViewDebugError, viewDestroyedError, viewWrappedDebugError} from './errors';
-import {DebugContext, ElementData, NodeData, NodeDef, NodeFlags, NodeLogger, QueryValueType, Services, ViewData, ViewDefinition, ViewDefinitionFactory, ViewFlags, ViewState, asElementData, asProviderData, asTextData} from './types';
+import {expressionChangedAfterItHasBeenCheckedError} from './errors';
+import {BindingDef, BindingFlags, ElementData, NodeDef, NodeFlags, QueryValueType, Services, ViewData, ViewDefinition, ViewDefinitionFactory, ViewFlags, ViewState, asElementData, asTextData} from './types';
 
 export const NOOP: any = () => {};
 
@@ -32,39 +27,62 @@ export function tokenKey(token: any): string {
   return key;
 }
 
-let unwrapCounter = 0;
-
-export function unwrapValue(value: any): any {
+export function unwrapValue(view: ViewData, nodeIdx: number, bindingIdx: number, value: any): any {
   if (value instanceof WrappedValue) {
     value = value.wrapped;
-    unwrapCounter++;
+    let globalBindingIdx = view.def.nodes[nodeIdx].bindingIndex + bindingIdx;
+    let oldValue = view.oldValues[globalBindingIdx];
+    if (oldValue instanceof WrappedValue) {
+      oldValue = oldValue.wrapped;
+    }
+    view.oldValues[globalBindingIdx] = new WrappedValue(oldValue);
   }
   return value;
 }
 
-let _renderCompCount = 0;
+const UNDEFINED_RENDERER_TYPE_ID = '$$undefined';
+const EMPTY_RENDERER_TYPE_ID = '$$empty';
 
+// Attention: this function is called as top level function.
+// Putting any logic in here will destroy closure tree shaking!
 export function createRendererType2(values: {
   styles: (string | any[])[],
   encapsulation: ViewEncapsulation,
   data: {[kind: string]: any[]}
 }): RendererType2 {
-  const isFilled = values && (values.encapsulation !== ViewEncapsulation.None ||
-                              values.styles.length || Object.keys(values.data).length);
-  if (isFilled) {
-    const id = `c${_renderCompCount++}`;
-    return {id: id, styles: values.styles, encapsulation: values.encapsulation, data: values.data};
-  } else {
-    return null;
+  return {
+    id: UNDEFINED_RENDERER_TYPE_ID,
+    styles: values.styles,
+    encapsulation: values.encapsulation,
+    data: values.data
+  };
+}
+
+let _renderCompCount = 0;
+
+export function resolveRendererType2(type: RendererType2): RendererType2 {
+  if (type && type.id === UNDEFINED_RENDERER_TYPE_ID) {
+    // first time we see this RendererType2. Initialize it...
+    const isFilled =
+        ((type.encapsulation != null && type.encapsulation !== ViewEncapsulation.None) ||
+         type.styles.length || Object.keys(type.data).length);
+    if (isFilled) {
+      type.id = `c${_renderCompCount++}`;
+    } else {
+      type.id = EMPTY_RENDERER_TYPE_ID;
+    }
   }
+  if (type && type.id === EMPTY_RENDERER_TYPE_ID) {
+    type = null;
+  }
+  return type;
 }
 
 export function checkBinding(
     view: ViewData, def: NodeDef, bindingIdx: number, value: any): boolean {
   const oldValues = view.oldValues;
-  if (unwrapCounter > 0 || !!(view.state & ViewState.FirstCheck) ||
+  if ((view.state & ViewState.FirstCheck) ||
       !looseIdentical(oldValues[def.bindingIndex + bindingIdx], value)) {
-    unwrapCounter = 0;
     return true;
   }
   return false;
@@ -82,8 +100,7 @@ export function checkAndUpdateBinding(
 export function checkBindingNoChanges(
     view: ViewData, def: NodeDef, bindingIdx: number, value: any) {
   const oldValue = view.oldValues[def.bindingIndex + bindingIdx];
-  if (unwrapCounter || (view.state & ViewState.FirstCheck) || !devModeEqual(oldValue, value)) {
-    unwrapCounter = 0;
+  if ((view.state & ViewState.FirstCheck) || !devModeEqual(oldValue, value)) {
     throw expressionChangedAfterItHasBeenCheckedError(
         Services.createDebugContext(view, def.index), oldValue, value,
         (view.state & ViewState.FirstCheck) !== 0);
@@ -102,7 +119,10 @@ export function markParentViewsForCheck(view: ViewData) {
 
 export function dispatchEvent(
     view: ViewData, nodeIndex: number, eventName: string, event: any): boolean {
-  markParentViewsForCheck(view);
+  const nodeDef = view.def.nodes[nodeIndex];
+  const startView =
+      nodeDef.flags & NodeFlags.ComponentView ? asElementData(view, nodeIndex).componentView : view;
+  markParentViewsForCheck(startView);
   return Services.handleEvent(view, nodeIndex, eventName, event);
 }
 
@@ -208,12 +228,7 @@ export function rootRenderNodes(view: ViewData): any[] {
   return renderNodes;
 }
 
-export enum RenderNodeAction {
-  Collect,
-  AppendChild,
-  InsertBefore,
-  RemoveChild
-}
+export const enum RenderNodeAction {Collect, AppendChild, InsertBefore, RemoveChild}
 
 export function visitRootRenderNodes(
     view: ViewData, action: RenderNodeAction, parentNode: any, nextSibling: any, target: any[]) {
@@ -276,7 +291,19 @@ function visitRenderNode(
         view, nodeDef.ngContent.index, action, parentNode, nextSibling, target);
   } else {
     const rn = renderNode(view, nodeDef);
-    execRenderNodeAction(view, rn, action, parentNode, nextSibling, target);
+    if (action === RenderNodeAction.RemoveChild && (nodeDef.flags & NodeFlags.ComponentView) &&
+        (nodeDef.bindingFlags & BindingFlags.CatSyntheticProperty)) {
+      // Note: we might need to do both actions.
+      if (nodeDef.bindingFlags & (BindingFlags.SyntheticProperty)) {
+        execRenderNodeAction(view, rn, action, parentNode, nextSibling, target);
+      }
+      if (nodeDef.bindingFlags & (BindingFlags.SyntheticHostProperty)) {
+        const compView = asElementData(view, nodeDef.index).componentView;
+        execRenderNodeAction(compView, rn, action, parentNode, nextSibling, target);
+      }
+    } else {
+      execRenderNodeAction(view, rn, action, parentNode, nextSibling, target);
+    }
     if (nodeDef.flags & NodeFlags.EmbeddedViews) {
       const embeddedViews = asElementData(view, nodeDef.index).viewContainer._embeddedViews;
       for (let k = 0; k < embeddedViews.length; k++) {
@@ -319,6 +346,14 @@ export function splitNamespace(name: string): string[] {
     return [match[1], match[2]];
   }
   return ['', name];
+}
+
+export function calcBindingFlags(bindings: BindingDef[]): BindingFlags {
+  let flags = 0;
+  for (let i = 0; i < bindings.length; i++) {
+    flags |= bindings[i].flags;
+  }
+  return flags;
 }
 
 export function interpolate(valueCount: number, constAndInterp: string[]): string {

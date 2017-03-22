@@ -80,8 +80,6 @@ function _sanitizeIdentifier(name: string): string {
 }
 
 let _anonymousTypeIndex = 0;
-let symbolId = 0;
-const symbolIds = new Map<Symbol, string>();
 
 export function identifierName(compileIdentifier: CompileIdentifierMetadata): string {
   if (!compileIdentifier || !compileIdentifier.reference) {
@@ -90,14 +88,6 @@ export function identifierName(compileIdentifier: CompileIdentifierMetadata): st
   const ref = compileIdentifier.reference;
   if (ref instanceof StaticSymbol) {
     return ref.name;
-  }
-  if (isSymbol(ref)) {
-    if (symbolIds.has(ref)) {
-      return symbolIds.get(ref);
-    }
-    const symbolStr = `_symbol_${_sanitizeIdentifier(ref.toString())}_${symbolId++}`;
-    symbolIds.set(ref, symbolStr);
-    return symbolStr;
   }
   if (ref['__anonymousType']) {
     return ref['__anonymousType'];
@@ -111,10 +101,6 @@ export function identifierName(compileIdentifier: CompileIdentifierMetadata): st
     identifier = _sanitizeIdentifier(identifier);
   }
   return identifier;
-}
-
-function isSymbol(sym: any): sym is Symbol {
-  return typeof sym === 'symbol';
 }
 
 export function identifierModuleUrl(compileIdentifier: CompileIdentifierMetadata): string {
@@ -758,40 +744,43 @@ export function flatten<T>(list: Array<T|T[]>): T[] {
   }, []);
 }
 
-/**
- * Note: Using `location.origin` as prefix helps displaying them as a hierarchy in chrome.
- * It also helps long-stack-trace zone when rewriting stack traces to not break
- * source maps (as now all scripts have the same origin).
- */
-function ngJitFolder() {
-  return 'ng://';
+export function sourceUrl(url: string) {
+  // Note: We need 3 "/" so that ng shows up as a separate domain
+  // in the chrome dev tools.
+  return url.replace(/(\w+:\/\/[\w:-]+)?(\/+)?/, 'ng:///');
 }
 
 export function templateSourceUrl(
     ngModuleType: CompileIdentifierMetadata, compMeta: {type: CompileIdentifierMetadata},
     templateMeta: {isInline: boolean, templateUrl: string}) {
+  let url: string;
   if (templateMeta.isInline) {
     if (compMeta.type.reference instanceof StaticSymbol) {
-      return compMeta.type.reference.filePath;
+      // Note: a .ts file might contain multiple components with inline templates,
+      // so we need to give them unique urls, as these will be used for sourcemaps.
+      url = `${compMeta.type.reference.filePath}.${compMeta.type.reference.name}.html`;
     } else {
-      return `${ngJitFolder()}/${identifierName(ngModuleType)}/${identifierName(compMeta.type)}.html`;
+      url = `${identifierName(ngModuleType)}/${identifierName(compMeta.type)}.html`;
     }
   } else {
-    return templateMeta.templateUrl;
+    url = templateMeta.templateUrl;
   }
+  // always prepend ng:// to make angular resources easy to find and not clobber
+  // user resources.
+  return sourceUrl(url);
 }
 
 export function sharedStylesheetJitUrl(meta: CompileStylesheetMetadata, id: number) {
   const pathParts = meta.moduleUrl.split(/\/\\/g);
   const baseName = pathParts[pathParts.length - 1];
-  return `${ngJitFolder()}/css/${id}${baseName}.ngstyle.js`;
+  return sourceUrl(`css/${id}${baseName}.ngstyle.js`);
 }
 
 export function ngModuleJitUrl(moduleMeta: CompileNgModuleMetadata): string {
-  return `${ngJitFolder()}/${identifierName(moduleMeta.type)}/module.ngfactory.js`;
+  return sourceUrl(`${identifierName(moduleMeta.type)}/module.ngfactory.js`);
 }
 
 export function templateJitUrl(
     ngModuleType: CompileIdentifierMetadata, compMeta: CompileDirectiveMetadata): string {
-  return `${ngJitFolder()}/${identifierName(ngModuleType)}/${identifierName(compMeta.type)}.ngfactory.js`;
+  return sourceUrl(`${identifierName(ngModuleType)}/${identifierName(compMeta.type)}.ngfactory.js`);
 }

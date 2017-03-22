@@ -6,14 +6,11 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {PipeTransform} from '../change_detection/change_detection';
 import {Injector} from '../di';
-import {ComponentRef} from '../linker/component_factory';
+import {NgModuleRef} from '../linker/ng_module_factory';
 import {QueryList} from '../linker/query_list';
 import {TemplateRef} from '../linker/template_ref';
 import {ViewContainerRef} from '../linker/view_container_ref';
-import {ViewRef} from '../linker/view_ref';
-import {ViewEncapsulation} from '../metadata/view';
 import {Renderer2, RendererFactory2, RendererType2} from '../render/api';
 import {Sanitizer, SecurityContext} from '../security';
 
@@ -107,6 +104,7 @@ export interface NodeDef {
 
   bindingIndex: number;
   bindings: BindingDef[];
+  bindingFlags: BindingFlags;
   outputIndex: number;
   outputs: OutputDef[];
   /**
@@ -180,7 +178,7 @@ export const enum NodeFlags {
 }
 
 export interface BindingDef {
-  type: BindingType;
+  flags: BindingFlags;
   ns: string;
   name: string;
   nonMinifiedName: string;
@@ -188,15 +186,17 @@ export interface BindingDef {
   suffix: string;
 }
 
-export const enum BindingType {
-  ElementAttribute,
-  ElementClass,
-  ElementStyle,
-  ElementProperty,
-  ComponentHostProperty,
-  DirectiveProperty,
-  TextInterpolation,
-  PureExpressionProperty
+export const enum BindingFlags {
+  TypeElementAttribute = 1 << 0,
+  TypeElementClass = 1 << 1,
+  TypeElementStyle = 1 << 2,
+  TypeProperty = 1 << 3,
+  SyntheticProperty = 1 << 4,
+  SyntheticHostProperty = 1 << 5,
+  CatSyntheticProperty = SyntheticProperty | SyntheticHostProperty,
+
+  // mutually exclusive values...
+  Types = TypeElementAttribute | TypeElementClass | TypeElementStyle | TypeProperty
 }
 
 export interface OutputDef {
@@ -424,6 +424,7 @@ export function asQueryList(view: ViewData, index: number): QueryList<any> {
 
 export interface RootData {
   injector: Injector;
+  ngModule: NgModuleRef<any>;
   projectableNodes: any[][];
   selectorOrNode: any;
   renderer: Renderer2;
@@ -454,7 +455,7 @@ export interface Services {
   setCurrentNode(view: ViewData, nodeIndex: number): void;
   createRootView(
       injector: Injector, projectableNodes: any[][], rootSelectorOrNode: string|any,
-      def: ViewDefinition, context?: any): ViewData;
+      def: ViewDefinition, ngModule: NgModuleRef<any>, context?: any): ViewData;
   createEmbeddedView(parent: ViewData, anchorDef: NodeDef, context?: any): ViewData;
   checkAndUpdateView(view: ViewData): void;
   checkNoChangesView(view: ViewData): void;
