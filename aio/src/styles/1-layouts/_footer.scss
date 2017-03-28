@@ -1,0 +1,22 @@
+footer .footer {
+    padding: 20px;
+    z-index: 10;
+    background-image: url('../src//assets/images/backgrounds/ng-pattern-sm.png');
+    background-repeat: repeat;
+    color: $offwhite;
+    text-align: center;
+    font-weight: 300;
+    a {
+        color: $offwhite;
+        text-decoration: none;
+        &:hover {
+            text-decoration: underline;
+        }
+        &:visited {
+        text-decoration: none;
+        }
+    }
+    p {
+        margin: 0px 0px 5px;
+    }
+}

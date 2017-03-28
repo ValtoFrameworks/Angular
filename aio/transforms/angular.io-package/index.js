@@ -107,7 +107,8 @@ module.exports =
             },
             {
               basePath: CONTENTS_PATH,
-              include: CONTENTS_PATH + '/file-not-found.md',
+              include: CONTENTS_PATH + '/*.md',
+              exclude: [CONTENTS_PATH + '/index.md'],
               fileReader: 'contentFileReader'
             },
             {
@@ -200,7 +201,7 @@ module.exports =
 
         // Configure nunjucks rendering of docs via templates
         .config(function(
-            renderDocsProcessor, versionInfo, templateFinder, templateEngine, getInjectables) {
+            renderDocsProcessor, versionInfo, templateFinder, templateEngine, getInjectables, renderMarkdown) {
 
           // Where to find the templates for the doc rendering
           templateFinder.templateFolders = [TEMPLATES_PATH];
@@ -227,6 +228,12 @@ module.exports =
           renderDocsProcessor.helpers.relativePath = function(from, to) {
             return path.relative(from, to);
           };
+
+          // Tell the HTML formatter not to format code-example blocks
+          renderMarkdown.unformattedTags = [
+            'code-example',
+            'code-pane'
+          ];
         })
 
 

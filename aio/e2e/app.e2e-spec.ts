@@ -10,9 +10,8 @@ describe('site App', function() {
   });
 
   it('should show features text after clicking "Features"', () => {
-    page.getLink('features').click().then(() => {
-      expect(page.getDocViewerText()).toMatch(/Progressive web apps/i);
-    });
+    page.getLink('features').click();
+    expect(page.getDocViewerText()).toMatch(/Progressive web apps/i);
   });
 
   it('should show the tutorial index page at `/tutorial/`', () => {
@@ -24,18 +23,14 @@ describe('site App', function() {
     page.getLink('features').click();
 
     // check that we can navigate to the tutorial page via a link in the navigation
-    const heading = page.getNavHeading(/tutorial/i);
-    expect(heading.getText()).toMatch(/tutorial/i);
-    heading.click();
-    page.getLink('tutorial/').click();
+    page.getLink('tutorial').click();
     expect(page.getDocViewerText()).toMatch(/Tutorial: Tour of Heroes/i);
   });
 
   it('should render `{@example}` dgeni tags as `<code-example>` elements with HTML escaped content', () => {
     page.navigateTo('guide/component-styles');
     const codeExample = element.all(by.css('code-example')).first();
-    expect(page.getInnerHtml(codeExample))
-        .toContain('@Component({\n  selector: \'hero-app\',\n  template: `\n    &lt;h1&gt;Tour of Heroes&lt;/h1&gt;');
+    expect(page.getInnerHtml(codeExample)).toContain('&lt;h1&gt;Tour of Heroes&lt;/h1&gt;');
   });
 
   describe('api-docs', () => {
