@@ -70,11 +70,11 @@ export class Extractor {
               }
             });
             compMetas.forEach(compMeta => {
-              const html = compMeta.template.template;
+              const html = compMeta.template !.template !;
               const interpolationConfig =
-                  InterpolationConfig.fromArray(compMeta.template.interpolation);
-              errors.push(
-                  ...this.messageBundle.updateFromTemplate(html, file.srcUrl, interpolationConfig));
+                  InterpolationConfig.fromArray(compMeta.template !.interpolation);
+              errors.push(...this.messageBundle.updateFromTemplate(
+                  html, file.srcUrl, interpolationConfig) !);
             });
           });
 
@@ -94,7 +94,7 @@ export class Extractor {
     const symbolCache = new StaticSymbolCache();
     const summaryResolver = new AotSummaryResolver(host, symbolCache);
     const staticSymbolResolver = new StaticSymbolResolver(host, symbolCache, summaryResolver);
-    const staticReflector = new StaticReflector(staticSymbolResolver);
+    const staticReflector = new StaticReflector(summaryResolver, staticSymbolResolver);
     StaticAndDynamicReflectionCapabilities.install(staticReflector);
 
     const config =

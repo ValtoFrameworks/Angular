@@ -5,8 +5,18 @@ code-tabs md-tab-body {
     border-radius: 5px;
     color: $darkgray;
     display: block;
-    padding: 10px;
-    margin: 24px auto;
+    padding: 8px 16px;
+    margin: 16px auto;
+
+    code {
+      overflow: auto;
+    }
+}
+
+// TERMINAL / SHELL TEXT STYLES
+
+code-example.code-shell, code-example[language=sh], code-example[language=bash] {
+  background-color: $darkgray;
 }
 
 code-example header {
@@ -29,16 +39,69 @@ code-tabs.is-anti-pattern md-tab-body {
   border: 0.5px solid $anti-pattern;
 }
 
+code-tabs div .mat-tab-body-content {
+  height: auto;
+}
+
+code-tabs .mat-tab-body-wrapper md-tab-body .mat-tab-body {
+  overflow-y: hidden;
+}
+
+code-tabs mat-tab-body-content .fadeIn {
+  animation: opacity 2s ease-in;
+}
+
 aio-code pre {
     display: flex;
-    line-height: 1.5;
-
-    margin: 0px;
-    padding: 0px;
+    padding: 0 48px 0 0;
     white-space: pre-wrap;
-    li {
-      line-height: 60%;
+
+    code span, code ol li {
+      line-height: 18px;
     }
+}
+
+code ol {
+  font-family: $main-font;
+  color: $lightgray;
+
+  li {
+    margin: 0;
+    font-family: $code-font;
+    font-size: 90%;
+  }
+}
+
+.code-missing {
+  color: $darkred;
+}
+
+.prettyprint {
+  position: relative;
+}
+
+.copy-button {
+  color: $lightgray;
+  background-color: transparent;
+  border: none;
+  &:hover {
+    color: $mediumgray;
+  }
+  @media (max-width: 480px) {
+    top: 0;
+    bottom: 0;
+  }
+}
+
+.lang-sh .copy-button, .lang-bash .copy-button {
+  color: $mediumgray;
+  &:hover {
+    color: $lightgray;
+  }
+}
+
+.code-tab-group div.mat-tab-body-content {
+  height: auto;
 }
 
 $blue-grey-50: #ECEFF1;
@@ -52,42 +115,9 @@ $blue-grey-700: #455A64;
 $blue-grey-800: #37474F;
 $blue-grey-900: #263238;
 
-$pink-50: #FCE4EC;
-$pink-100: #F8BBD0;
-$pink-200: #F48FB1;
-$pink-300: #F06292;
-$pink-400: #EC407A;
-$pink-500: #E91E63;
-$pink-600: #D81B60;
-$pink-700: #C2185B;
-$pink-800: #AD1457;
-$pink-900: #880E4F;
-$pink-A100: #FF80AB;
-$pink-A200: #FF4081;
-$pink-A400: #F50057;
-$pink-A700: #C51162;
-
-$teal-50: #E0F2F1;
-$teal-100: #B2DFDB;
-$teal-200: #80CBC4;
-$teal-300: #4DB6AC;
-$teal-400: #26A69A;
-$teal-500: #009688;
-$teal-600: #00897B;
-$teal-700: #00796B;
-$teal-800: #00695C;
-$teal-900: #004D40;
-$teal-A100: #A7FFEB;
-$teal-A200: #64FFDA;
-$teal-A400: #1DE9B6;
-$teal-A700: #00BFA5;
-
 $white: #FFFFFF;
 
-  /*
-  * Screen Colors
-  *
-  */
+/* SCREEN COLORS */
 
   .pnk,
   .blk {
@@ -105,40 +135,45 @@ $white: #FFFFFF;
     outline: 1px solid rgba($blue-grey-700, .56);
   }
   .kwd {
-    color: $pink-600;
+    color: $darkgray;
   }
   .typ,
   .tag {
-    color: $pink-600;
+    color: $darkred;
   }
   .str,
   .atv {
-    color: $teal-700;
+    color: $blue;
   }
   .atn {
-    color: $teal-700;
+    color: $blue;
   }
   .com {
-    color: $teal-700;
+    color: $mediumgray;
   }
   .lit {
-    color: $teal-700;
+    color: $blue;
   }
   .pun {
     color: $blue-grey-700;
   }
   .pln {
-    color: $blue-grey-700;
+    color: $green-800;
   }
   .dec {
-    color: $teal-700;
+    color: $blue;
   }
 
+/* SHELL / TERMINAL CODE BLOCKS */
 
-  /*
-  * Print Colors
-  *
-  */
+code-example.code-shell, code-example[language=sh], code-example[language=bash] {
+  & .pnk, .blk,.pln, .otl, .kwd, .typ, .tag, .str, .atv, .atn, .com, .lit, .pun, .dec {
+    color: $codegreen;
+  }
+}
+
+/* PRINT COLORS */
+
 
   @media print {
     border: none;
@@ -149,32 +184,32 @@ $white: #FFFFFF;
     }
 
     .kwd {
-      color: $pink-600;
+      color: $darkgray;
     }
     .typ,
     .tag {
-      color: $pink-600;
+      color: $darkred;
     }
     .str,
     .atv {
-      color: $teal-700;
+      color: $blue;
     }
     .atn {
-      color: $teal-700;
+      color: $blue;
     }
     .com {
-      color: $teal-700;
+      color: $mediumgray;
     }
     .lit {
-      color: $teal-700;
+      color: $blue;
     }
     .pun {
       color: $blue-grey-700;
     }
     .pln {
-      color: $blue-grey-700;
+      color: $green-800;
     }
     .dec {
-      color: $teal-700;
+      color: $blue;
     }
   }

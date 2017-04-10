@@ -1,16 +1,24 @@
 import { async, inject, ComponentFixture, TestBed } from '@angular/core/testing';
 import { APP_BASE_HREF } from '@angular/common';
+import { Http } from '@angular/http';
 import { By } from '@angular/platform-browser';
+
+import { of } from 'rxjs/observable/of';
+
 import { AppComponent } from './app.component';
 import { AppModule } from './app.module';
 import { GaService } from 'app/shared/ga.service';
 import { SearchResultsComponent } from 'app/search/search-results/search-results.component';
 import { SearchBoxComponent } from 'app/search/search-box/search-box.component';
+import { SearchService } from 'app/search/search.service';
+import { MockSearchService } from 'testing/search.service';
 import { AutoScrollService } from 'app/shared/auto-scroll.service';
 import { LocationService } from 'app/shared/location.service';
 import { MockLocationService } from 'testing/location.service';
 import { Logger } from 'app/shared/logger.service';
 import { MockLogger } from 'testing/logger.service';
+import { SwUpdateNotificationsService } from 'app/sw-updates/sw-update-notifications.service';
+import { MockSwUpdateNotificationsService } from 'testing/sw-update-notifications.service';
 
 describe('AppComponent', () => {
   let component: AppComponent;
@@ -23,8 +31,11 @@ describe('AppComponent', () => {
       providers: [
         { provide: APP_BASE_HREF, useValue: '/' },
         { provide: GaService, useClass: TestGaService },
+        { provide: Http, useClass: TestHttp },
         { provide: LocationService, useFactory: () => new MockLocationService(initialUrl) },
-        { provide: Logger, useClass: MockLogger }
+        { provide: Logger, useClass: MockLogger },
+        { provide: SearchService, useClass: MockSearchService },
+        { provide: SwUpdateNotificationsService, useClass: MockSwUpdateNotificationsService },
       ]
     });
     TestBed.compileComponents();
@@ -40,27 +51,100 @@ describe('AppComponent', () => {
     expect(component).toBeDefined();
   });
 
-  describe('google analytics', () => {
-    it('should call gaService.locationChanged with initial URL', () => {
-      const { locationChanged } = TestBed.get(GaService) as TestGaService;
-      expect(locationChanged.calls.count()).toBe(1, 'gaService.locationChanged');
-      const args = locationChanged.calls.first().args;
-      expect(args[0]).toBe(initialUrl);
+  describe('ServiceWorker update notifications', () => {
+    it('should be enabled', () => {
+      const swUpdateNotifications = TestBed.get(SwUpdateNotificationsService) as SwUpdateNotificationsService;
+      expect(swUpdateNotifications.enable).toHaveBeenCalled();
     });
-
-    // Todo: add test to confirm tracking URL when navigate.
   });
 
-  describe('isHamburgerVisible', () => {
-    console.log('PENDING: AppComponent isHamburgerVisible');
+  describe('is Hamburger Visible', () => {
+    console.log('PENDING: AppComponent');
   });
 
   describe('onResize', () => {
     it('should update `isSideBySide` accordingly', () => {
-      component.onResize(1000);
+      component.onResize(1033);
       expect(component.isSideBySide).toBe(true);
       component.onResize(500);
       expect(component.isSideBySide).toBe(false);
+    });
+  });
+
+  describe('shows/hide SideNav based on doc\'s navigation view', () => {
+    let locationService: MockLocationService;
+
+    beforeEach(() => {
+      locationService = fixture.debugElement.injector.get(LocationService) as any;
+      component.onResize(1000); // side-by-side
+    });
+
+    it('should have sidenav open when doc in the sidenav (guide/pipes)', () => {
+      locationService.urlSubject.next('guide/pipes');
+
+      fixture.detectChanges();
+      const sidenav = fixture.debugElement.query(By.css('md-sidenav')).nativeElement;
+      expect(sidenav.className).toMatch(/sidenav-open/);
+    });
+
+    it('should have sidenav open when doc is an api page', () => {
+      locationService.urlSubject.next('api/a/b/c/d');
+
+      fixture.detectChanges();
+      const sidenav = fixture.debugElement.query(By.css('md-sidenav')).nativeElement;
+      expect(sidenav.className).toMatch(/sidenav-open/);
+    });
+
+    it('should have sidenav closed when doc not in the sidenav (features)', () => {
+      locationService.urlSubject.next('features');
+
+      fixture.detectChanges();
+      const sidenav = fixture.debugElement.query(By.css('md-sidenav')).nativeElement;
+      expect(sidenav.className).toMatch(/sidenav-clos/);
+    });
+  });
+
+  describe('pageId', () => {
+    let locationService: MockLocationService;
+
+    beforeEach(() => {
+      locationService = fixture.debugElement.injector.get(LocationService) as any;
+    });
+
+    it('should set the id of the doc viewer container based on the current url', () => {
+      const container = fixture.debugElement.query(By.css('section.sidenav-content'));
+
+      locationService.urlSubject.next('guide/pipes');
+      fixture.detectChanges();
+      expect(component.pageId).toEqual('guide-pipes');
+      expect(container.properties['id']).toEqual('guide-pipes');
+
+      locationService.urlSubject.next('news');
+      fixture.detectChanges();
+      expect(component.pageId).toEqual('news');
+      expect(container.properties['id']).toEqual('news');
+
+      locationService.urlSubject.next('');
+      fixture.detectChanges();
+      expect(component.pageId).toEqual('home');
+      expect(container.properties['id']).toEqual('home');
+    });
+
+    it('should not be affected by changes to the query or hash', () => {
+      const container = fixture.debugElement.query(By.css('section.sidenav-content'));
+
+      locationService.urlSubject.next('guide/pipes');
+      fixture.detectChanges();
+
+      locationService.urlSubject.next('guide/other?search=http');
+      fixture.detectChanges();
+      expect(component.pageId).toEqual('guide-other');
+      expect(container.properties['id']).toEqual('guide-other');
+
+      locationService.urlSubject.next('guide/http#anchor-1');
+      fixture.detectChanges();
+      expect(component.pageId).toEqual('guide-http');
+      expect(container.properties['id']).toEqual('guide-http');
     });
   });
 
@@ -84,9 +168,17 @@ describe('AppComponent', () => {
     it('should be called when a document has been rendered', () => {
       const scrollService: AutoScrollService = fixture.debugElement.injector.get(AutoScrollService);
       spyOn(scrollService, 'scroll');
-      component.onDocRendered(null);
+      component.onDocRendered();
       expect(scrollService.scroll).toHaveBeenCalledWith(jasmine.any(HTMLElement));
     });
+  });
+
+  describe('initialization', () => {
+    it('should initialize the search worker', inject([SearchService], (searchService: SearchService) => {
+      fixture.detectChanges(); // triggers ngOnInit
+      expect(searchService.initWorker).toHaveBeenCalled();
+      expect(searchService.loadIndex).toHaveBeenCalled();
+    }));
   });
 
   describe('click intercepting', () => {
@@ -120,8 +212,95 @@ describe('AppComponent', () => {
       expect(searchResultsComponent.hideResults).not.toHaveBeenCalled();
     });
   });
+
+  describe('footer', () => {
+    it('should have version number', () => {
+      const versionEl: HTMLElement = fixture.debugElement.query(By.css('aio-footer')).nativeElement;
+      expect(versionEl.innerText).toContain(TestHttp.versionFull);
+    });
+  });
+
 });
 
 class TestGaService {
   locationChanged = jasmine.createSpy('locationChanged');
+}
+
+class TestSearchService {
+  initWorker = jasmine.createSpy('initWorker');
+  loadIndex  = jasmine.createSpy('loadIndex');
+}
+
+class TestHttp {
+  static versionFull = '4.0.0-local+sha.73808dd';
+
+  // tslint:disable:quotemark
+  navJson = {
+    "TopBar": [
+      {
+        "url": "features",
+        "title": "Features"
+      }
+    ],
+    "SideNav": [
+      {
+      "title": "Core",
+      "tooltip": "Learn the core capabilities of Angular",
+      "children": [
+          {
+            "url": "guide/pipes",
+            "title": "Pipes",
+            "tooltip": "Pipes transform displayed values within a template."
+          }
+        ]
+      },
+      {
+        "url": "api",
+        "title": "API",
+        "tooltip": "Details of the Angular classes and values."
+      }
+    ],
+    "__versionInfo": {
+      "raw": "4.0.0-rc.6",
+      "major": 4,
+      "minor": 0,
+      "patch": 0,
+      "prerelease": [
+        "local"
+      ],
+      "build": "sha.73808dd",
+      "version": "4.0.0-local",
+      "codeName": "snapshot",
+      "isSnapshot": true,
+      "full": TestHttp.versionFull,
+      "branch": "master",
+      "commitSHA": "73808dd38b5ccd729404936834d1568bd066de81"
+    }
+  };
+
+  apiDoc = {
+    "title": "API",
+    "contents": "<h1>API Doc</h1>"
+  };
+
+  pipesDoc = {
+    "title": "Pipes",
+    "contents": "<h1>Pipes Doc</h1>"
+  };
+
+  testDoc = {
+    "title": "Test",
+    "contents": "<h1>Test Doc</h1>"
+  };
+
+  // get = jasmine.createSpy('get').and.callFake((url: string) => { ... });
+  get(url: string) {
+    const json =
+      /navigation.json/.test(url) ? this.navJson :
+      /api/.test(url) ? this.apiDoc :
+      /pipes/.test(url) ? this.pipesDoc :
+      this.testDoc;
+    return of({ json: () => json });
+  }
+
 }

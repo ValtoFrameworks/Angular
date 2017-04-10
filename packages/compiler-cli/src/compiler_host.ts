@@ -33,6 +33,7 @@ export class CompilerHost implements AotCompilerHost {
   private resolverCache = new Map<string, ModuleMetadata[]>();
   private bundleIndexCache = new Map<string, boolean>();
   private bundleIndexNames = new Set<string>();
+  private moduleFileNames = new Map<string, string|null>();
   protected resolveModuleNameHost: CompilerHostContext;
 
   constructor(
@@ -69,19 +70,25 @@ export class CompilerHost implements AotCompilerHost {
   getCanonicalFileName(fileName: string): string { return fileName; }
 
   moduleNameToFileName(m: string, containingFile: string): string|null {
-    if (!containingFile || !containingFile.length) {
-      if (m.indexOf('.') === 0) {
-        throw new Error('Resolution of relative paths requires a containing file.');
+    const key = m + ':' + (containingFile || '');
+    let result: string|null = this.moduleFileNames.get(key) || null;
+    if (!result) {
+      if (!containingFile || !containingFile.length) {
+        if (m.indexOf('.') === 0) {
+          throw new Error('Resolution of relative paths requires a containing file.');
+        }
+        // Any containing file gives the same result for absolute imports
+        containingFile = this.getCanonicalFileName(path.join(this.basePath, 'index.ts'));
       }
-      // Any containing file gives the same result for absolute imports
-      containingFile = this.getCanonicalFileName(path.join(this.basePath, 'index.ts'));
+      m = m.replace(EXT, '');
+      const resolved =
+          ts.resolveModuleName(
+                m, containingFile.replace(/\\/g, '/'), this.options, this.resolveModuleNameHost)
+              .resolvedModule;
+      result = resolved ? this.getCanonicalFileName(resolved.resolvedFileName) : null;
+      this.moduleFileNames.set(key, result);
     }
-    m = m.replace(EXT, '');
-    const resolved =
-        ts.resolveModuleName(
-              m, containingFile.replace(/\\/g, '/'), this.options, this.resolveModuleNameHost)
-            .resolvedModule;
-    return resolved ? this.getCanonicalFileName(resolved.resolvedFileName) : null;
+    return result;
   };
 
   /**
@@ -176,7 +183,7 @@ export class CompilerHost implements AotCompilerHost {
     return sf;
   }
 
-  getMetadataFor(filePath: string): ModuleMetadata[] {
+  getMetadataFor(filePath: string): ModuleMetadata[]|undefined {
     if (!this.context.fileExists(filePath)) {
       // If the file doesn't exists then we cannot return metadata for the file.
       // This will occur if the user refernced a declared module for which no file
@@ -256,6 +263,7 @@ export class CompilerHost implements AotCompilerHost {
     if (this.context.fileExists(filePath)) {
       return this.context.readFile(filePath);
     }
+    return null;
   }
 
   getOutputFileName(sourceFilePath: string): string {
@@ -280,7 +288,7 @@ export class CompilerHost implements AotCompilerHost {
 
   calculateEmitPath(filePath: string): string {
     // Write codegen in a directory structure matching the sources.
-    let root = this.options.basePath;
+    let root = this.options.basePath !;
     for (const eachRootDir of this.options.rootDirs || []) {
       if (this.options.trace) {
         console.error(`Check if ${filePath} is under rootDirs element ${eachRootDir}`);
@@ -366,7 +374,7 @@ export class ModuleResolutionHostAdapter extends CompilerHostContextAdapter impl
   constructor(private host: ts.ModuleResolutionHost) {
     super();
     if (host.directoryExists) {
-      this.directoryExists = (directoryName: string) => host.directoryExists(directoryName);
+      this.directoryExists = (directoryName: string) => host.directoryExists !(directoryName);
     }
   }
 

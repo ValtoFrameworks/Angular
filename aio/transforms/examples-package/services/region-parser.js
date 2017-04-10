@@ -3,7 +3,6 @@ const html = require('./region-matchers/html');
 const inlineC = require('./region-matchers/inline-c');
 const inlineCOnly = require('./region-matchers/inline-c-only');
 const inlineHash = require('./region-matchers/inline-hash');
-const NO_NAME_REGION = '';
 const DEFAULT_PLASTER = '. . .';
 const {mapObject} = require('../utils');
 
@@ -56,7 +55,9 @@ function regionParserImpl(contents, fileType) {
                   `Tried to open a region, named "${regionName}", that is already open`, index);
             }
             region.open = true;
-            region.lines.push(plaster);
+            if (plaster) {
+              region.lines.push(plaster);
+            }
           } else {
             regionMap[regionName] = {lines: [], open: true};
           }
@@ -86,7 +87,8 @@ function regionParserImpl(contents, fileType) {
 
         // doc plaster processing
       } else if (updatePlaster) {
-        plaster = regionMatcher.createPlasterComment(updatePlaster[1].trim());
+        const plasterString = updatePlaster[1].trim();
+        plaster = plasterString ? regionMatcher.createPlasterComment(plasterString) : '';
 
         // simple line of content processing
       } else {

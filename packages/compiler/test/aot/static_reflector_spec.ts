@@ -24,9 +24,10 @@ describe('StaticReflector', () => {
       errorRecorder?: (error: any, fileName: string) => void, collectorOptions?: CollectorOptions) {
     const symbolCache = new StaticSymbolCache();
     host = new MockStaticSymbolResolverHost(testData, collectorOptions);
-    symbolResolver =
-        new StaticSymbolResolver(host, symbolCache, new MockSummaryResolver([]), errorRecorder);
-    reflector = new StaticReflector(symbolResolver, decorators, [], errorRecorder);
+    const summaryResolver = new MockSummaryResolver([]);
+    spyOn(summaryResolver, 'isLibraryFile').and.returnValue(false);
+    symbolResolver = new StaticSymbolResolver(host, symbolCache, summaryResolver, errorRecorder);
+    reflector = new StaticReflector(summaryResolver, symbolResolver, decorators, [], errorRecorder);
     noContext = reflector.getStaticSymbol('', '');
   }
 
@@ -359,7 +360,7 @@ describe('StaticReflector', () => {
   it('should record data about the error in the exception', () => {
     let threw = false;
     try {
-      const metadata = host.getMetadataFor('/tmp/src/invalid-metadata.ts');
+      const metadata = host.getMetadataFor('/tmp/src/invalid-metadata.ts') !;
       expect(metadata).toBeDefined();
       const moduleMetadata: any = metadata[0]['metadata'];
       expect(moduleMetadata).toBeDefined();
@@ -493,6 +494,31 @@ describe('StaticReflector', () => {
     init(data);
     const appComponent = reflector.getStaticSymbol(file, 'AppComponent');
     expect(() => reflector.propMetadata(appComponent)).not.toThrow();
+  });
+
+  it('should not throw with an invalid extends', () => {
+    const data = Object.create(DEFAULT_TEST_DATA);
+    const file = '/tmp/src/invalid-component.ts';
+    data[file] = `
+        import {Component} from '@angular/core';
+
+        function InvalidParent() {
+          return InvalidParent;
+        }
+
+        @Component({
+          selector: 'tmp',
+          template: '',
+        })
+        export class BadComponent extends InvalidParent() {
+
+        }
+      `;
+    init(data);
+    const badComponent = reflector.getStaticSymbol(file, 'BadComponent');
+    expect(reflector.propMetadata(badComponent)).toEqual({});
+    expect(reflector.parameters(badComponent)).toEqual([]);
+    expect(reflector.hasLifecycleHook(badComponent, 'onDestroy')).toEqual(false);
   });
 
   it('should produce a annotation even if it contains errors', () => {

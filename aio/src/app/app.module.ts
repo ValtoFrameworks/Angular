@@ -17,9 +17,12 @@ import { Platform } from '@angular/material/core';
 // crashes with "missing first" operator when SideNav.mode is "over"
 import 'rxjs/add/operator/first';
 
+import { SwUpdatesModule } from 'app/sw-updates/sw-updates.module';
+
 import { AppComponent } from 'app/app.component';
 import { ApiService } from 'app/embedded/api/api.service';
 import { DocViewerComponent } from 'app/layout/doc-viewer/doc-viewer.component';
+import { DtComponent } from 'app/layout/doc-viewer/dt.component';
 import { EmbeddedModule } from 'app/embedded/embedded.module';
 import { GaService } from 'app/shared/ga.service';
 import { Logger } from 'app/shared/logger.service';
@@ -28,6 +31,7 @@ import { NavigationService } from 'app/navigation/navigation.service';
 import { DocumentService } from 'app/documents/document.service';
 import { SearchService } from 'app/search/search.service';
 import { TopMenuComponent } from 'app/layout/top-menu/top-menu.component';
+import { FooterComponent } from 'app/layout/footer/footer.component';
 import { NavMenuComponent } from 'app/layout/nav-menu/nav-menu.component';
 import { NavItemComponent } from 'app/layout/nav-item/nav-item.component';
 import { SearchResultsComponent } from './search/search-results/search-results.component';
@@ -45,11 +49,14 @@ import { AutoScrollService } from 'app/shared/auto-scroll.service';
     MdInputModule,
     MdToolbarModule,
     MdSidenavModule,
-    MdTabsModule
+    MdTabsModule,
+    SwUpdatesModule
   ],
   declarations: [
     AppComponent,
     DocViewerComponent,
+    DtComponent,
+    FooterComponent,
     TopMenuComponent,
     NavMenuComponent,
     NavItemComponent,

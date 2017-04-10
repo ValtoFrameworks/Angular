@@ -32,9 +32,9 @@ export interface NgTools_InternalApi_NG2_CodeGen_Options {
   angularCompilerOptions: AngularCompilerOptions;
 
   // i18n options.
-  i18nFormat: string;
-  i18nFile: string;
-  locale: string;
+  i18nFormat?: string;
+  i18nFile?: string;
+  locale?: string;
 
   readResource: (fileName: string) => Promise<string>;
 
@@ -58,7 +58,7 @@ export interface NgTools_InternalApi_NG2_ExtractI18n_Options {
   program: ts.Program;
   host: ts.CompilerHost;
   angularCompilerOptions: AngularCompilerOptions;
-  i18nFormat: string;
+  i18nFormat?: string;
   readResource: (fileName: string) => Promise<string>;
   // Every new property under this line should be optional.
   locale?: string;
@@ -92,9 +92,9 @@ export class NgTools_InternalApi_NG_2 {
     const hostContext: CompilerHostContext =
         new CustomLoaderModuleResolutionHostAdapter(options.readResource, options.host);
     const cliOptions: NgcCliOptions = {
-      i18nFormat: options.i18nFormat,
-      i18nFile: options.i18nFile,
-      locale: options.locale,
+      i18nFormat: options.i18nFormat !,
+      i18nFile: options.i18nFile !,
+      locale: options.locale !,
       basePath: options.basePath
     };
 
@@ -124,7 +124,7 @@ export class NgTools_InternalApi_NG_2 {
     const symbolCache = new StaticSymbolCache();
     const summaryResolver = new AotSummaryResolver(ngCompilerHost, symbolCache);
     const symbolResolver = new StaticSymbolResolver(ngCompilerHost, symbolCache, summaryResolver);
-    const staticReflector = new StaticReflector(symbolResolver);
+    const staticReflector = new StaticReflector(summaryResolver, symbolResolver);
     const routeMap = listLazyRoutesOfModule(options.entryModule, ngCompilerHost, staticReflector);
 
     return Object.keys(routeMap).reduce(
@@ -148,6 +148,6 @@ export class NgTools_InternalApi_NG_2 {
     const extractor = Extractor.create(
         options.angularCompilerOptions, options.program, options.host, locale, hostContext);
 
-    return extractor.extract(options.i18nFormat, options.outFile || null);
+    return extractor.extract(options.i18nFormat !, options.outFile || null);
   }
 }

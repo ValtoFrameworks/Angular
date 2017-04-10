@@ -115,7 +115,7 @@ export class UrlTree {
       /** The fragment of the URL */
       public fragment: string) {}
 
-  get queryParamMap() {
+  get queryParamMap(): ParamMap {
     if (!this._queryParamMap) {
       this._queryParamMap = convertToParamMap(this.queryParams);
     }
@@ -123,7 +123,7 @@ export class UrlTree {
   }
 
   /** @docsNotRequired */
-  toString(): string { return new DefaultUrlSerializer().serialize(this); }
+  toString(): string { return DEFAULT_SERIALIZER.serialize(this); }
 }
 
 /**
@@ -294,6 +294,8 @@ export class DefaultUrlSerializer implements UrlSerializer {
   }
 }
 
+const DEFAULT_SERIALIZER = new DefaultUrlSerializer();
+
 export function serializePaths(segment: UrlSegmentGroup): string {
   return segment.segments.map(p => serializePath(p)).join('/');
 }
@@ -343,7 +345,7 @@ export function serializePath(path: UrlSegment): string {
 }
 
 function serializeParams(params: {[key: string]: string}): string {
-  return pairs(params).map(p => `;${encode(p.first)}=${encode(p.second)}`).join('');
+  return Object.keys(params).map(key => `;${encode(key)}=${encode(params[key])}`).join('');
 }
 
 function serializeQueryParams(params: {[key: string]: any}): string {
@@ -354,20 +356,6 @@ function serializeQueryParams(params: {[key: string]: any}): string {
   });
 
   return strParams.length ? `?${strParams.join("&")}` : '';
-}
-
-class Pair<A, B> {
-  constructor(public first: A, public second: B) {}
-}
-
-function pairs<T>(obj: {[key: string]: T}): Pair<string, T>[] {
-  const res: Pair<string, T>[] = [];
-  for (const prop in obj) {
-    if (obj.hasOwnProperty(prop)) {
-      res.push(new Pair<string, T>(prop, obj[prop]));
-    }
-  }
-  return res;
 }
 
 const SEGMENT_RE = /^[^\/()?;=&#]+/;

@@ -9,8 +9,8 @@
     "ng": "yarn check-env && ng",
     "start": "yarn check-env && ng serve",
     "build": "yarn check-env && yarn docs && ng build -prod -sm",
+    "lint": "yarn check-env && yarn docs-lint && ng lint",
     "test": "yarn check-env && ng test --sourcemap=false",
-    "lint": "yarn check-env && ng lint",
     "pree2e": "yarn ~~update-webdriver",
     "e2e": "yarn check-env && ng e2e --no-webdriver-update",
     "deploy-preview": "scripts/deploy-preview.sh",
@@ -18,10 +18,13 @@
     "check-env": "node ../tools/check-environment.js",
     "predocs": "rimraf src/content",
     "docs": "dgeni ./transforms/angular.io-package",
+    "docs-lint": "eslint --ignore-path=\"transforms/.eslintignore\" transforms",
     "docs-test": "node ../dist/tools/cjs-jasmine/index-tools ../../transforms/**/*.spec.js",
     "~~update-webdriver": "webdriver-manager update --standalone false --gecko false",
     "pre~~deploy": "yarn build",
-    "~~deploy": "firebase deploy --message \"Commit: $TRAVIS_COMMIT\" --non-interactive --token \"$FIREBASE_TOKEN\""
+    "~~deploy": "firebase deploy --message \"Commit: $TRAVIS_COMMIT\" --non-interactive --token \"$FIREBASE_TOKEN\"",
+    "boilerplate:add": "node ./tools/examples/add-example-boilerplate add",
+    "boilerplate:remove": "node ./tools/examples/add-example-boilerplate remove"
   },
   "private": true,
   "dependencies": {
@@ -51,7 +54,11 @@
     "dgeni": "^0.4.7",
     "dgeni-packages": "0.17.0",
     "entities": "^1.1.1",
+    "eslint": "^3.19.0",
+    "eslint-plugin-jasmine": "^2.2.0",
     "firebase-tools": "^3.2.1",
+    "fs-extra": "^2.1.1",
+    "globby": "^6.1.0",
     "html": "^1.0.0",
     "jasmine-core": "~2.5.2",
     "jasmine-spec-reporter": "~3.2.0",
@@ -65,8 +72,10 @@
     "protractor": "~5.1.0",
     "rho": "https://github.com/petebacondarwin/rho#master",
     "rimraf": "^2.6.1",
+    "shelljs": "^0.7.7",
     "ts-node": "~2.0.0",
     "tslint": "~4.5.0",
-    "typescript": "2.2.0"
+    "typescript": "2.2.0",
+    "vrsource-tslint-rules": "^4.0.1"
   }
 }

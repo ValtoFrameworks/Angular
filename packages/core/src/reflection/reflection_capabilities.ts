@@ -14,8 +14,7 @@ import {GetterFn, MethodFn, SetterFn} from './types';
 /**
  * Attention: This regex has to hold even if the code is minified!
  */
-export const DELEGATE_CTOR =
-    /^function\s+\S+\(\)\s*{\s*("use strict";)?\s*(return\s+)?(\S+\s+!==\s+null\s+&&\s+)?\S+\.apply\(this,\s*arguments\)/;
+export const DELEGATE_CTOR = /^function\s+\S+\(\)\s*{[\s\S]+\.apply\(this,\s*arguments\)/;
 
 export class ReflectionCapabilities implements PlatformReflectionCapabilities {
   private _reflect: any;
@@ -54,7 +53,7 @@ export class ReflectionCapabilities implements PlatformReflectionCapabilities {
     return result;
   }
 
-  private _ownParameters(type: Type<any>, parentCtor: any): any[][] {
+  private _ownParameters(type: Type<any>, parentCtor: any): any[][]|null {
     // If we have no decorators, we only have function.length as metadata.
     // In that case, to detect whether a child class declared an own constructor or not,
     // we need to look inside of that constructor to check whether it is
@@ -115,7 +114,7 @@ export class ReflectionCapabilities implements PlatformReflectionCapabilities {
     return parameters || [];
   }
 
-  private _ownAnnotations(typeOrFunc: Type<any>, parentCtor: any): any[] {
+  private _ownAnnotations(typeOrFunc: Type<any>, parentCtor: any): any[]|null {
     // Prefer the direct API.
     if ((<any>typeOrFunc).annotations && (<any>typeOrFunc).annotations !== parentCtor.annotations) {
       let annotations = (<any>typeOrFunc).annotations;
@@ -134,6 +133,7 @@ export class ReflectionCapabilities implements PlatformReflectionCapabilities {
     if (this._reflect && this._reflect.getOwnMetadata) {
       return this._reflect.getOwnMetadata('annotations', typeOrFunc);
     }
+    return null;
   }
 
   annotations(typeOrFunc: Type<any>): any[] {
@@ -146,7 +146,7 @@ export class ReflectionCapabilities implements PlatformReflectionCapabilities {
     return parentAnnotations.concat(ownAnnotations);
   }
 
-  private _ownPropMetadata(typeOrFunc: any, parentCtor: any): {[key: string]: any[]} {
+  private _ownPropMetadata(typeOrFunc: any, parentCtor: any): {[key: string]: any[]}|null {
     // Prefer the direct API.
     if ((<any>typeOrFunc).propMetadata &&
         (<any>typeOrFunc).propMetadata !== parentCtor.propMetadata) {
@@ -172,6 +172,7 @@ export class ReflectionCapabilities implements PlatformReflectionCapabilities {
     if (this._reflect && this._reflect.getOwnMetadata) {
       return this._reflect.getOwnMetadata('propMetadata', typeOrFunc);
     }
+    return null;
   }
 
   propMetadata(typeOrFunc: any): {[key: string]: any[]} {

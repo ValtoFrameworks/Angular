@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {AotSummaryResolver, CompileDirectiveMetadata, CompileMetadataResolver, CompilerConfig, DEFAULT_INTERPOLATION_CONFIG, DirectiveNormalizer, DirectiveResolver, DomElementSchemaRegistry, HtmlParser, InterpolationConfig, NgAnalyzedModules, NgModuleResolver, ParseTreeResult, Parser, PipeResolver, ResourceLoader, StaticReflector, StaticSymbol, StaticSymbolCache, StaticSymbolResolver, SummaryResolver, UrlResolver, analyzeNgModules, componentModuleUrl, createOfflineCompileUrlResolver, extractProgramSymbols} from '@angular/compiler';
+import {AotSummaryResolver, CompileDirectiveMetadata, CompileMetadataResolver, CompilerConfig, DEFAULT_INTERPOLATION_CONFIG, DirectiveNormalizer, DirectiveResolver, DomElementSchemaRegistry, HtmlParser, InterpolationConfig, NgAnalyzedModules, NgModuleResolver, ParseTreeResult, Parser, PipeResolver, ResourceLoader, StaticAndDynamicReflectionCapabilities, StaticReflector, StaticSymbol, StaticSymbolCache, StaticSymbolResolver, SummaryResolver, UrlResolver, analyzeNgModules, componentModuleUrl, createOfflineCompileUrlResolver, extractProgramSymbols} from '@angular/compiler';
 import {Type, ViewEncapsulation, ɵConsole as Console} from '@angular/core';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -74,6 +74,7 @@ export class DummyResourceLoader extends ResourceLoader {
 export class TypeScriptServiceHost implements LanguageServiceHost {
   private _resolver: CompileMetadataResolver;
   private _staticSymbolCache = new StaticSymbolCache();
+  private _summaryResolver: AotSummaryResolver;
   private _staticSymbolResolver: StaticSymbolResolver;
   private _reflector: StaticReflector;
   private _reflectorHost: ReflectorHost;
@@ -87,6 +88,7 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
   private fileToComponent: Map<string, StaticSymbol>;
   private templateReferences: string[];
   private collectedErrors: Map<string, any[]>;
+  private fileVersions = new Map<string, string>();
 
   constructor(private host: ts.LanguageServiceHost, private tsService: ts.LanguageService) {}
 
@@ -222,7 +224,6 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
     if (this.modulesOutOfDate) {
       this.analyzedModules = null;
       this._reflector = null;
-      this._staticSymbolResolver = null;
       this.templateReferences = null;
       this.fileToComponent = null;
       this.ensureAnalyzedModules();
@@ -242,8 +243,28 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
 
   private validate() {
     const program = this.program;
-    if (this.lastProgram != program) {
+    if (this._staticSymbolResolver && this.lastProgram != program) {
+      // Invalidate file that have changed in the static symbol resolver
+      const invalidateFile = (fileName: string) =>
+          this._staticSymbolResolver.invalidateFile(fileName);
       this.clearCaches();
+      const seen = new Set<string>();
+      for (let sourceFile of this.program.getSourceFiles()) {
+        const fileName = sourceFile.fileName;
+        seen.add(fileName);
+        const version = this.host.getScriptVersion(fileName);
+        const lastVersion = this.fileVersions.get(fileName);
+        if (version != lastVersion) {
+          this.fileVersions.set(fileName, version);
+          invalidateFile(fileName);
+        }
+      }
+
+      // Remove file versions that are no longer in the file and invalidate them.
+      const missing = Array.from(this.fileVersions.keys()).filter(f => !seen.has(f));
+      missing.forEach(f => this.fileVersions.delete(f));
+      missing.forEach(invalidateFile);
+
       this.lastProgram = program;
     }
   }
@@ -387,7 +408,7 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
   private get staticSymbolResolver(): StaticSymbolResolver {
     let result = this._staticSymbolResolver;
     if (!result) {
-      const summaryResolver = new AotSummaryResolver(
+      this._summaryResolver = new AotSummaryResolver(
           {
             loadSummary(filePath: string) { return null; },
             isSourceFile(sourceFilePath: string) { return true; },
@@ -395,7 +416,7 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
           },
           this._staticSymbolCache);
       result = this._staticSymbolResolver = new StaticSymbolResolver(
-          this.reflectorHost, this._staticSymbolCache, summaryResolver,
+          this.reflectorHost, this._staticSymbolCache, this._summaryResolver,
           (e, filePath) => this.collectError(e, filePath));
     }
     return result;
@@ -404,8 +425,10 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
   private get reflector(): StaticReflector {
     let result = this._reflector;
     if (!result) {
+      const ssr = this.staticSymbolResolver;
       result = this._reflector = new StaticReflector(
-          this.staticSymbolResolver, [], [], (e, filePath) => this.collectError(e, filePath));
+          this._summaryResolver, ssr, [], [], (e, filePath) => this.collectError(e, filePath));
+      StaticAndDynamicReflectionCapabilities.install(result);
     }
     return result;
   }
@@ -729,8 +752,10 @@ function toSymbolTable(symbols: ts.Symbol[]): ts.SymbolTable {
   return result;
 }
 
-function toSymbols(symbolTable: ts.SymbolTable, filter?: (symbol: ts.Symbol) => boolean) {
+function toSymbols(
+    symbolTable: ts.SymbolTable | undefined, filter?: (symbol: ts.Symbol) => boolean) {
   const result: ts.Symbol[] = [];
+  if (!symbolTable) return result;
   const own = typeof symbolTable.hasOwnProperty === 'function' ?
       (name: string) => symbolTable.hasOwnProperty(name) :
       (name: string) => !!symbolTable[name];
@@ -783,6 +808,7 @@ class TypeWrapper implements Symbol {
 
 class SymbolWrapper implements Symbol {
   private _tsType: ts.Type;
+  private _members: SymbolTable;
 
   constructor(private symbol: ts.Symbol, private context: TypeContext) {}
 
@@ -805,7 +831,18 @@ class SymbolWrapper implements Symbol {
 
   get definition(): Definition { return definitionFromTsSymbol(this.symbol); }
 
-  members(): SymbolTable { return new SymbolTableWrapper(this.symbol.members, this.context); }
+  members(): SymbolTable {
+    if (!this._members) {
+      if ((this.symbol.flags & (ts.SymbolFlags.Class | ts.SymbolFlags.Interface)) != 0) {
+        const declaredType = this.context.checker.getDeclaredTypeOfSymbol(this.symbol);
+        const typeWrapper = new TypeWrapper(declaredType, this.context);
+        this._members = typeWrapper.members();
+      } else {
+        this._members = new SymbolTableWrapper(this.symbol.members, this.context);
+      }
+    }
+    return this._members;
+  }
 
   signatures(): Signature[] { return signaturesOf(this.tsType, this.context); }
 
@@ -878,8 +915,9 @@ class SymbolTableWrapper implements SymbolTable {
   private symbolTable: ts.SymbolTable;
 
   constructor(
-      symbols: ts.SymbolTable|ts.Symbol[], private context: TypeContext,
+      symbols: ts.SymbolTable|ts.Symbol[]|undefined, private context: TypeContext,
       filter?: (symbol: ts.Symbol) => boolean) {
+    symbols = symbols || [];
     if (Array.isArray(symbols)) {
       this.symbols = filter ? symbols.filter(filter) : symbols;
       this.symbolTable = toSymbolTable(symbols);
@@ -988,6 +1026,9 @@ class PipeSymbol implements Symbol {
               case 'EventEmitter':
                 resultType = getTypeParameterOf(parameterType.tsType, parameterType.name);
                 break;
+              default:
+                resultType = getBuiltinTypeFromTs(BuiltinType.Any, this.context);
+                break;
             }
             break;
           case 'slice':
@@ -1023,10 +1064,13 @@ class PipeSymbol implements Symbol {
     return findClassSymbolInContext(type, this.context);
   }
 
-  private findTransformMethodType(classSymbol: ts.Symbol): ts.Type {
-    const transform = classSymbol.members['transform'];
-    if (transform) {
-      return this.context.checker.getTypeOfSymbolAtLocation(transform, this.context.node);
+  private findTransformMethodType(classSymbol: ts.Symbol): ts.Type|undefined {
+    const classType = this.context.checker.getDeclaredTypeOfSymbol(classSymbol);
+    if (classType) {
+      const transform = classType.getProperty('transform');
+      if (transform) {
+        return this.context.checker.getTypeOfSymbolAtLocation(transform, this.context.node);
+      }
     }
   }
 }
@@ -1053,7 +1097,9 @@ function findTsConfig(fileName: string): string {
   while (fs.existsSync(dir)) {
     const candidate = path.join(dir, 'tsconfig.json');
     if (fs.existsSync(candidate)) return candidate;
-    dir = path.dirname(dir);
+    const parentDir = path.dirname(dir);
+    if (parentDir === dir) break;
+    dir = parentDir;
   }
 }
 

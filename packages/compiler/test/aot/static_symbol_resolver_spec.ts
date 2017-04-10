@@ -283,6 +283,31 @@ describe('StaticSymbolResolver', () => {
     ]);
   });
 
+  it('should only use the arity for classes from libraries without summaries', () => {
+    init({
+      '/test.d.ts': [{
+        '__symbolic': 'module',
+        'version': 3,
+        'metadata': {
+          'AParam': {__symbolic: 'class'},
+          'AClass': {
+            __symbolic: 'class',
+            arity: 1,
+            members: {
+              __ctor__: [{
+                __symbolic: 'constructor',
+                parameters: [symbolCache.get('/test.d.ts', 'AParam')]
+              }]
+            }
+          }
+        }
+      }]
+    });
+
+    expect(symbolResolver.resolveSymbol(symbolCache.get('/test.d.ts', 'AClass')).metadata)
+        .toEqual({__symbolic: 'class', arity: 1});
+  });
+
   it('should be able to trace a named export', () => {
     const symbol = symbolResolver
                        .resolveSymbol(symbolResolver.getSymbolByModule(
@@ -357,7 +382,7 @@ export class MockSummaryResolver implements SummaryResolver<StaticSymbol> {
   }
   getImportAs(symbol: StaticSymbol): StaticSymbol {
     const entry = this.importAs.find(entry => entry.symbol === symbol);
-    return entry ? entry.importAs : undefined;
+    return entry ? entry.importAs : undefined !;
   }
 
   isLibraryFile(filePath: string): boolean { return filePath.endsWith('.d.ts'); }
@@ -404,7 +429,7 @@ export class MockStaticSymbolResolverHost implements StaticSymbolResolverHost {
     }
 
     if (modulePath.indexOf('.') === 0) {
-      const baseName = pathTo(containingFile, modulePath);
+      const baseName = pathTo(containingFile !, modulePath);
       const tsName = baseName + '.ts';
       if (this._getMetadataFor(tsName)) {
         return tsName;

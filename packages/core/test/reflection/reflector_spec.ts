@@ -8,6 +8,7 @@
 
 import {Reflector} from '@angular/core/src/reflection/reflection';
 import {DELEGATE_CTOR, ReflectionCapabilities} from '@angular/core/src/reflection/reflection_capabilities';
+import {global} from '@angular/core/src/util';
 import {makeDecorator, makeParamDecorator, makePropDecorator} from '@angular/core/src/util/decorators';
 
 interface ClassDecoratorFactory {
@@ -171,8 +172,12 @@ export function main() {
         class ChildWithCtor extends Parent {
           constructor() { super(); }
         }
+        class ChildNoCtorPrivateProps extends Parent {
+          private x = 10;
+        }
 
         expect(DELEGATE_CTOR.exec(ChildNoCtor.toString())).toBeTruthy();
+        expect(DELEGATE_CTOR.exec(ChildNoCtorPrivateProps.toString())).toBeTruthy();
         expect(DELEGATE_CTOR.exec(ChildWithCtor.toString())).toBeFalsy();
       });
     });
@@ -205,7 +210,7 @@ export function main() {
         expect(reflector.annotations(NoDecorators)).toEqual([]);
         expect(reflector.annotations(<any>{})).toEqual([]);
         expect(reflector.annotations(<any>1)).toEqual([]);
-        expect(reflector.annotations(null)).toEqual([]);
+        expect(reflector.annotations(null !)).toEqual([]);
       });
 
       it('should inherit parameters', () => {
@@ -222,15 +227,24 @@ export function main() {
 
         class Child extends Parent {}
 
+        @ClassDecorator({value: 'child'})
+        class ChildWithDecorator extends Parent {
+        }
+
+        @ClassDecorator({value: 'child'})
+        class ChildWithDecoratorAndProps extends Parent {
+          private x = 10;
+        }
+
         // Note: We need the class decorator as well,
         // as otherwise TS won't capture the ctor arguments!
         @ClassDecorator({value: 'child'})
         class ChildWithCtor extends Parent {
-          constructor(@ParamDecorator('c') c: C) { super(null, null); }
+          constructor(@ParamDecorator('c') c: C) { super(null !, null !); }
         }
 
         class ChildWithCtorNoDecorator extends Parent {
-          constructor(a: any, b: any, c: any) { super(null, null); }
+          constructor(a: any, b: any, c: any) { super(null !, null !); }
         }
 
         class NoDecorators {}
@@ -241,6 +255,14 @@ export function main() {
         ]);
 
         expect(reflector.parameters(Child)).toEqual([
+          [A, new ParamDecorator('a')], [B, new ParamDecorator('b')]
+        ]);
+
+        expect(reflector.parameters(ChildWithDecorator)).toEqual([
+          [A, new ParamDecorator('a')], [B, new ParamDecorator('b')]
+        ]);
+
+        expect(reflector.parameters(ChildWithDecoratorAndProps)).toEqual([
           [A, new ParamDecorator('a')], [B, new ParamDecorator('b')]
         ]);
 
@@ -255,7 +277,7 @@ export function main() {
         expect(reflector.parameters(NoDecorators)).toEqual([]);
         expect(reflector.parameters(<any>{})).toEqual([]);
         expect(reflector.parameters(<any>1)).toEqual([]);
-        expect(reflector.parameters(null)).toEqual([]);
+        expect(reflector.parameters(null !)).toEqual([]);
       });
 
       it('should inherit property metadata', () => {
@@ -294,7 +316,7 @@ export function main() {
         expect(reflector.propMetadata(NoDecorators)).toEqual({});
         expect(reflector.propMetadata(<any>{})).toEqual({});
         expect(reflector.propMetadata(<any>1)).toEqual({});
-        expect(reflector.propMetadata(null)).toEqual({});
+        expect(reflector.propMetadata(null !)).toEqual({});
       });
 
       it('should inherit lifecycle hooks', () => {
