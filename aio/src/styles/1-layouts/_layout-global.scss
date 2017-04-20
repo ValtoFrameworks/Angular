@@ -1,3 +1,7 @@
+html, body {
+    height: 100%;
+}
+
 .clearfix {
     content: "";
     display: table;
@@ -21,4 +25,22 @@ l-relative {
 .l-flex-wrap {
   display: flex;
   flex-wrap: wrap;
+}
+
+.flex-center {
+    justify-content: center;
+}
+.flex-center {
+    display: flex;
+    justify-content: center;
+}
+
+.center {
+    text-align: center;
+}
+
+.visually-hidden {
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
 }

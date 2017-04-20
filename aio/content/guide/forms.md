@@ -37,7 +37,7 @@ You can build forms by writing templates in the Angular [template syntax](guide/
 the form-specific directives and techniques described in this page.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -45,7 +45,7 @@ You can also use a reactive (or model-driven) approach to build forms.
 However, this page focuses on template-driven forms.
 
 
-~~~
+</div>
 
 
 
@@ -82,14 +82,14 @@ If you delete the hero name, the form displays a validation error in an attentio
 Note that the *Submit* button is disabled, and the "required" bar to the left of the input control changes from green to red.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 You can customize the colors and location of the "required" bar with standard CSS.
 
 
-~~~
+</div>
 
 
 
@@ -213,7 +213,7 @@ Replace the contents of the "QuickStart" version with the following:
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -228,11 +228,11 @@ access to all of the template-driven forms features, including `ngModel`.
 the `HeroFormComponent` component visible throughout this module.
 
 
-~~~
+</div>
 
 
 
-~~~ {.alert.is-important}
+<div class="alert is-important">
 
 
 
@@ -240,7 +240,7 @@ If a component, directive, or pipe belongs to a module in the `imports` array, �
 If you wrote it and it should belong to this module, ​_do_​ declare it in the `declarations` array.
 
 
-~~~
+</div>
 
 
 
@@ -260,7 +260,7 @@ Replace the contents of the "QuickStart" version with the following:
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -270,7 +270,7 @@ This displays the hero form when the application component is loaded.
 You've also dropped the `name` field from the class body.
 
 
-~~~
+</div>
 
 
 
@@ -296,12 +296,25 @@ You added a *Submit* button at the bottom with some classes on it for styling.
 
 *You're not using Angular yet*. There are no bindings or extra directives, just layout.
 
+
+<div class="l-sub-section">
+
+
+
+In template driven forms, if you've imported `FormsModule`, you don't have to do anything 
+to the `<form>` tag in order to make use of `FormsModule`. Continue on to see how this works.
+
+
+</div>
+
+
+
 The `container`, `form-group`, `form-control`, and `btn` classes
 come from [Twitter Bootstrap](http://getbootstrap.com/css/). These classes are purely cosmetic.
 Bootstrap gives the form a little style.
 
 
-~~~ {.callout.is-important}
+<div class="callout is-important">
 
 
 
@@ -315,7 +328,7 @@ Angular makes no use of the `container`, `form-group`, `form-control`, and `btn`
 the styles of any external library. Angular apps can use any CSS library or none at all.
 
 
-~~~
+</div>
 
 
 
@@ -385,7 +398,7 @@ Find the `<input>` tag for *Name* and update it like this:
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -394,11 +407,47 @@ so you can see what you're doing.
 You left yourself a note to throw it away when you're done.
 
 
-~~~
+</div>
 
 
 
 Focus on the binding syntax: `[(ngModel)]="..."`.
+
+You need one more addition to display the data. Declare 
+a template variable for the form. Update the `<form>` tag with 
+`#heroForm="ngForm"` as follows:
+
+
+<code-example path="forms/src/app/hero-form.component.html" linenums="false" title="src/app/hero-form.component.html (excerpt)" region="template-variable">
+
+</code-example>
+
+
+
+The variable `heroForm` is now a reference to the `NgForm` directive that governs the form as a whole.
+
+
+<div class="l-sub-section">
+
+
+
+### The _NgForm_ directive
+
+What `NgForm` directive?
+You didn't add an [NgForm](api/forms/index/NgForm-directive) directive.
+
+Angular did. Angular automatically creates and attaches an `NgForm` directive to the `<form>` tag.
+
+The `NgForm` directive supplements the `form` element with additional features.
+It holds the controls you created for the elements with an `ngModel` directive
+and `name` attribute, and monitors their properties, including their validity.
+It also has its own `valid` property which is true only *if every contained
+control* is valid.
+
+
+</div>
+
+
 
 If you ran the app now and started typing in the *Name* input box,
 adding and deleting characters, you'd see them appear and disappear
@@ -416,7 +465,7 @@ The diagnostic is evidence that values really are flowing from the input box to 
 back again.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -426,7 +475,7 @@ For more information, see
 the [Template Syntax](guide/template-syntax) page.
 
 
-~~~
+</div>
 
 
 
@@ -435,17 +484,17 @@ which makes sense for the hero's name. Any unique value will do, but using a des
 Defining a `name` attribute is a requirement when using `[(ngModel)]` in combination with a form.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 Internally, Angular creates `FormControl` instances and
 registers them with an `NgForm` directive that Angular attached to the `<form>` tag.
 Each `FormControl` is registered under the name you assigned to the `name` attribute.
-Read more in [The NgForm directive](guide/forms#ngForm), later in this page.
+Read more in the previous section, [The NgForm directive](guide/forms#ngForm).
 
 
-~~~
+</div>
 
 
 
@@ -463,7 +512,7 @@ After revision, the core of the form should look like this:
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -472,7 +521,7 @@ to match the label to its input control.
 * Each input element has a `name` property that is required by Angular forms to register the control with the form.
 
 
-~~~
+</div>
 
 
 
@@ -679,7 +728,7 @@ You need a template reference variable to access the input box's Angular control
 Here you created a variable called `name` and gave it the value "ngModel".
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -689,7 +738,7 @@ tells Angular how to link the reference variable to the directive.
 You set `name` to `ngModel` because the `ngModel` directive's `exportAs` property happens to be "ngModel".
 
 
-~~~
+</div>
 
 
 
@@ -711,7 +760,7 @@ If you ignore the `pristine` state, you would hide the message only when the val
 If you arrive in this component with a new (blank) hero or an invalid hero,
 you'll see the error message immediately, before you've done anything.
 
-Some developers want to the message to display only when the user makes an invalid change.
+Some developers want the message to display only when the user makes an invalid change.
 Hiding the message while the control is "pristine" achieves that goal.
 You'll see the significance of this choice when you [add a new hero](guide/forms#new-hero) to the form.
 
@@ -784,32 +833,9 @@ to the hero form component's `onSubmit()` method:
 
 
 
-You added something extra at the end. You defined a
-template reference variable, `#heroForm`, and initialized it with the value "ngForm".
-
-The variable `heroForm` is now a reference to the `NgForm` directive that governs the form as a whole.
-
-
-~~~ {.l-sub-section}
-
-
-
-### The _NgForm_ directive
-
-What `NgForm` directive?
-You didn't add an [NgForm](api/forms/index/NgForm-directive) directive.
-
-Angular did. Angular automatically creates and attaches an `NgForm` directive to the `<form>` tag.
-
-The `NgForm` directive supplements the `form` element with additional features.
-It holds the controls you created for the elements with an `ngModel` directive
-and `name` attribute, and monitors their properties, including their validity.
-It also has its own `valid` property which is true only *if every contained
-control* is valid.
-
-
-~~~
-
+You'd already defined a template reference variable, 
+`#heroForm`, and initialized it with the value "ngForm". 
+Now, use that variable to access the form with the Submit button.
 
 
 You'll bind the form's overall validity via
@@ -845,7 +871,7 @@ For you, it was as simple as this:
 Submitting the form isn't terribly dramatic at the moment.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -856,7 +882,7 @@ binding skills.
 If you aren't interested, skip to this page's conclusion.
 
 
-~~~
+</div>
 
 
 
@@ -925,61 +951,73 @@ framework features to provide support for data modification, validation, and mor
 The final project folder structure should look like this:
 
 
-<aio-filetree>
+<div class='filetree'>
 
-  <aio-folder>
+  <div class='file'>
     angular-forms
-    <aio-folder>
+  </div>
+
+  <div class='children'>
+
+    <div class='file'>
       src
-      <aio-folder>
+    </div>
+
+    <div class='children'>
+
+      <div class='file'>
         app
-        <aio-file>
+      </div>
+
+      <div class='children'>
+
+        <div class='file'>
           app.component.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           app.module.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero-form.component.html
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero-form.component.ts
-        </aio-file>
+        </div>
 
-      </aio-folder>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         main.ts
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         tsconfig.json
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         index.html
-      </aio-file>
+      </div>
 
-    </aio-folder>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       node_modules ...
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       package.json
-    </aio-file>
+    </div>
 
-  </aio-folder>
+  </div>
 
-</aio-filetree>
+</div>
 
 
 

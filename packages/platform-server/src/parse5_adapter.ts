@@ -80,6 +80,8 @@ export class Parse5DomAdapter extends DomAdapter {
   setProperty(el: any, name: string, value: any) {
     if (name === 'innerHTML') {
       this.setInnerHTML(el, value);
+    } else if (name === 'innerText') {
+      this.setText(el, value);
     } else if (name === 'className') {
       el.attribs['class'] = el.className = value;
     } else {
@@ -199,7 +201,7 @@ export class Parse5DomAdapter extends DomAdapter {
   getInnerHTML(el: any): string {
     return parse5.serialize(this.templateAwareRoot(el), {treeAdapter});
   }
-  getTemplateContent(el: any): Node { return null; }
+  getTemplateContent(el: any): Node|null { return null; }
   getOuterHTML(el: any): string {
     const fragment = treeAdapter.createDocumentFragment();
     this.appendChild(fragment, el);
@@ -423,7 +425,7 @@ export class Parse5DomAdapter extends DomAdapter {
   hasClass(element: any, className: string): boolean {
     return this.classList(element).indexOf(className) > -1;
   }
-  hasStyle(element: any, styleName: string, styleValue: string = null): boolean {
+  hasStyle(element: any, styleName: string, styleValue?: string): boolean {
     const value = this.getStyle(element, styleName) || '';
     return styleValue ? value == styleValue : value.length > 0;
   }
@@ -458,7 +460,7 @@ export class Parse5DomAdapter extends DomAdapter {
     }
     element.attribs['style'] = styleAttrValue;
   }
-  setStyle(element: any, styleName: string, styleValue: string) {
+  setStyle(element: any, styleName: string, styleValue?: string|null) {
     const styleMap = this._readStyleAttribute(element);
     (styleMap as any)[styleName] = styleValue;
     this._writeStyleAttribute(element, styleMap);
@@ -592,7 +594,7 @@ export class Parse5DomAdapter extends DomAdapter {
       return doc.body;
     }
   }
-  getBaseHref(doc: Document): string {
+  getBaseHref(doc: Document): string|null {
     const base = this.querySelector(doc, 'base');
     let href = '';
     if (base) {

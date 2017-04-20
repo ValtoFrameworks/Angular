@@ -44,7 +44,7 @@ Angular supports most recent browsers. This includes the following specific vers
     </th>
 
     <th>
-      IE mobile
+      IE Mobile
     </th>
 
   </tr>
@@ -197,7 +197,7 @@ Angular supports most recent browsers. This includes the following specific vers
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -206,7 +206,7 @@ using <a href="https://saucelabs.com/" target="_blank">SauceLabs</a> and
 <a href="https://www.browserstack.com" target="_blank">Browserstack</a>.
 
 
-~~~
+</div>
 
 
 
@@ -229,7 +229,7 @@ You may need additional polyfills for specific features.
 The tables below can help you determine which polyfills to load, depending on the browsers you target and the features you use.
 
 
-~~~ {.alert.is-important}
+<div class="alert is-important">
 
 
 
@@ -238,7 +238,7 @@ You may need additional polyfills to support features not covered by this list.
 Note that polyfills cannot magically transform an old, slow browser into a modern, fast one.
 
 
-~~~
+</div>
 
 
 
@@ -251,11 +251,11 @@ These are the polyfills required to run an Angular application on each supported
   <tr style="vertical-align: top">
  
     <th>
-      Browsers (desktop & mobile)
+      Browsers (Desktop & Mobile)
     </th>
 
     <th>
-      Polyfills required
+      Polyfills Required
     </th>
 
   </tr>
@@ -327,7 +327,7 @@ Here are the features which may require additional polyfills:
     </th>
 
     <th style="width: 50%">
-       Browsers (desktop & mobile)
+       Browsers (Desktop & Mobile)
     </th>
 
   </tr>

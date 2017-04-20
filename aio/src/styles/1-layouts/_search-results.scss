@@ -5,17 +5,19 @@ aio-search-results {
 .search-results {
     display: flex;
     flex-direction: row;
-    overflow: scroll;
-    padding-top: 50px;
+    justify-content: space-between;
+    overflow: auto;
+    padding: 68px 32px 0;
     color: $offwhite;
-    width: 100%;
+    width: auto;
     max-height: 40%;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
+    z-index: 5;
     background-color: $darkgray;
-    border: 24px solid $darkgray;
+    box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.3);
 
     @media (max-width: 480px) {
         display: block;
@@ -33,10 +35,23 @@ aio-search-results {
     flex-direction: column;
     margin: 16px 16px;
     height: 100%;
-    h2 {
+
+    h3 {
         font-size: 16px;
+        font-weight: 400;
         margin: 10px 0px 5px;
+        text-transform: uppercase;
     }
+
+    ul {
+        margin: 0;
+        padding: 0;
+
+        li {
+            list-style: none;
+        }
+    }
+
     a {
         font-size: 14px;
         color: $lightgray;
@@ -52,7 +67,6 @@ aio-search-results {
     }
 
     @include bp(tiny) {
-        width: 100%;
         display: block;
     }
 }

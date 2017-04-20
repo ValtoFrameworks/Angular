@@ -14,57 +14,69 @@ named <code>angular-tour-of-heroes</code>.
 The file structure should look like this:
 
 
-<aio-filetree>
+<div class='filetree'>
 
-  <aio-folder>
+  <div class='file'>
     angular-tour-of-heroes
-    <aio-folder>
+  </div>
+
+  <div class='children'>
+
+    <div class='file'>
       src
-      <aio-folder>
+    </div>
+
+    <div class='children'>
+
+      <div class='file'>
         app
-        <aio-file>
+      </div>
+
+      <div class='children'>
+
+        <div class='file'>
           app.component.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           app.module.ts
-        </aio-file>
+        </div>
 
-      </aio-folder>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         main.ts
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         index.html
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         styles.css
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         systemjs.config.js
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         tsconfig.json
-      </aio-file>
+      </div>
 
-    </aio-folder>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       node_modules ...
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       package.json
-    </aio-file>
+    </div>
 
-  </aio-folder>
+  </div>
 
-</aio-filetree>
+</div>
 
 
 
@@ -97,7 +109,7 @@ Add two properties to the `AppComponent`: a `title` property for the app name an
 for a hero named "Windstorm."
 
 
-<code-example path="toh-1/app/app.component.1.ts" region="app-component-1" title="app.component.ts (AppComponent class)" linenums="false">
+<code-example path="toh-pt1/app/app.component.1.ts" region="app-component-1" title="app.component.ts (AppComponent class)" linenums="false">
 
 </code-example>
 
@@ -106,7 +118,7 @@ for a hero named "Windstorm."
 Now update the template in the `@Component` decorator with data bindings to these new properties.
 
 
-<code-example path="toh-1/app/app.component.1.ts" region="show-hero" title="app.component.ts (@Component)" linenums="false">
+<code-example path="toh-pt1/app/app.component.1.ts" region="show-hero" title="app.component.ts (@Component)" linenums="false">
 
 </code-example>
 
@@ -119,14 +131,14 @@ These interpolation bindings present the component's `title` and `hero` property
 as strings, inside the HTML header tags.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 Read more about interpolation in the [Displaying Data](guide/displaying-data) page.
 
 
-~~~
+</div>
 
 
 
@@ -139,17 +151,17 @@ Create a `Hero` class with `id` and `name` properties.
 Add these properties near the top of the `app.component.ts` file, just below the import statement.
 
 
-<code-example path="toh-1/src/app/app.component.ts" region="hero-class-1" title="src/app/app.component.ts (Hero class)" linenums="false">
+<code-example path="toh-pt1/src/app/app.component.ts" region="hero-class-1" title="src/app/app.component.ts (Hero class)" linenums="false">
 
 </code-example>
 
 
 
-In the `Hero` class, refactor the component's `hero` property to be of type `Hero`,
+In the `AppComponent` class, refactor the component's `hero` property to be of type `Hero`,
 then initialize it with an `id` of `1` and the name `Windstorm`.
 
 
-<code-example path="toh-1/src/app/app.component.ts" region="hero-property-1" title="src/app/app.component.ts (hero property)" linenums="false">
+<code-example path="toh-pt1/src/app/app.component.ts" region="hero-property-1" title="src/app/app.component.ts (hero property)" linenums="false">
 
 </code-example>
 
@@ -159,7 +171,7 @@ Because you changed the hero from a string to an object,
 update the binding in the template to refer to the hero's `name` property.
 
 
-<code-example path="toh-1/app/app.component.1.ts" region="show-hero-2" title="toh-1/app/app.component.ts">
+<code-example path="toh-pt1/app/app.component.1.ts" region="show-hero-2" title="src/app/app.component.ts">
 
 </code-example>
 
@@ -179,7 +191,7 @@ thanks to the <i>template literals</i> feature in ES2015 and TypeScript. For mor
 
 
 
-<code-example path="toh-1/app/app.component.1.ts" region="multi-line-strings" title="app.component.ts (AppComponent's template)" linenums="false">
+<code-example path="toh-pt1/app/app.component.1.ts" region="multi-line-strings" title="app.component.ts (AppComponent's template)" linenums="false">
 
 </code-example>
 
@@ -198,7 +210,7 @@ You need a two-way binding between the `<input>` form element and the `hero.name
 
 Refactor the hero name in the template so it looks like this:
 
-<code-example path="toh-1/app/app.component.1.ts" region="name-input" title="toh-1/app/app.component.ts" linenums="false">
+<code-example path="toh-pt1/app/app.component.1.ts" region="name-input" title="src/app/app.component.ts" linenums="false">
 
 </code-example>
 
@@ -225,13 +237,13 @@ of external modules that the app uses.
 
 The updated `AppModule` looks like this:
 
-<code-example path="toh-1/src/app/app.module.ts" title="app.module.ts (FormsModule import)">
+<code-example path="toh-pt1/src/app/app.module.ts" title="app.module.ts (FormsModule import)">
 
 </code-example>
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -242,7 +254,7 @@ Read more about `FormsModule` and `ngModel` in the
 [Template Syntax](guide/template-syntax) guide.
 
 
-~~~
+</div>
 
 
 
@@ -267,7 +279,7 @@ Your app should look like this <live-example></live-example>.
 Here's the complete `app.component.ts` as it stands now:
 
 
-<code-example path="toh-1/src/app/app.component.ts" title="src/app/app.component.ts">
+<code-example path="toh-pt1/src/app/app.component.ts" title="src/app/app.component.ts">
 
 </code-example>
 

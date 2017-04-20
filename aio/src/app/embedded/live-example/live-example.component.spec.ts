@@ -1,4 +1,3 @@
-/* tslint:disable:no-unused-variable */
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Component, DebugElement, ElementRef } from '@angular/core';
@@ -28,6 +27,12 @@ describe('LiveExampleComponent', () => {
     path() { return testPath; }
   }
 
+  function getAnchors() {
+    return liveExampleDe.queryAll(By.css('a')).map(de => de.nativeElement as HTMLAnchorElement);
+  }
+
+  function getHrefs() { return getAnchors().map(a => a.href); }
+
   function setHostTemplate(template: string) {
     TestBed.overrideComponent(HostComponent, {set: {template}});
   }
@@ -46,6 +51,8 @@ describe('LiveExampleComponent', () => {
         liveExampleDe.nativeElement.liveExampleContent = liveExampleContent;
 
         fixture.detectChanges();
+        liveExampleComponent.onResize(1033); // wide by default
+        fixture.detectChanges();
       })
       .then(testFn);
   }
@@ -54,7 +61,9 @@ describe('LiveExampleComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       declarations: [ HostComponent, LiveExampleComponent, EmbeddedPlunkerComponent ],
-      providers: [ {provide: Location, useClass: TestLocation }]
+      providers: [
+        { provide: Location, useClass: TestLocation }
+      ]
     })
     // Disable the <iframe> within the EmbeddedPlunkerComponent
     .overrideComponent(EmbeddedPlunkerComponent, {set: {template: 'NO IFRAME'}});
@@ -64,11 +73,6 @@ describe('LiveExampleComponent', () => {
   });
 
   describe('when not embedded', () => {
-
-    function getAnchors() {
-      return liveExampleDe.queryAll(By.css('a')).map(de => de.nativeElement as HTMLAnchorElement);
-    }
-    function getHrefs() { return getAnchors().map(a => a.href); }
     function getLiveExampleAnchor() { return getAnchors()[0]; }
     function getDownloadAnchor() { return getAnchors()[1]; }
 
@@ -144,6 +148,22 @@ describe('LiveExampleComponent', () => {
       });
     }));
 
+    it('should be embedded style by default', async(() => {
+      setHostTemplate('<live-example></live-example>');
+      testComponent(() => {
+        const hrefs = getHrefs();
+        expect(hrefs[0]).toContain(defaultTestPath + '/eplnkr.html');
+      });
+    }));
+
+    it('should be flat style when flat-style requested', async(() => {
+      setHostTemplate('<live-example flat-style></live-example>');
+      testComponent(() => {
+        const hrefs = getHrefs();
+        expect(hrefs[0]).toContain(defaultTestPath + '/plnkr.html');
+      });
+    }));
+
     it('should not have a download link when `noDownload` atty present', async(() => {
       setHostTemplate('<live-example noDownload></live-example>');
       testComponent(() => {
@@ -204,7 +224,7 @@ describe('LiveExampleComponent', () => {
       it('should have hidden, embedded plunker', async(() => {
         setHostTemplate('<live-example embedded></live-example>');
         testComponent(() => {
-          expect(liveExampleComponent.isEmbedded).toBe(true, 'component.isEmbedded');
+          expect(liveExampleComponent.mode).toBe('embedded', 'component is embedded');
           expect(liveExampleComponent.showEmbedded).toBe(false, 'component.showEmbedded');
           expect(getEmbeddedPlunkerComponent()).toBeNull('no EmbeddedPlunkerComponent');
         });
@@ -254,7 +274,7 @@ describe('LiveExampleComponent', () => {
         setHostTemplate('<live-example embedded></live-example>');
         testComponent(() => {
           clickImg();
-          expect(liveExampleComponent.isEmbedded).toBe(true, 'component.isEmbedded');
+          expect(liveExampleComponent.mode).toBe('embedded', 'component is embedded');
           expect(liveExampleComponent.showEmbedded).toBe(true, 'component.showEmbedded');
           expect(getEmbeddedPlunkerComponent()).toBeDefined('has EmbeddedPlunkerComponent');
         });
@@ -262,4 +282,28 @@ describe('LiveExampleComponent', () => {
 
     });
   });
+
+  describe('when narrow display (mobile)', () => {
+
+    it('should be embedded style when no style defined', async(() => {
+      setHostTemplate('<live-example></live-example>');
+      testComponent(() => {
+        liveExampleComponent.onResize(600); // narrow
+        fixture.detectChanges();
+        const hrefs = getHrefs();
+        expect(hrefs[0]).toContain(defaultTestPath + '/eplnkr.html');
+      });
+    }));
+
+    it('should be embedded style even when flat-style requested', async(() => {
+      setHostTemplate('<live-example flat-style></live-example>');
+      testComponent(() => {
+        liveExampleComponent.onResize(600); // narrow
+        fixture.detectChanges();
+        const hrefs = getHrefs();
+        expect(hrefs[0]).toContain(defaultTestPath + '/eplnkr.html');
+      });
+    }));
+  });
 });
+

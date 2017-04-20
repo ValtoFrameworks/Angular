@@ -45,7 +45,7 @@ The techniques progress from _easy but suboptimal_ to _more optimal and more inv
 
 * [_Ahead of Time_ compilation (AOT)](guide/deployment#aot "AOT Compilation") is the first of
 [several optimization strategies](guide/deployment#optimize).
-You'll also want to read the [detailed instructions in the AOT Cookbook](cookbook/aot-compiler "AOT Cookbook").
+You'll also want to read the [detailed instructions in the AOT Cookbook](guide/aot-compiler "AOT Cookbook").
 
 * [Webpack](guide/deployment#webpack "Webpack Optimization") is a popular general purpose packaging tool with a rich ecosystem, including plugins for AOT.
 The Angular [webpack guide](guide/webpack "Webpack: an introduction") can get you started and
@@ -88,7 +88,7 @@ Otherwise, leave it alone.
 That's the simplest deployment you can do.
 
 
-~~~ {.alert.is-helpful}
+<div class="alert is-helpful">
 
 
 
@@ -98,7 +98,7 @@ Be sure to read about [optimizing for production](guide/deployment#optimize "Opt
 
 
 
-~~~
+</div>
 
 
 
@@ -233,7 +233,7 @@ Although deploying directly from the development environment works, it's far fro
 
 The client makes many small requests for individual application code and template files,
 a fact you can quickly confirm by looking at the network tab in a browser's developer tools.
-Each small file download can spend more time communicating with the server than tranfering data.
+Each small file download can spend more time communicating with the server than transferring data.
 
 Development files are full of comments and whitespace for easy reading and debugging.
 The browser downloads entire libraries, instead of just the parts the app needs.
@@ -242,7 +242,7 @@ can be significantly larger than is strictly necessary to execute the applicatio
 
 The many requests and large payloads mean
 the app takes longer to launch than it would if you optimized it.
-Several seconds may pass (or worse) before the user can see or do anything userful.
+Several seconds may pass (or worse) before the user can see or do anything useful.
 
 Does it matter? That depends upon business and technical factors you must evaluate for yourself.
 
@@ -280,7 +280,7 @@ Apps compiled with AOT launch faster for several reasons.
 * You don't download the Angular compiler, which is pretty big on its own.
 * The compiler discards unused Angular directives that a tree-shaking tool can then exclude.
 
-Learn more about AOT Compilation in the [AOT Cookbook](cookbook/aot-compiler "AOT Cookbook")
+Learn more about AOT Compilation in the [AOT Cookbook](guide/aot-compiler "AOT Cookbook")
 which describes running the AOT compiler from the command line
 and using [_rollup_](guide/deployment#rollup) for bundling, minification, uglification and tree shaking.
 
@@ -377,13 +377,13 @@ into a server request for `my/app/some/place/foo.jpg`.
 During navigation, the Angular router uses the _base href_ as the base path to component, template, and module files.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 See also the [*APP_BASE_HREF*](api/common/index/APP_BASE_HREF-let "API: APP_BASE_HREF") alternative.
 
-~~~
+</div>
 
 
 
@@ -408,7 +408,7 @@ console:
 
 
 <code-example format="nocode">
-  Angular 2 is running in the development mode. Call enableProdMode() to enable the production mode.
+  Angular is running in the development mode. Call enableProdMode() to enable the production mode.
 </code-example>
 
 
@@ -628,4 +628,4 @@ Read about how to enable CORS for specific servers at
 
 ## Next steps
  If you want to go beyond the [simple _copy-deploy_](guide/deployment#dev-deploy "Simplest deployment possible") approach,
- read the [AOT Cookbook](cookbook/aot-compiler "AOT Cookbook") next.
+ read the [AOT Cookbook](guide/aot-compiler "AOT Cookbook") next.

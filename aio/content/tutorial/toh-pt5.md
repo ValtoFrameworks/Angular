@@ -27,14 +27,14 @@ When you’re done, users will be able to navigate the app like this:
 To satisfy these requirements, you'll add Angular’s router to the app.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 For more information about the router, read the [Routing and Navigation](guide/router) page.
 
 
-~~~
+</div>
 
 
 
@@ -47,73 +47,85 @@ Before continuing with the Tour of Heroes, verify that you have the following st
 
 
 
-<aio-filetree>
+<div class='filetree'>
 
-  <aio-folder>
+  <div class='file'>
     angular-tour-of-heroes
-    <aio-folder>
+  </div>
+
+  <div class='children'>
+
+    <div class='file'>
       src
-      <aio-folder>
+    </div>
+
+    <div class='children'>
+
+      <div class='file'>
         app
-        <aio-file>
+      </div>
+
+      <div class='children'>
+
+        <div class='file'>
           app.component.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           app.module.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero.service.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero-detail.component.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           mock-heroes.ts
-        </aio-file>
+        </div>
 
-      </aio-folder>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         main.ts
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         index.html
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         styles.css
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         systemjs.config.js
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         tsconfig.json
-      </aio-file>
+      </div>
 
-    </aio-folder>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       node_modules ...
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       package.json
-    </aio-file>
+    </div>
 
-  </aio-folder>
+  </div>
 
-</aio-filetree>
+</div>
 
 
 
@@ -145,14 +157,14 @@ Here's the plan:
 * Tie the *Dashboard* into the navigation structure.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 *Routing* is another name for *navigation*. The router is the mechanism for navigating from view to view.
 
 
-~~~
+</div>
 
 
 
@@ -180,7 +192,7 @@ Do the following:
 * Rename the selector `my-app` as `my-heroes`.
 
 
-<code-example path="toh-5/src/app/heroes.component.ts" region="renaming" title="src/app/heroes.component.ts (showing renamings only)">
+<code-example path="toh-pt5/src/app/heroes.component.ts" region="renaming" title="src/app/heroes.component.ts (showing renamings only)">
 
 </code-example>
 
@@ -212,11 +224,11 @@ The first draft looks like this:
 
 <code-tabs>
 
-  <code-pane title="src/app/app.component.ts (v1)" path="toh-5/src/app/app.component.1.ts">
+  <code-pane title="src/app/app.component.ts (v1)" path="toh-pt5/src/app/app.component.1.ts">
 
   </code-pane>
 
-  <code-pane title="src/app/app.module.ts (v1)" path="toh-5/src/app/app.module.1.ts">
+  <code-pane title="src/app/app.module.ts (v1)" path="toh-pt5/src/app/app.module.1.ts">
 
   </code-pane>
 
@@ -248,13 +260,13 @@ Open `index.html` and ensure there is a `<base href="...">` element
 at the top of the `<head>` section.
 
 
-<code-example path="toh-5/src/index.html" region="base-href" title="src/index.html (base-href)">
+<code-example path="toh-pt5/src/index.html" region="base-href" title="src/index.html (base-href)">
 
 </code-example>
 
 
 
-~~~ {.callout.is-important}
+<div class="callout is-important">
 
 
 
@@ -269,7 +281,7 @@ section of the [Routing and Navigation](guide/router) page.
 
 
 
-~~~
+</div>
 
 
 
@@ -287,7 +299,7 @@ pastes a URL into the browser address bar.
 Define the first route as a route to the heroes component.
 
 
-<code-example path="toh-5/src/app/app.module.2.ts" region="heroes" title="src/app/app.module.ts (heroes route)">
+<code-example path="toh-pt5/src/app/app.module.2.ts" region="heroes" title="src/app/app.module.ts (heroes route)">
 
 </code-example>
 
@@ -302,14 +314,14 @@ This route definition has the following parts:
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 Read more about defining routes with `Routes` in the [Routing & Navigation](guide/router) page.
 
 
-~~~
+</div>
 
 
 
@@ -318,13 +330,13 @@ Read more about defining routes with `Routes` in the [Routing & Navigation](guid
 Import the `RouterModule` and add it to the `AppModule` imports array.
 
 
-<code-example path="toh-5/src/app/app.module.2.ts" title="src/app/app.module.ts (app routing)">
+<code-example path="toh-pt5/src/app/app.module.2.ts" title="src/app/app.module.ts (app routing)">
 
 </code-example>
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -333,7 +345,7 @@ The `forRoot()` method supplies the Router service providers and directives need
 performs the initial navigation based on the current browser URL.
 
 
-~~~
+</div>
 
 
 
@@ -354,7 +366,7 @@ Instead, add an anchor tag to the template that, when clicked, triggers navigati
 The revised template looks like this:
 
 
-<code-example path="toh-5/src/app/app.component.1.ts" region="template-v2" title="src/app/app.component.ts (template-v2)">
+<code-example path="toh-pt5/src/app/app.component.1.ts" region="template-v2" title="src/app/app.component.ts (template-v2)">
 
 </code-example>
 
@@ -367,7 +379,7 @@ that tells the router where to navigate when the user clicks the link.
 Since the link is not dynamic, a routing instruction is defined with a one-time binding to the route path.
 Looking back at the route configuration, you can confirm that `'/heroes'` is the path of the route to the `HeroesComponent`.
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -376,14 +388,14 @@ in the [Appendix: Link Parameters Array](guide/router#link-parameters-array) sec
 [Routing & Navigation](guide/router) page.
 
 
-~~~
+</div>
 
 
 
 Refresh the browser. The browser displays the app title and heroes link, but not the heroes list.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -392,7 +404,7 @@ The route path to `HeroesComponent` is `/heroes`, not `/`.
 Soon you'll add a route that matches the path `/`.
 
 
-~~~
+</div>
 
 
 
@@ -402,7 +414,7 @@ and the list of heroes displays.
 `AppComponent` now looks like this:
 
 
-<code-example path="toh-5/src/app/app.component.1.ts" region="v2" title="src/app/app.component.ts (v2)">
+<code-example path="toh-pt5/src/app/app.component.1.ts" region="v2" title="src/app/app.component.ts (v2)">
 
 </code-example>
 
@@ -419,7 +431,7 @@ Routing only makes sense when multiple views exist.
 To add another view, create a placeholder `DashboardComponent`, which users can navigate to and from.
 
 
-<code-example path="toh-5/src/app/dashboard.component.1.ts" title="src/app/dashboard.component.ts (v1)">
+<code-example path="toh-pt5/src/app/dashboard.component.1.ts" title="src/app/dashboard.component.ts (v1)">
 
 </code-example>
 
@@ -434,7 +446,7 @@ import the dashboard component and
 add the following route definition to the `Routes` array of definitions.
 
 
-<code-example path="toh-5/src/app/app.module.3.ts" region="dashboard" title="src/app/app.module.ts (Dashboard route)">
+<code-example path="toh-pt5/src/app/app.module.3.ts" region="dashboard" title="src/app/app.module.ts (Dashboard route)">
 
 </code-example>
 
@@ -443,7 +455,7 @@ add the following route definition to the `Routes` array of definitions.
 Also import and add `DashboardComponent` to the `AppModule`'s `declarations`.
 
 
-<code-example path="toh-5/src/app/app.module.ts" region="dashboard" title="src/app/app.module.ts (dashboard)">
+<code-example path="toh-pt5/src/app/app.module.ts" region="dashboard" title="src/app/app.module.ts (dashboard)">
 
 </code-example>
 
@@ -460,13 +472,13 @@ To make this happen, use a redirect route. Add the following
 to the array of route definitions:
 
 
-<code-example path="toh-5/src/app/app.module.3.ts" region="redirect" title="src/app/app.module.ts (redirect)">
+<code-example path="toh-pt5/src/app/app.module.3.ts" region="redirect" title="src/app/app.module.ts (redirect)">
 
 </code-example>
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -474,7 +486,7 @@ Read more about *redirects* in the [Redirecting routes](guide/router#!) section
 of the [Routing & Navigation](guide/router) page.
 
 
-~~~
+</div>
 
 
 
@@ -483,20 +495,20 @@ of the [Routing & Navigation](guide/router) page.
 Add a dashboard navigation link to the template, just above the *Heroes* link.
 
 
-<code-example path="toh-5/src/app/app.component.1.ts" region="template-v3" title="src/app/app.component.ts (template-v3)">
+<code-example path="toh-pt5/src/app/app.component.1.ts" region="template-v3" title="src/app/app.component.ts (template-v3)">
 
 </code-example>
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 The `<nav>` tags don't do anything yet, but they'll be useful later when you style the links.
 
 
-~~~
+</div>
 
 
 
@@ -511,7 +523,7 @@ Replace the `template` metadata with a `templateUrl` property that points to a n
 template file.
 
 
-<code-example path="toh-5/src/app/dashboard.component.ts" region="metadata" title="src/app/dashboard.component.ts (metadata)">
+<code-example path="toh-pt5/src/app/dashboard.component.ts" region="metadata" title="src/app/dashboard.component.ts (metadata)">
 
 </code-example>
 
@@ -520,7 +532,7 @@ template file.
 Create that file with this content:
 
 
-<code-example path="toh-5/src/app/dashboard.component.1.html" title="src/app/dashboard.component.html">
+<code-example path="toh-pt5/src/app/dashboard.component.1.html" title="src/app/dashboard.component.html">
 
 </code-example>
 
@@ -543,7 +555,7 @@ Angular injects `HeroService` and you can use it in the `DashboardComponent`.
 In <code>dashboard.component.ts</code>, add the following `import` statements.
 
 
-<code-example path="toh-5/src/app/dashboard.component.ts" region="imports" title="src/app/dashboard.component.ts (imports)">
+<code-example path="toh-pt5/src/app/dashboard.component.ts" region="imports" title="src/app/dashboard.component.ts (imports)">
 
 </code-example>
 
@@ -552,7 +564,7 @@ In <code>dashboard.component.ts</code>, add the following `import` statements.
 Now create the `DashboardComponent` class like this:
 
 
-<code-example path="toh-5/src/app/dashboard.component.ts" region="class" title="src/app/dashboard.component.ts (class)">
+<code-example path="toh-pt5/src/app/dashboard.component.ts" region="class" title="src/app/dashboard.component.ts (class)">
 
 </code-example>
 
@@ -620,7 +632,7 @@ You need to represent the variable part of the route with a *parameter* (or *tok
 Use the following *route definition*.
 
 
-<code-example path="toh-5/src/app/app.module.3.ts" region="hero-detail" title="src/app/app.module.ts (hero detail)">
+<code-example path="toh-pt5/src/app/app.module.3.ts" region="hero-detail" title="src/app/app.module.ts (hero detail)">
 
 </code-example>
 
@@ -630,14 +642,14 @@ The colon (:) in the path indicates that `:id` is a placeholder for a specific h
 when navigating to the `HeroDetailComponent`.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 Be sure to import the hero detail component before creating this route.
 
 
-~~~
+</div>
 
 
 
@@ -657,7 +669,7 @@ is revised and ready to be navigated to.
 Here's what the `HeroDetailComponent` looks like now:
 
 
-<code-example path="toh-4/src/app/hero-detail.component.ts" title="src/app/hero-detail.component.ts (current)">
+<code-example path="toh-pt4/src/app/hero-detail.component.ts" title="src/app/hero-detail.component.ts (current)">
 
 </code-example>
 
@@ -675,7 +687,7 @@ in the `ActivatedRoute` service and use the `HeroService` to fetch the hero with
 Add the following imports:
 
 
-<code-example path="toh-5/src/app/hero-detail.component.1.ts" region="added-imports" title="src/app/hero-detail.component.ts">
+<code-example path="toh-pt5/src/app/hero-detail.component.1.ts" region="added-imports" title="src/app/hero-detail.component.ts">
 
 </code-example>
 
@@ -685,7 +697,7 @@ Inject the `ActivatedRoute`, `HeroService`, and `Location` services
 into the constructor, saving their values in private fields:
 
 
-<code-example path="toh-5/src/app/hero-detail.component.ts" region="ctor" title="src/app/hero-detail.component.ts (constructor)">
+<code-example path="toh-pt5/src/app/hero-detail.component.ts" region="ctor" title="src/app/hero-detail.component.ts (constructor)">
 
 </code-example>
 
@@ -694,7 +706,7 @@ into the constructor, saving their values in private fields:
 Import the `switchMap` operator to use later with the route parameters `Observable`.
 
 
-<code-example path="toh-5/src/app/hero-detail.component.ts" region="rxjs-import" title="src/app/hero-detail.component.ts (switchMap import)">
+<code-example path="toh-pt5/src/app/hero-detail.component.ts" region="rxjs-import" title="src/app/hero-detail.component.ts (switchMap import)">
 
 </code-example>
 
@@ -703,7 +715,7 @@ Import the `switchMap` operator to use later with the route parameters `Observab
 Tell the class to implement the `OnInit` interface.
 
 
-<code-example path="toh-5/src/app/hero-detail.component.ts" region="implement" title="src/app/hero-detail.component.ts">
+<code-example path="toh-pt5/src/app/hero-detail.component.ts" region="implement" title="src/app/hero-detail.component.ts">
 
 </code-example>
 
@@ -714,7 +726,7 @@ extract the `id` parameter value from the `ActivatedRoute` service
 and use the `HeroService` to fetch the hero with that `id`.
 
 
-<code-example path="toh-5/src/app/hero-detail.component.ts" region="ngOnInit" title="src/app/hero-detail.component.ts">
+<code-example path="toh-pt5/src/app/hero-detail.component.ts" region="ngOnInit" title="src/app/hero-detail.component.ts">
 
 </code-example>
 
@@ -731,7 +743,7 @@ The hero `id` is a number. Route parameters are always strings.
 So the route parameter value is converted to a number with the JavaScript (+) operator.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -744,7 +756,7 @@ the subscriptions. The subscriptions are cleaned up when the component is destro
 memory leaks, so you don't need to unsubscribe from the route `params` `Observable`.
 
 
-~~~
+</div>
 
 
 
@@ -754,7 +766,7 @@ In the previous code snippet, `HeroService` doesn't have a `getHero()` method. T
 open `HeroService` and add a `getHero()` method that filters the heroes list from `getHeroes()` by `id`.
 
 
-<code-example path="toh-5/src/app/hero.service.ts" region="getHero" title="src/app/hero.service.ts (getHero)">
+<code-example path="toh-pt5/src/app/hero.service.ts" region="getHero" title="src/app/hero.service.ts (getHero)">
 
 </code-example>
 
@@ -769,13 +781,13 @@ Now add a third option, a `goBack()` method that navigates backward one step in 
 using the `Location` service you injected previously.
 
 
-<code-example path="toh-5/src/app/hero-detail.component.ts" region="goBack" title="src/app/hero-detail.component.ts (goBack)">
+<code-example path="toh-pt5/src/app/hero-detail.component.ts" region="goBack" title="src/app/hero-detail.component.ts (goBack)">
 
 </code-example>
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -784,14 +796,14 @@ In a real app, you can prevent this issue with the <em>CanDeactivate</em> guard.
 Read more on the [CanDeactivate](api/router/index/CanDeactivate-interface) page.
 
 
-~~~
+</div>
 
 
 
 You'll wire this method with an event binding to a *Back* button that you'll add to the component template.
 
 
-<code-example path="toh-5/src/app/hero-detail.component.html" region="back-button">
+<code-example path="toh-pt5/src/app/hero-detail.component.html" region="back-button">
 
 </code-example>
 
@@ -801,7 +813,7 @@ Migrate the template to its own file
 called <code>hero-detail.component.html</code>:
 
 
-<code-example path="toh-5/src/app/hero-detail.component.html" title="src/app/hero-detail.component.html">
+<code-example path="toh-pt5/src/app/hero-detail.component.html" title="src/app/hero-detail.component.html">
 
 </code-example>
 
@@ -811,7 +823,7 @@ Update the component metadata with a `templateUrl` pointing to the template file
 
 
 
-<code-example path="toh-5/src/app/hero-detail.component.ts" region="metadata" title="src/app/hero-detail.component.ts (metadata)">
+<code-example path="toh-pt5/src/app/hero-detail.component.ts" region="metadata" title="src/app/hero-detail.component.ts (metadata)">
 
 </code-example>
 
@@ -833,7 +845,7 @@ To achieve this effect, reopen `dashboard.component.html` and replace the repeat
 with `<a>` tags. Change the opening `<a>` tag to the following:
 
 
-<code-example path="toh-5/src/app/dashboard.component.html" region="click" title="src/app/dashboard.component.html (repeated &lt;a&gt; tag)">
+<code-example path="toh-pt5/src/app/dashboard.component.html" region="click" title="src/app/dashboard.component.html (repeated &lt;a&gt; tag)">
 
 </code-example>
 
@@ -853,7 +865,7 @@ token in the parameterized hero detail route definition that you added to
 `app.module.ts` earlier:
 
 
-<code-example path="toh-5/src/app/app.module.3.ts" region="hero-detail" title="src/app/app.module.ts (hero detail)">
+<code-example path="toh-pt5/src/app/app.module.3.ts" region="hero-detail" title="src/app/app.module.ts (hero detail)">
 
 </code-example>
 
@@ -886,7 +898,7 @@ Create an `app-routing.module.ts` file as a sibling to `app.module.ts`.
 Give it the following contents, extracted from the `AppModule` class:
 
 
-<code-example path="toh-5/src/app/app-routing.module.ts" title="src/app/app-routing.module.ts">
+<code-example path="toh-pt5/src/app/app-routing.module.ts" title="src/app/app-routing.module.ts">
 
 </code-example>
 
@@ -908,16 +920,14 @@ such as `RouterLink` and `RouterOutlet`.
 Delete the routing configuration from `AppModule` and import the `AppRoutingModule`.
 Use an ES `import` statement *and* add it to the `NgModule.imports` list.
 
-  Here is the revised `AppModule`, compared to its pre-refactor state:
+Here is the revised `AppModule`, compared to its pre-refactor state:
 
-+makeTabs(
-  `toh-5/ts/src/app/app.module.ts, toh-5/ts/src/app/app.module.3.ts`,
-   null,
-  `src/app/app.module.ts (after), src/app/app.module.ts (before)`)
-:marked
-  The revised and simplified `AppModule` is focused on identifying the key pieces of the app.
+<code-tabs>
+  <code-pane path="toh-pt5/src/app/app.module.ts" title="src/app/app.module.ts (after)"></code-pane>
+  <code-pane path="toh-pt5/src/app/app.module.3.ts" title="src/app/app.module.ts (before)"></code-pane>
+</code-tabs>
 
-
+The revised and simplified `AppModule` is focused on identifying the key pieces of the app.
 
 ## Select a hero in the *HeroesComponent*
 
@@ -926,7 +936,7 @@ the current template exhibits a "master/detail" style with the list of heroes
 at the top and details of the selected hero below.
 
 
-<code-example path="toh-4/src/app/app.component.ts" region="template" title="src/app/heroes.component.ts (current template)" linenums="false">
+<code-example path="toh-pt4/src/app/app.component.ts" region="template" title="src/app/heroes.component.ts (current template)" linenums="false">
 
 </code-example>
 
@@ -947,7 +957,7 @@ Instead, they'll see a mini detail on *this* page and have to click a button to 
 Add the following HTML fragment at the bottom of the template where the `<hero-detail>` used to be:
 
 
-<code-example path="toh-5/src/app/heroes.component.html" region="mini-detail" title="src/app/heroes.component.ts">
+<code-example path="toh-pt5/src/app/heroes.component.html" region="mini-detail" title="src/app/heroes.component.ts">
 
 </code-example>
 
@@ -968,7 +978,7 @@ The hero's name is displayed in capital letters because of the `uppercase` pipe
 that's included in the interpolation binding, right after the pipe operator ( | ).
 
 
-<code-example path="toh-5/src/app/heroes.component.html" region="pipe">
+<code-example path="toh-pt5/src/app/heroes.component.html" region="pipe">
 
 </code-example>
 
@@ -978,14 +988,14 @@ Pipes are a good way to format strings, currency amounts, dates and other displa
 Angular ships with several pipes and you can write your own.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 Read more about pipes on the [Pipes](guide/pipes) page.
 
 
-~~~
+</div>
 
 
 
@@ -1010,11 +1020,11 @@ The two new files should look like this:
 
 <code-tabs>
 
-  <code-pane title="src/app/heroes.component.html" path="toh-5/src/app/heroes.component.html">
+  <code-pane title="src/app/heroes.component.html" path="toh-pt5/src/app/heroes.component.html">
 
   </code-pane>
 
-  <code-pane title="src/app/heroes.component.css" path="toh-5/src/app/heroes.component.css">
+  <code-pane title="src/app/heroes.component.css" path="toh-pt5/src/app/heroes.component.css">
 
   </code-pane>
 
@@ -1028,13 +1038,13 @@ delete `template` and `styles`, replacing them with
 Set their properties to refer to the new files.
 
 
-<code-example path="toh-5/src/app/heroes.component.ts" region="metadata" title="src/app/heroes.component.ts (revised metadata)">
+<code-example path="toh-pt5/src/app/heroes.component.ts" region="metadata" title="src/app/heroes.component.ts (revised metadata)">
 
 </code-example>
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -1042,7 +1052,7 @@ The `styleUrls` property is an array of style file names (with paths).
 You could list multiple style files from different locations if you needed them.
 
 
-~~~
+</div>
 
 
 
@@ -1054,12 +1064,12 @@ by telling the router where to go.
 
 This approach requires the following changes to the component class:
 
-1. Import the `router` from the Angular router library.
-1. Inject the `router` in the constructor, along with the `HeroService`.
+1. Import the `Router` from the Angular router library.
+1. Inject the `Router` in the constructor, along with the `HeroService`.
 1. Implement `gotoDetail()` by calling the router `navigate()` method.
 
 
-<code-example path="toh-5/src/app/heroes.component.ts" region="gotoDetail" title="src/app/heroes.component.ts (gotoDetail)">
+<code-example path="toh-pt5/src/app/heroes.component.ts" region="gotoDetail" title="src/app/heroes.component.ts (gotoDetail)">
 
 </code-example>
 
@@ -1072,7 +1082,7 @@ back in the `DashboardComponent`.
 Here's the revised `HeroesComponent` class:
 
 
-<code-example path="toh-5/src/app/heroes.component.ts" region="class" title="src/app/heroes.component.ts (class)">
+<code-example path="toh-pt5/src/app/heroes.component.ts" region="class" title="src/app/heroes.component.ts (class)">
 
 </code-example>
 
@@ -1100,7 +1110,7 @@ Add a <code>dashboard.component.css</code> file to the `app` folder and referenc
 that file in the component metadata's `styleUrls` array property like this:
 
 
-<code-example path="toh-5/src/app/dashboard.component.ts" region="css" title="src/app/dashboard.component.ts (styleUrls)">
+<code-example path="toh-pt5/src/app/dashboard.component.ts" region="css" title="src/app/dashboard.component.ts (styleUrls)">
 
 </code-example>
 
@@ -1121,11 +1131,11 @@ Here's the content for the component CSS files.
 
 <code-tabs>
 
-  <code-pane title="src/app/hero-detail.component.css" path="toh-5/src/app/hero-detail.component.css">
+  <code-pane title="src/app/hero-detail.component.css" path="toh-pt5/src/app/hero-detail.component.css">
 
   </code-pane>
 
-  <code-pane title="src/app/dashboard.component.css" path="toh-5/src/app/dashboard.component.css">
+  <code-pane title="src/app/dashboard.component.css" path="toh-pt5/src/app/dashboard.component.css">
 
   </code-pane>
 
@@ -1141,13 +1151,13 @@ You'll surround those links in `<nav>` tags.
 Add an <code>app.component.css</code> file to the `app` folder with the following content.
 
 
-<code-example path="toh-5/src/app/app.component.css" title="src/app/app.component.css (navigation styles)">
+<code-example path="toh-pt5/src/app/app.component.css" title="src/app/app.component.css (navigation styles)">
 
 </code-example>
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -1158,11 +1168,11 @@ add a class to the HTML navigation element whose route matches the active route.
 All you have to do is define the style for it.
 
 
-~~~
+</div>
 
 
 
-<code-example path="toh-5/src/app/app.component.ts" region="template" title="src/app/app.component.ts (active router links)">
+<code-example path="toh-pt5/src/app/app.component.ts" region="template" title="src/app/app.component.ts (active router links)">
 
 </code-example>
 
@@ -1171,7 +1181,7 @@ All you have to do is define the style for it.
 Add a `styleUrls` property that refers to this CSS file as follows:
 
 
-<code-example path="toh-5/src/app/app.component.ts" region="styleUrls" title="toh-5/src/app/app.component.ts">
+<code-example path="toh-pt5/src/app/app.component.ts" region="styleUrls" title="src/app/app.component.ts">
 
 </code-example>
 
@@ -1190,7 +1200,7 @@ These correspond to the full set of master styles that you installed earlier dur
 Here's an excerpt:
 
 
-<code-example path="toh-5/src/styles.css" region="toh" title="src/styles.css (excerpt)">
+<code-example path="toh-pt5/src/styles.css" region="toh"  title="src/styles.css (excerpt)">
 
 </code-example>
 
@@ -1201,7 +1211,7 @@ Ensure that the file contains the [master styles provided here](https://raw.gith
 Also edit <code>index.html</code> to refer to this stylesheet.
 
 
-<code-example path="toh-5/src/index.html" region="css" title="src/index.html (link ref)">
+<code-example path="toh-pt5/src/index.html" region="css" title="src/index.html (link ref)">
 
 </code-example>
 
@@ -1211,7 +1221,7 @@ Look at the app now. The dashboard, heroes, and navigation links are styled.
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/toh/dashboard-top-heroes.png' alt="View navigations"></img>
+  <img src='assets/images/devguide/toh/heroes-dashboard-1.png' alt="View navigations"></img>
 </figure>
 
 
@@ -1223,113 +1233,125 @@ Review the sample source code in the <live-example></live-example> for this page
 Verify that you have the following structure:
 
 
-<aio-filetree>
+<div class='filetree'>
 
-  <aio-folder>
+  <div class='file'>
     angular-tour-of-heroes
-    <aio-folder>
+  </div>
+
+  <div class='children'>
+
+    <div class='file'>
       src
-      <aio-folder>
+    </div>
+
+    <div class='children'>
+
+      <div class='file'>
         app
-        <aio-file>
+      </div>
+
+      <div class='children'>
+
+        <div class='file'>
           app.component.css
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           app.component.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           app.module.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           app-routing.module.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           dashboard.component.css
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           dashboard.component.html
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           dashboard.component.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero.service.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero-detail.component.css
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero-detail.component.html
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           hero-detail.component.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           heroes.component.css
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           heroes.component.html
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           heroes.component.ts
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           mock-heroes.ts
-        </aio-file>
+        </div>
 
-      </aio-folder>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         main.ts
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         index.html
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         styles.css
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         systemjs.config.js
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         tsconfig.json
-      </aio-file>
+      </div>
 
-    </aio-folder>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       node_modules ...
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       package.json
-    </aio-file>
+    </div>
 
-  </aio-folder>
+  </div>
 
-</aio-filetree>
+</div>
 
 
 

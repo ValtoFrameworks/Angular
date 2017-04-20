@@ -5,11 +5,14 @@ import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 
 import { MockSwUpdatesService } from 'testing/sw-updates.service';
+import { Global } from './global.value';
 import { SwUpdateNotificationsService } from './sw-update-notifications.service';
 import { SwUpdatesService } from './sw-updates.service';
 
 
 describe('SwUpdateNotificationsService', () => {
+  const UPDATE_AVAILABLE_MESSAGE = 'New update for angular.io is available.';
+  const UPDATE_FAILED_MESSAGE = 'Update activation failed :(';
   let injector: ReflectiveInjector;
   let service: SwUpdateNotificationsService;
   let swUpdates: MockSwUpdatesService;
@@ -26,6 +29,7 @@ describe('SwUpdateNotificationsService', () => {
 
   beforeEach(() => {
     injector = ReflectiveInjector.resolveAndCreate([
+      { provide: Global, useClass: MockGlobal },
       { provide: MdSnackBar, useClass: MockMdSnackBar },
       { provide: SwUpdatesService, useClass: MockSwUpdatesService },
       SwUpdateNotificationsService
@@ -63,8 +67,8 @@ describe('SwUpdateNotificationsService', () => {
 
       swUpdates.$$isUpdateAvailableSubj.next(true);
 
-      expect(snackBar.$$lastRef.$$message).toContain('ServiceWorker update available');
-      expect(snackBar.$$lastRef.$$action).toBe('Activate');
+      expect(snackBar.$$lastRef.$$message).toBe(UPDATE_AVAILABLE_MESSAGE);
+      expect(snackBar.$$lastRef.$$action).toBe('Update now');
       expect(snackBar.$$lastRef.$$config.duration).toBeUndefined();
     });
 
@@ -73,7 +77,7 @@ describe('SwUpdateNotificationsService', () => {
       expect(snackBar.$$lastRef).toBeUndefined();
     });
 
-    it('should activate the update when clicking on `Activate`', () => {
+    it('should activate the update when clicking on `Update now`', () => {
       spyOn(swUpdates, 'activateUpdate').and.callThrough();
 
       swUpdates.$$isUpdateAvailableSubj.next(true);
@@ -83,18 +87,19 @@ describe('SwUpdateNotificationsService', () => {
       expect(swUpdates.activateUpdate).toHaveBeenCalled();
     });
 
-    it('should report a successful activation', fakeAsync(() => {
-      activateUpdate(true);
+    it('should reload the page after a successful activation', fakeAsync(() => {
+      const global = injector.get(Global);
 
-      expect(snackBar.$$lastRef.$$message).toContain('Update activated successfully');
-      expect(snackBar.$$lastRef.$$action).toBeNull();
-      expect(snackBar.$$lastRef.$$config.duration).toBeUndefined();
+      expect(global.location.reload).not.toHaveBeenCalled();
+
+      activateUpdate(true);
+      expect(global.location.reload).toHaveBeenCalled();
     }));
 
     it('should report a failed activation', fakeAsync(() => {
       activateUpdate(false);
 
-      expect(snackBar.$$lastRef.$$message).toContain('Update activation failed');
+      expect(snackBar.$$lastRef.$$message).toBe(UPDATE_FAILED_MESSAGE);
       expect(snackBar.$$lastRef.$$action).toBe('Dismiss');
       expect(snackBar.$$lastRef.$$config.duration).toBeGreaterThan(0);
     }));
@@ -114,21 +119,12 @@ describe('SwUpdateNotificationsService', () => {
 
     it('should dismiss open update notification', () => {
       swUpdates.$$isUpdateAvailableSubj.next(true);
-      expect(snackBar.$$lastRef.$$message).toContain('ServiceWorker update available');
+      expect(snackBar.$$lastRef.$$message).toBe(UPDATE_AVAILABLE_MESSAGE);
       expect(snackBar.$$lastRef.$$dismissed).toBe(false);
 
       service.disable();
       expect(snackBar.$$lastRef.$$dismissed).toBe(true);
     });
-
-    it('should dismiss open activation notification', fakeAsync(() => {
-      activateUpdate(true);
-      expect(snackBar.$$lastRef.$$message).toContain('Update activated successfully');
-      expect(snackBar.$$lastRef.$$dismissed).toBe(false);
-
-      service.disable();
-      expect(snackBar.$$lastRef.$$dismissed).toBe(true);
-    }));
 
     it('should ignore further updates', () => {
       service.disable();
@@ -143,7 +139,7 @@ describe('SwUpdateNotificationsService', () => {
       expect(snackBar.$$lastRef).toBeUndefined();
 
       swUpdates.$$isUpdateAvailableSubj.next(true);
-      expect(snackBar.$$lastRef.$$message).toContain('ServiceWorker update available');
+      expect(snackBar.$$lastRef.$$message).toBe(UPDATE_AVAILABLE_MESSAGE);
     });
 
     it('should not ignore pending updates if re-enabled', () => {
@@ -152,12 +148,18 @@ describe('SwUpdateNotificationsService', () => {
       expect(snackBar.$$lastRef).toBeUndefined();
 
       service.enable();
-      expect(snackBar.$$lastRef.$$message).toContain('ServiceWorker update available');
+      expect(snackBar.$$lastRef.$$message).toBe(UPDATE_AVAILABLE_MESSAGE);
     });
   });
 });
 
 // Mocks
+class MockGlobal {
+  location = {
+    reload: jasmine.createSpy('MockGlobal.location.reload')
+  };
+}
+
 class MockMdSnackBarRef {
   $$afterDismissedSubj = new Subject();
   $$onActionSubj = new Subject();

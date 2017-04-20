@@ -1,3 +1,6 @@
+@title
+QuickStart
+
 @description
 
 
@@ -13,7 +16,7 @@ Angular applications are made up of _components_.
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -22,7 +25,7 @@ Try it locally with the [***QuickStart seed***](guide/guide/setup "Setup for loc
 and prepare for development of a real Angular application.
 
 
-~~~
+</div>
 
 
 
@@ -47,7 +50,7 @@ Interpolation binding is one of many Angular features you'll discover in this do
 In the example, change the component class's `name` property from `'Angular'` to `'World'` and see what happens.
 
 
-~~~ {.callout.is-helpful}
+<div class="callout is-helpful">
 
 
 
@@ -65,11 +68,11 @@ In the example, change the component class's `name` property from `'Angular'` to
 
 
 
-~~~
+</div>
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -77,5 +80,5 @@ In the example, change the component class's `name` property from `'Angular'` to
 
 Start [**learning Angular**](guide/guide/learning-angular "Learning Angular").
 
-~~~
+</div>
 

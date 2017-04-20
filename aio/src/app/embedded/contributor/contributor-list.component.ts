@@ -1,25 +1,40 @@
 import { Component, OnInit } from '@angular/core';
-import { Contributor } from './contributors.model';
+import { ContributorGroup } from './contributors.model';
 import { ContributorService } from './contributor.service';
 
 @Component({
   selector: `aio-contributor-list`,
   template: `
-  <section *ngFor="let group of groups" class="grid-fluid">
-    <h4 class="title">{{group}}</h4>
-    <aio-contributor *ngFor="let person of contributorGroups[group]" [person]="person"></aio-contributor>
+  <div class="flex-center group-buttons">
+    <a *ngFor="let name of groupNames"
+       [class.selected]="name == selectedGroup.name"
+       class="button mat-button filter-button"
+       (click)="selectGroup(name)">{{name}}</a>
+  </div>
+  <section *ngIf="selectedGroup" class="grid-fluid">
+    <div class="contributor-group">
+      <aio-contributor *ngFor="let person of selectedGroup.contributors" [person]="person"></aio-contributor>
+    </div>
   </section>`
 })
 export class ContributorListComponent implements OnInit {
-  contributorGroups = new Map<string, Contributor[]>();
-  groups: string[];
+  private groups: ContributorGroup[];
+  groupNames: string[];
+  selectedGroup: ContributorGroup;
 
   constructor(private contributorService: ContributorService) { }
 
   ngOnInit() {
-    this.contributorService.contributors.subscribe(cgs => {
-      this.groups = ['Lead', 'Google', 'Community'];
-      this.contributorGroups = cgs;
-    });
+    // no need to unsubscribe because `contributors` completes
+    this.contributorService.contributors
+      .subscribe(grps => {
+        this.groups = grps;
+        this.groupNames = grps.map(g => g.name);
+        this.selectGroup(grps[0].name);
+      });
+  }
+
+  selectGroup(name) {
+    this.selectedGroup = this.groups.find(g => g.name === name);
   }
 }

@@ -1,8 +1,9 @@
-import { Injectable } from '@angular/core';
+import { Inject, Injectable } from '@angular/core';
 import { MdSnackBar, MdSnackBarConfig, MdSnackBarRef } from '@angular/material';
 import { Subject } from 'rxjs/Subject';
 import 'rxjs/add/operator/filter';
 
+import { Global } from './global.value';
 import { SwUpdatesService } from './sw-updates.service';
 
 
@@ -11,9 +12,8 @@ import { SwUpdatesService } from './sw-updates.service';
  *
  * @description
  * Once enabled:
- * 1. Subscribes to ServiceWorker updates and prompts the user to activate.
- * 2. When the user confirms, it activates the update and notifies the user (upon activation success
- *    or failure).
+ * 1. Subscribes to ServiceWorker updates and prompts the user to update.
+ * 2. When the user confirms, it activates the update and reloads the page upon activation success.
  * 3. Continues to listen for available ServiceWorker updates.
  *
  * @method
@@ -29,7 +29,9 @@ export class SwUpdateNotificationsService {
   private snackBars: MdSnackBarRef<any>[] = [];
   private enabled = false;
 
-  constructor(private snackBarService: MdSnackBar, private swUpdates: SwUpdatesService) {
+  constructor(@Inject(Global) private global: any,
+              private snackBarService: MdSnackBar,
+              private swUpdates: SwUpdatesService) {
     this.onDisable.subscribe(() => this.snackBars.forEach(sb => sb.dismiss()));
   }
 
@@ -61,7 +63,7 @@ export class SwUpdateNotificationsService {
   }
 
   private notifyForUpdate() {
-    this.openSnackBar('ServiceWorker update available.', 'Activate')
+    this.openSnackBar('New update for angular.io is available.', 'Update now')
         .onAction().subscribe(() => this.activateUpdate());
   }
 
@@ -71,7 +73,7 @@ export class SwUpdateNotificationsService {
   }
 
   private onActivateSuccess() {
-    this.openSnackBar('Update activated successfully! Reload the page to see the latest content.');
+    this.reloadPage();
   }
 
   private openSnackBar(message: string, action?: string, config?: MdSnackBarConfig): MdSnackBarRef<any> {
@@ -81,5 +83,12 @@ export class SwUpdateNotificationsService {
     this.snackBars.push(snackBar);
 
     return snackBar;
+  }
+
+  private reloadPage() {
+    const location = this.global && (this.global as Window).location;
+    if (location && location.reload) {
+      location.reload();
+    }
   }
 }

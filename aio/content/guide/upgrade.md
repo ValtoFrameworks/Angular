@@ -477,14 +477,14 @@ We will import `UpgradeModule` inside our Angular module, and then use it for
 bootstrapping our AngularJS module. Let's see how.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 Learn more about Angular modules at the [NgModule guide](guide/ngmodule).
 
 
-~~~
+</div>
 
 
 
@@ -613,14 +613,14 @@ Angular module.
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 All Angular components, directives and pipes must be declared in an NgModule.
 
 
-~~~
+</div>
 
 
 
@@ -634,7 +634,7 @@ use like any other directive in our AngularJS templates.
 
 
 
-~~~ {.alert.is-helpful}
+<div class="alert is-helpful">
 
 
 
@@ -644,7 +644,7 @@ An AngularJS element directive is matched based on its _name_.
 
 
 
-~~~
+</div>
 
 
 
@@ -682,7 +682,7 @@ attribute syntax to bind the inputs and outputs**. This is a requirement for dow
 components. The expressions themselves are still regular AngularJS expressions.
 
 
-~~~ {.callout.is-important}
+<div class="callout is-important">
 
 
 
@@ -711,7 +711,7 @@ But when using them from AngularJS templates, we need to use kebab-case:
 
 
 
-~~~
+</div>
 
 
 
@@ -781,7 +781,7 @@ All that is left is to add it to `AppModule`'s `declarations` array.
 
 
 
-~~~ {.alert.is-helpful}
+<div class="alert is-helpful">
 
 
 
@@ -791,7 +791,7 @@ component is just a directive - a tag - and Angular doesn't have to concern itse
 it's children. 
 
 
-~~~
+</div>
 
 
 
@@ -968,7 +968,7 @@ of the `<ng-content>` tag in Angular:
 
 
 
-~~~ {.alert.is-helpful}
+<div class="alert is-helpful">
 
 
 
@@ -976,7 +976,7 @@ When AngularJS content gets projected inside an Angular component, it still
 remains in "AngularJS land" and is managed by the AngularJS framework.
 
 
-~~~
+</div>
 
 
 
@@ -1003,7 +1003,7 @@ point:
 
 
 
-~~~ {.alert.is-helpful}
+<div class="alert is-helpful">
 
 
 
@@ -1012,7 +1012,7 @@ It is on by default for component directives defined with the
 1.5 component API.
 
 
-~~~
+</div>
 
 
 
@@ -1076,7 +1076,7 @@ We can then inject it in Angular using it's class as a type annotation:
 
 
 
-~~~ {.alert.is-helpful}
+<div class="alert is-helpful">
 
 
 
@@ -1087,7 +1087,7 @@ checking. This is not required though, and any AngularJS service, factory, or
 provider can be upgraded.
 
 
-~~~
+</div>
 
 
 
@@ -1141,7 +1141,7 @@ After this, the service is injectable anywhere in our AngularJS code:
 We can take advantage of Ahead-of-time (AoT) compilation on hybrid apps just like on any other
 Angular application.
 The setup for an hybrid app is mostly the same as described in 
-[the Ahead-of-time Compilation chapter](cookbook/aot-compiler)
+[the Ahead-of-time Compilation chapter](guide/aot-compiler)
 save for differences in `index.html` and `main-aot.ts`
 
 Our `index.html` will likely have script tags loading AngularJS files, so the `index.html` we
@@ -1161,7 +1161,7 @@ Module Factory:
 And that's all we need to get the full benefit of AoT for Angular apps!
 
 
-~~~ {.alert.is-helpful}
+<div class="alert is-helpful">
 
 
 
@@ -1170,7 +1170,7 @@ so in order for upgraded components to work we needs to implement the lifecycle 
 on the upgraded component class and forward them to the `UpgradeComponent` parent.  
 
 
-~~~
+</div>
 
 
 
@@ -1258,153 +1258,193 @@ and apply the steps as we go.
 In terms of project structure, this is where our work begins:
 
 
-<aio-filetree>
+<div class='filetree'>
 
-  <aio-folder>
+  <div class='file'>
     angular-phonecat
-    <aio-file>
+  </div>
+
+  <div class='children'>
+
+    <div class='file'>
       bower.json
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       karma.conf.js
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       package.json
-    </aio-file>
+    </div>
 
-    <aio-folder>
+    <div class='file'>
       app
-      <aio-folder>
+    </div>
+
+    <div class='children'>
+
+      <div class='file'>
         core
-        <aio-folder>
+      </div>
+
+      <div class='children'>
+
+        <div class='file'>
           checkmark
-          <aio-file>
+        </div>
+
+        <div class='children'>
+
+          <div class='file'>
             checkmark.filter.js
-          </aio-file>
+          </div>
 
-          <aio-file>
+          <div class='file'>
             checkmark.filter.spec.js
-          </aio-file>
+          </div>
 
-        </aio-folder>
+        </div>
 
-        <aio-folder>
+        <div class='file'>
           phone
-          <aio-file>
+        </div>
+
+        <div class='children'>
+
+          <div class='file'>
             phone.module.js
-          </aio-file>
+          </div>
 
-          <aio-file>
+          <div class='file'>
             phone.service.js
-          </aio-file>
+          </div>
 
-          <aio-file>
+          <div class='file'>
             phone.service.spec.js
-          </aio-file>
+          </div>
 
-        </aio-folder>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           core.module.js
-        </aio-file>
+        </div>
 
-      </aio-folder>
+      </div>
 
-      <aio-folder>
+      <div class='file'>
         phone-detail
-        <aio-file>
+      </div>
+
+      <div class='children'>
+
+        <div class='file'>
           phone-detail.component.js
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           phone-detail.component.spec.js
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           phone-detail.module.js
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           phone-detail.template.html
-        </aio-file>
+        </div>
 
-      </aio-folder>
+      </div>
 
-      <aio-folder>
+      <div class='file'>
         phone-list
-        <aio-file>
+      </div>
+
+      <div class='children'>
+
+        <div class='file'>
           phone-list.component.js
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           phone-list.component.spec.js
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           phone-list.module.js
-        </aio-file>
+        </div>
 
-        <aio-file>
+        <div class='file'>
           phone-list.template.html
-        </aio-file>
+        </div>
 
-      </aio-folder>
+      </div>
 
-      <aio-folder>
+      <div class='file'>
         img
-        <aio-file>
+      </div>
+
+      <div class='children'>
+
+        <div class='file'>
            ...
-        </aio-file>
+        </div>
 
-      </aio-folder>
+      </div>
 
-      <aio-folder>
+      <div class='file'>
         phones
-        <aio-file>
+      </div>
+
+      <div class='children'>
+
+        <div class='file'>
            ...
-        </aio-file>
+        </div>
 
-      </aio-folder>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         app.animations.js
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         app.config.js
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         app.css
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         app.module.js
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         index.html
-      </aio-file>
+      </div>
 
-    </aio-folder>
+    </div>
 
-    <aio-folder>
+    <div class='file'>
       e2e-tests
-      <aio-file>
+    </div>
+
+    <div class='children'>
+
+      <div class='file'>
         protractor-conf.js
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         scenarios.js
-      </aio-file>
+      </div>
 
-    </aio-folder>
+    </div>
 
-  </aio-folder>
+  </div>
 
-</aio-filetree>
+</div>
 
 
 
@@ -1539,7 +1579,7 @@ can verify we're calling their APIs with the correct kinds of arguments.
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -1555,7 +1595,7 @@ does not yet have type annotations. We could use it as a guide to inform
 us about how close we are to having a fully annotated project.
 
 
-~~~
+</div>
 
 
 
@@ -1618,11 +1658,11 @@ By the time we're done, we'll be able to remove AngularJS from the project
 completely, but the key is to do this piece by piece without breaking the application.
 
 
-~~~ {.alert.is-important}
+<div class="alert is-important">
 
 The project also contains some animations, which we are not yet upgrading in this version of the guide. This will change in a later release.
 
-~~~
+</div>
 
 
 
@@ -1756,7 +1796,7 @@ exciting! We're not running any actual Angular components yet though,
 so let's do that next.
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -1779,7 +1819,7 @@ Instead we declare `angular` as `angular.IAngularStatic` to indicate it is a glo
 and still have full typing support.
 
 
-~~~
+</div>
 
 
 
@@ -1908,7 +1948,7 @@ In any case, what we've achieved is a migration of a service to Angular
 without having to yet migrate the components that use it.
 
 
-~~~ {.alert.is-helpful}
+<div class="alert is-helpful">
 
 
 
@@ -1917,7 +1957,7 @@ Observables into Promises in the service. This can in many cases further
 reduce the amount of changes needed in the component controllers.
 
 
-~~~
+</div>
 
 
 
@@ -2112,7 +2152,7 @@ remove the filter &lt;script&gt; tag from `index.html`:
 ## AoT compile the hybrid app
 
 To use AoT with our hybrid app we have to first set it up like any other Angular application,
-as shown in [the Ahead-of-time Compilation chapter](cookbook/aot-compiler).
+as shown in [the Ahead-of-time Compilation chapter](guide/aot-compiler).
 
 Then we have to change `main-aot.ts` bootstrap also bootstrap the AngularJS app 
 via `UpgradeModule`:
@@ -2260,14 +2300,14 @@ and let that directive construct the appropriate URL to the `PhoneDetailComponen
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
 See the [Routing](guide/router) page for details.
 
 
-~~~
+</div>
 
 
 

@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import * as ts from 'typescript';
 
 export interface Directory { [name: string]: (Directory|string); }
@@ -84,6 +83,9 @@ export class MockNode implements ts.Node {
   getText(sourceFile?: ts.SourceFile): string { return ''; }
   getFirstToken(sourceFile?: ts.SourceFile): ts.Node { return null; }
   getLastToken(sourceFile?: ts.SourceFile): ts.Node { return null; }
+  forEachChild<T>(cbNode: (node: ts.Node) => T, cbNodeArray?: (nodes: ts.Node[]) => T): T {
+    return null;
+  }
 }
 
 export class MockIdentifier extends MockNode implements ts.Identifier {
@@ -127,7 +129,8 @@ export class MockSymbol implements ts.Symbol {
   getName(): string { return this.name; }
   getDeclarations(): ts.Declaration[] { return [this.node]; }
   getDocumentationComment(): ts.SymbolDisplayPart[] { return []; }
-  getJsDocTags(): ts.JSDocTagInfo[]{return []};
+  // TODO(vicb): removed in TS 2.2
+  getJsDocTags(): any[]{return []};
 
   static of (name: string): MockSymbol { return new MockSymbol(name); }
 }

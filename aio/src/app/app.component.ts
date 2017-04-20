@@ -1,6 +1,7 @@
 import { Component, ElementRef, HostListener, OnInit,
          QueryList, ViewChild, ViewChildren } from '@angular/core';
-import { MdSidenav } from '@angular/material/sidenav';
+import { MdSidenav } from '@angular/material';
+import { Title } from '@angular/platform-browser';
 
 import { AutoScrollService } from 'app/shared/auto-scroll.service';
 import { CurrentNode, NavigationService, NavigationViews, NavigationNode, VersionInfo } from 'app/navigation/navigation.service';
@@ -10,7 +11,6 @@ import { LocationService } from 'app/shared/location.service';
 import { NavMenuComponent } from 'app/layout/nav-menu/nav-menu.component';
 import { SearchResultsComponent } from 'app/search/search-results/search-results.component';
 import { SwUpdateNotificationsService } from 'app/sw-updates/sw-update-notifications.service';
-
 
 const sideNavView = 'SideNav';
 
@@ -28,9 +28,8 @@ export class AppComponent implements OnInit {
   isSideBySide = false;
   private isSideNavDoc = false;
   private previousNavView: string;
-  // Set to 1032 to account for computed html window size
-  private readonly sideBySideWidth = 1032;
 
+  private sideBySideWidth = 1032;
   sideNavNodes: NavigationNode[];
   topMenuNodes: NavigationNode[];
   versionInfo: VersionInfo;
@@ -38,7 +37,7 @@ export class AppComponent implements OnInit {
   get homeImageUrl() {
     return this.isSideBySide ?
       'assets/images/logos/standard/logo-nav@2x.png' :
-      'assets/images/logos/standard/logo-nav-small.png';
+      'assets/images/logos/standard/shield-large@2x.png';
   }
   get isOpened() { return this.isSideBySide && this.isSideNavDoc; }
   get mode() { return this.isSideBySide ? 'side' : 'over'; }
@@ -61,26 +60,37 @@ export class AppComponent implements OnInit {
     private documentService: DocumentService,
     private locationService: LocationService,
     private navigationService: NavigationService,
-    private swUpdateNotifications: SwUpdateNotificationsService
+    private swUpdateNotifications: SwUpdateNotificationsService,
+    private titleService: Title
   ) { }
 
   ngOnInit() {
+    this.onResize(window.innerWidth);
+
     /* No need to unsubscribe because this root component never dies */
 
-    this.documentService.currentDocument.subscribe(doc => this.currentDocument = doc);
+    this.documentService.currentDocument.subscribe(doc => {
+      this.currentDocument = doc;
+      this.setDocumentTitle(doc.title);
+      this.pageId = this.currentDocument.url.replace('/', '-');
+
+      // Special case the home page
+      if (this.pageId === 'index') {
+        this.pageId = 'home';
+      }
+    });
 
     // scroll even if only the hash fragment changed
     this.locationService.currentUrl.subscribe(url => this.autoScroll());
 
     this.navigationService.currentNode.subscribe(currentNode => {
       this.currentNode = currentNode;
-      this.pageId = this.currentNode.url.replace('/', '-') || 'home';
 
-      // Toggle the sidenav if the kind of view changed
+      // Toggle the sidenav if side-by-side and the kind of view changed
       if (this.previousNavView === currentNode.view) { return; }
       this.previousNavView = currentNode.view;
       this.isSideNavDoc = currentNode.view === sideNavView;
-      this.sideNavToggle(this.isSideNavDoc);
+      this.sideNavToggle(this.isSideNavDoc && this.isSideBySide);
     });
 
     this.navigationService.navigationViews.subscribe(views => {
@@ -92,13 +102,11 @@ export class AppComponent implements OnInit {
     this.navigationService.versionInfo.subscribe( vi => this.versionInfo = vi );
 
     this.swUpdateNotifications.enable();
-
-    this.onResize(window.innerWidth);
   }
 
   // Scroll to the anchor in the hash fragment.
   autoScroll() {
-    this.autoScrollService.scroll(this.docViewer.nativeElement.offsetParent);
+    this.autoScrollService.scroll();
   }
 
   onDocRendered() {
@@ -125,19 +133,29 @@ export class AppComponent implements OnInit {
 
     if (eventTarget.tagName === 'FOOTER' && metaKey && altKey) {
       this.dtOn = !this.dtOn;
+      return false;
     }
 
-    // Deal with anchor clicks
-    if (eventTarget instanceof HTMLImageElement) {
-      eventTarget = eventTarget.parentElement; // assume image wrapped in Anchor
+    // Deal with anchor clicks; climb DOM tree until anchor found (or null)
+    let target = eventTarget;
+    while (target && !(target instanceof HTMLAnchorElement)) {
+      target = target.parentElement;
     }
-    if (eventTarget instanceof HTMLAnchorElement) {
-      return this.locationService.handleAnchorClick(eventTarget, button, ctrlKey, metaKey);
+    if (target) {
+      return this.locationService.handleAnchorClick(target as HTMLAnchorElement, button, ctrlKey, metaKey);
     }
     return true;
   }
 
   sideNavToggle(value?: boolean) {
     this.sidenav.toggle(value);
+  }
+
+  setDocumentTitle(title) {
+    if (title.trim()) {
+      this.titleService.setTitle(`Angular - ${title}`);
+    } else {
+      this.titleService.setTitle('Angular');
+    }
   }
 }

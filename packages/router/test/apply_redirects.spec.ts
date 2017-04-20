@@ -12,8 +12,7 @@ import {Observable} from 'rxjs/Observable';
 import {of } from 'rxjs/observable/of';
 
 import {applyRedirects} from '../src/apply_redirects';
-import {Routes} from '../src/config';
-import {LoadedRouterConfig} from '../src/router_config_loader';
+import {LoadedRouterConfig, Routes} from '../src/config';
 import {DefaultUrlSerializer, UrlSegmentGroup, UrlTree, equalSegments} from '../src/url_tree';
 
 describe('applyRedirects', () => {
@@ -52,7 +51,7 @@ describe('applyRedirects', () => {
   });
 
   it('should throw when cannot handle a positional parameter', () => {
-    applyRedirects(testModule.injector, null, serializer, tree('/a/1'), [
+    applyRedirects(testModule.injector, null !, serializer, tree('/a/1'), [
       {path: 'a/:id', redirectTo: 'a/:other'}
     ]).subscribe(() => {}, (e) => {
       expect(e.message).toEqual('Cannot redirect to \'a/:other\'. Cannot find \':other\'.');
@@ -163,12 +162,12 @@ describe('applyRedirects', () => {
           return of (loadedConfig);
         }
       };
-      const config = [{path: 'a', component: ComponentA, loadChildren: 'children'}];
+      const config: Routes = [{path: 'a', component: ComponentA, loadChildren: 'children'}];
 
       applyRedirects(testModule.injector, <any>loader, serializer, tree('a/b'), config)
           .forEach(r => {
             compareTrees(r, tree('/a/b'));
-            expect((<any>config[0])._loadedConfig).toBe(loadedConfig);
+            expect(config[0]._loadedConfig).toBe(loadedConfig);
           });
     });
 
@@ -290,12 +289,12 @@ describe('applyRedirects', () => {
 
       const loader = {load: (injector: any, p: any) => of (loadedConfig)};
 
-      const config =
+      const config: Routes =
           [{path: '', pathMatch: 'full', redirectTo: '/a'}, {path: 'a', loadChildren: 'children'}];
 
       applyRedirects(testModule.injector, <any>loader, serializer, tree(''), config).forEach(r => {
         compareTrees(r, tree('a'));
-        expect((<any>config[1])._loadedConfig).toBe(loadedConfig);
+        expect(config[1]._loadedConfig).toBe(loadedConfig);
       });
     });
 
@@ -311,7 +310,7 @@ describe('applyRedirects', () => {
         }
       };
 
-      const config = [{path: 'a', loadChildren: 'children'}];
+      const config: Routes = [{path: 'a', loadChildren: 'children'}];
 
       applyRedirects(testModule.injector, <any>loader, serializer, tree('a?k1'), config)
           .subscribe(r => {});
@@ -320,7 +319,7 @@ describe('applyRedirects', () => {
           .subscribe(
               r => {
                 compareTrees(r, tree('a?k2'));
-                expect((<any>config[0])._loadedConfig).toBe(loadedConfig);
+                expect(config[0]._loadedConfig).toBe(loadedConfig);
               },
               (e) => { throw 'Should not reach'; });
     });
@@ -330,10 +329,10 @@ describe('applyRedirects', () => {
 
       const loader = {load: (injector: any, p: any) => of (loadedConfig)};
 
-      const config = [{path: '**', loadChildren: 'children'}];
+      const config: Routes = [{path: '**', loadChildren: 'children'}];
 
       applyRedirects(testModule.injector, <any>loader, serializer, tree('xyz'), config)
-          .forEach(r => { expect((<any>config[0])._loadedConfig).toBe(loadedConfig); });
+          .forEach(r => { expect(config[0]._loadedConfig).toBe(loadedConfig); });
     });
 
     it('should load the configuration after a local redirect from a wildcard route', () => {
@@ -341,11 +340,11 @@ describe('applyRedirects', () => {
 
       const loader = {load: (injector: any, p: any) => of (loadedConfig)};
 
-      const config =
+      const config: Routes =
           [{path: 'not-found', loadChildren: 'children'}, {path: '**', redirectTo: 'not-found'}];
 
       applyRedirects(testModule.injector, <any>loader, serializer, tree('xyz'), config)
-          .forEach(r => { expect((<any>config[0])._loadedConfig).toBe(loadedConfig); });
+          .forEach(r => { expect(config[0]._loadedConfig).toBe(loadedConfig); });
     });
 
     it('should load the configuration after an absolute redirect from a wildcard route', () => {
@@ -353,11 +352,11 @@ describe('applyRedirects', () => {
 
       const loader = {load: (injector: any, p: any) => of (loadedConfig)};
 
-      const config =
+      const config: Routes =
           [{path: 'not-found', loadChildren: 'children'}, {path: '**', redirectTo: '/not-found'}];
 
       applyRedirects(testModule.injector, <any>loader, serializer, tree('xyz'), config)
-          .forEach(r => { expect((<any>config[0])._loadedConfig).toBe(loadedConfig); });
+          .forEach(r => { expect(config[0]._loadedConfig).toBe(loadedConfig); });
     });
   });
 
@@ -404,7 +403,7 @@ describe('applyRedirects', () => {
         {path: '', redirectTo: 'a', pathMatch: 'full'}
       ];
 
-      applyRedirects(testModule.injector, null, serializer, tree('b'), config)
+      applyRedirects(testModule.injector, null !, serializer, tree('b'), config)
           .subscribe(
               (_) => { throw 'Should not be reached'; },
               e => { expect(e.message).toEqual('Cannot match any routes. URL Segment: \'b\''); });
@@ -534,7 +533,7 @@ describe('applyRedirects', () => {
           ]
         }];
 
-        applyRedirects(testModule.injector, null, serializer, tree('a/(d//aux:e)'), config)
+        applyRedirects(testModule.injector, null !, serializer, tree('a/(d//aux:e)'), config)
             .subscribe(
                 (_) => { throw 'Should not be reached'; },
                 e => { expect(e.message).toEqual('Cannot match any routes. URL Segment: \'a\''); });
@@ -565,7 +564,7 @@ describe('applyRedirects', () => {
 
     it('should error when no children matching and some url is left', () => {
       applyRedirects(
-          testModule.injector, null, serializer, tree('/a/c'),
+          testModule.injector, null !, serializer, tree('/a/c'),
           [{path: 'a', component: ComponentA, children: [{path: 'b', component: ComponentB}]}])
           .subscribe(
               (_) => { throw 'Should not be reached'; },
@@ -588,7 +587,7 @@ describe('applyRedirects', () => {
             matcher: matcher,
             component: ComponentA,
             children: [{path: 'b', component: ComponentB}]
-          }],
+          }] as any,
           '/a/1/b', (t: UrlTree) => { compareTrees(t, tree('a/1/b')); });
     });
   });
@@ -615,7 +614,7 @@ describe('applyRedirects', () => {
 
     it('should throw when using non-absolute redirects', () => {
       applyRedirects(
-          testModule.injector, null, serializer, tree('a'),
+          testModule.injector, null !, serializer, tree('a'),
           [
             {path: 'a', redirectTo: 'b(aux:c)'},
           ])
@@ -630,7 +629,7 @@ describe('applyRedirects', () => {
 });
 
 function checkRedirect(config: Routes, url: string, callback: any): void {
-  applyRedirects(TestBed, null, new DefaultUrlSerializer(), tree(url), config)
+  applyRedirects(TestBed, null !, new DefaultUrlSerializer(), tree(url), config)
       .subscribe(callback, e => { throw e; });
 }
 

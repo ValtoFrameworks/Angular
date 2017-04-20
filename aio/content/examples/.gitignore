@@ -36,9 +36,11 @@ dist/
 *.3.js.map
 !systemjs.config.*.js
 !karma-test-shim.*.js
+!copy-dist-files.js
 
 # AngularJS files
 !**/*.ajs.js
+**/app/**/*.ajs.js
 
 # aot
 **/*.ngfactory.ts
@@ -47,7 +49,6 @@ dist/
 **/*.metadata.json
 !aot/bs-config.json
 !aot/index.html
-!copy-dist-files.js
 !rollup-config.js
 
 # testing
@@ -56,6 +57,7 @@ dist/
 
 # TS to JS
 !cb-ts-to-js/js*/**/*.js
+cb-ts-to-js/js*/**/system*.js
 
 # webpack
 !webpack/**/config/*.js

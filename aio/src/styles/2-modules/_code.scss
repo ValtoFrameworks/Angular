@@ -1,6 +1,6 @@
 code-example,
 code-tabs md-tab-body {
-    background-color: $backgroundgray;
+    background-color: rgba($backgroundgray, 0.2);
     border: 0.5px solid $lightgray;
     border-radius: 5px;
     color: $darkgray;
@@ -20,13 +20,12 @@ code-example.code-shell, code-example[language=sh], code-example[language=bash] 
 }
 
 code-example header {
-  background-color: $mediumgray;
-  border: 0.5px solid $mediumgray;
+  background-color: $accentblue;
   border-radius: 5px 5px 0 0;
   color: $offwhite;
   font-size: 16px;
-  padding: 10px;
-  margin: -10px;
+  padding: 8px 16px;
+  margin: -17px;
 }
 
 code-example.is-anti-pattern header {
@@ -54,10 +53,12 @@ code-tabs mat-tab-body-content .fadeIn {
 aio-code pre {
     display: flex;
     padding: 0 48px 0 0;
+    min-height: 32px;
     white-space: pre-wrap;
+    align-items: center;
 
     code span, code ol li {
-      line-height: 18px;
+      line-height: 24px;
     }
 }
 
@@ -69,6 +70,12 @@ code ol {
     margin: 0;
     font-family: $code-font;
     font-size: 90%;
+  }
+}
+
+aio-code.headed-code {
+  pre.prettyprint {
+    margin-top: 32px;
   }
 }
 
@@ -87,6 +94,7 @@ code ol {
   &:hover {
     color: $mediumgray;
   }
+  
   @media (max-width: 480px) {
     top: 0;
     bottom: 0;
@@ -102,6 +110,7 @@ code ol {
 
 .code-tab-group div.mat-tab-body-content {
   height: auto;
+  transform: none;
 }
 
 $blue-grey-50: #ECEFF1;
@@ -175,41 +184,50 @@ code-example.code-shell, code-example[language=sh], code-example[language=bash] 
 /* PRINT COLORS */
 
 
-  @media print {
-    border: none;
-    box-shadow: none;
+@media print {
+  border: none;
+  box-shadow: none;
 
-    ol {
-      background: $white;
-    }
-
-    .kwd {
-      color: $darkgray;
-    }
-    .typ,
-    .tag {
-      color: $darkred;
-    }
-    .str,
-    .atv {
-      color: $blue;
-    }
-    .atn {
-      color: $blue;
-    }
-    .com {
-      color: $mediumgray;
-    }
-    .lit {
-      color: $blue;
-    }
-    .pun {
-      color: $blue-grey-700;
-    }
-    .pln {
-      color: $green-800;
-    }
-    .dec {
-      color: $blue;
-    }
+  ol {
+    background: $white;
   }
+
+  .kwd {
+    color: $darkgray;
+  }
+  .typ,
+  .tag {
+    color: $darkred;
+  }
+  .str,
+  .atv {
+    color: $blue;
+  }
+  .atn {
+    color: $blue;
+  }
+  .com {
+    color: $mediumgray;
+  }
+  .lit {
+    color: $blue;
+  }
+  .pun {
+    color: $blue-grey-700;
+  }
+  .pln {
+    color: $green-800;
+  }
+  .dec {
+    color: $blue;
+  }
+}
+
+// REMOVE RIPPLE EFFECT FROM MATERIAL TABS
+code-tabs md-tab-group *.mat-ripple-element, code-tabs md-tab-group *.mat-tab-body-active, code-tabs md-tab-group *.mat-tab-body-content, code-tabs md-tab-group *.mat-tab-list, code-tabs md-tab-gropu *.mat-tab-body-content {
+  transform: none !important;
+}
+
+[role="tabpanel"] {
+    transition: none;
+}

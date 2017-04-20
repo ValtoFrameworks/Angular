@@ -1,3 +1,6 @@
+@title
+CLI QuickStart
+
 @description
 
 
@@ -38,7 +41,7 @@ You need to set up your development environment before you can do anything.
 Install **[Node.js® and npm](https://nodejs.org/en/download/)**
 if they are not already on your machine.
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -46,7 +49,7 @@ if they are not already on your machine.
 by running `node -v` and `npm -v` in a terminal/console window.
 Older versions produce errors, but newer versions are fine.
 
-~~~
+</div>
 
 
 
@@ -80,7 +83,7 @@ Generate a new project and skeleton application by running the following command
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -88,7 +91,7 @@ Patience please.
 It takes time to set up a new project, most of it spent installing npm packages.
 
 
-~~~
+</div>
 
 
 
@@ -197,89 +200,105 @@ All Angular components, templates, styles, images, and anything else your app ne
 Any files outside of this folder are meant to support building your app.
 
 
-<aio-filetree>
+<div class='filetree'>
 
-  <aio-folder>
+  <div class='file'>
     src
-    <aio-folder>
+  </div>
+
+  <div class='children'>
+
+    <div class='file'>
       app
-      <aio-file>
+    </div>
+
+    <div class='children'>
+
+      <div class='file'>
         app.component.css
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         app.component.html
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         app.component.spec.ts
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         app.component.ts
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         app.module.ts
-      </aio-file>
+      </div>
 
-    </aio-folder>
+    </div>
 
-    <aio-folder>
+    <div class='file'>
       assets
-      <aio-file>
+    </div>
+
+    <div class='children'>
+
+      <div class='file'>
         .gitkeep
-      </aio-file>
+      </div>
 
-    </aio-folder>
+    </div>
 
-    <aio-folder>
+    <div class='file'>
       environments
-      <aio-file>
+    </div>
+
+    <div class='children'>
+
+      <div class='file'>
         environment.prod.ts
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         environment.ts
-      </aio-file>
+      </div>
 
-    </aio-folder>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       favicon.ico
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       index.html
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       main.ts
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       polyfills.ts
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       styles.css
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       test.ts
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       tsconfig.app.json
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       tsconfig.spec.json
-    </aio-file>
+    </div>
 
-  </aio-folder>
+  </div>
 
-</aio-filetree>
+</div>
 
 
 
@@ -505,73 +524,81 @@ Other files help you build, test, maintain, document, and deploy the app.
 These files go in the root folder next to `src/`.
 
 
-<aio-filetree>
+<div class='filetree'>
 
-  <aio-folder>
+  <div class='file'>
     my-app
-    <aio-folder>
+  </div>
+
+  <div class='children'>
+
+    <div class='file'>
       e2e
-      <aio-file>
+    </div>
+
+    <div class='children'>
+
+      <div class='file'>
         app.e2e-spec.ts
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         app.po.ts
-      </aio-file>
+      </div>
 
-      <aio-file>
+      <div class='file'>
         tsconfig.e2e.json
-      </aio-file>
+      </div>
 
-    </aio-folder>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       node_modules/...
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       src/...
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       .angular-cli.json
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       .editorconfig
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       .gitignore
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       karma.conf.js
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       package.json
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       protractor.conf.js
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       README.md
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       tsconfig.json
-    </aio-file>
+    </div>
 
-    <aio-file>
+    <div class='file'>
       tslint.json
-    </aio-file>
+    </div>
 
-  </aio-folder>
+  </div>
 
-</aio-filetree>
+</div>
 
 
 
@@ -779,7 +806,7 @@ These files go in the root folder next to `src/`.
 
 
 
-~~~ {.l-sub-section}
+<div class="l-sub-section">
 
 
 
@@ -789,5 +816,5 @@ If you're new to Angular, continue on the
 [learning path](guide/guide/learning-angular "Angular learning path").
 You can skip the "Setup" step since you're already using the Angular CLI setup.
 
-~~~
+</div>
 

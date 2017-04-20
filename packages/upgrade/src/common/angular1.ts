@@ -201,12 +201,14 @@ function noNg() {
   throw new Error('AngularJS v1.x is not loaded!');
 }
 
+
 let angular: {
   bootstrap: (e: Element, modules: (string | IInjectable)[], config: IAngularBootstrapConfig) =>
                  void,
   module: (prefix: string, dependencies?: string[]) => IModule,
   element: (e: Element | string) => IAugmentedJQuery,
-  version: {major: number}, resumeBootstrap?: () => void,
+  version: {major: number},
+  resumeBootstrap: () => void,
   getTestability: (e: Element) => ITestabilityService
 } = <any>{
   bootstrap: noNg,
@@ -217,7 +219,6 @@ let angular: {
   getTestability: noNg
 };
 
-
 try {
   if (window.hasOwnProperty('angular')) {
     angular = (<any>window).angular;
@@ -226,9 +227,37 @@ try {
   // ignore in CJS mode.
 }
 
-export const bootstrap = angular.bootstrap;
-export const module = angular.module;
-export const element = angular.element;
+/**
+ * Resets the AngularJS library.
+ *
+ * Used when angularjs is loaded lazily, and not available on `window`.
+ *
+ * @stable
+ */
+export function setAngularLib(ng: any): void {
+  angular = ng;
+}
+
+/**
+ * Returns the current version of the AngularJS library.
+ *
+ * @stable
+ */
+export function getAngularLib(): any {
+  return angular;
+}
+
+export const bootstrap =
+    (e: Element, modules: (string | IInjectable)[], config: IAngularBootstrapConfig): void =>
+        angular.bootstrap(e, modules, config);
+
+export const module = (prefix: string, dependencies?: string[]): IModule =>
+    angular.module(prefix, dependencies);
+
+export const element = (e: Element | string): IAugmentedJQuery => angular.element(e);
+
+export const resumeBootstrap = (): void => angular.resumeBootstrap();
+
+export const getTestability = (e: Element): ITestabilityService => angular.getTestability(e);
+
 export const version = angular.version;
-export const resumeBootstrap = angular.resumeBootstrap;
-export const getTestability = angular.getTestability;

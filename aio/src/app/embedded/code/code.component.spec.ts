@@ -105,6 +105,14 @@ describe('CodeComponent', () => {
     expect(lis.length).toBe(0, 'should be no linenums');
   });
 
+  it('should remove common indentation from the code before rendering', () => {
+    hostComponent.linenums = false;
+    hostComponent.code = '  abc\n   let x = text.split(\'\\n\');\n  ghi\n\n  jkl\n';
+    fixture.detectChanges();
+    const codeContent = codeComponentDe.nativeElement.querySelector('code').innerText;
+    expect(codeContent).toEqual('abc\n let x = text.split(\'\\n\');\nghi\n\njkl');
+  });
+
   it('should trim whitespace from the code before rendering', () => {
     hostComponent.linenums = false;
     hostComponent.code = '\n\n\n' + multiLineCode + '\n\n\n';
@@ -157,7 +165,7 @@ describe('CodeComponent', () => {
 @Component({
   selector: 'aio-host-comp',
   template: `
-      <aio-code [code]="code" [language]="language" [linenums]="linenums"></aio-code>
+      <aio-code md-no-ink [code]="code" [language]="language" [linenums]="linenums"></aio-code>
   `
 })
 class HostComponent {
