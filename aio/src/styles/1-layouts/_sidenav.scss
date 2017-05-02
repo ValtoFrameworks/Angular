@@ -1,3 +1,14 @@
+
+// Disable sidenav animations while starting the app
+// See https://github.com/angular/material2/blob/master/src/lib/sidenav/sidenav-transitions.scss
+.starting.mat-sidenav-transition {
+  .mat-sidenav,
+  .mat-sidenav-content,
+  .mat-sidenav-backdrop.mat-sidenav-shown {
+    transition: none;
+  }
+}
+
 aio-nav-menu.top-menu .vertical-menu-item  {
   background-color: $lightgray;
   text-transform: uppercase;
@@ -6,6 +17,7 @@ aio-nav-menu.top-menu .vertical-menu-item  {
 md-sidenav.mat-sidenav.sidenav {
   position: fixed;
   bottom: 0;
+  left: 0;
   padding: 80px 0px 0px;
   min-width: 260px;
   background-color: $offwhite;
@@ -19,7 +31,8 @@ md-sidenav.mat-sidenav.sidenav.collapsed {
 md-sidenav-container.sidenav-container {
     min-height: 100%;
     height: auto !important;
-    margin: 0 auto;
+    max-width: 1400px;
+    margin: 0;
     transform: none;
     padding-top: 64px;
 }
@@ -55,10 +68,11 @@ md-sidenav-container div.mat-sidenav-content {
   &:hover {
     text-shadow: 0 0 5px #ffffff;
     background-color: $lightgray;
+
   }
 
   //icons _within_ nav
-  .material-icons {
+  .mat-icon {
     position: absolute;
     top: 6px;
     margin-left: 10px;
@@ -81,13 +95,6 @@ md-sidenav-container div.mat-sidenav-content {
   position: relative;
   text-transform: uppercase;
   width: 100%;
-}
-
-.material-icons {
-  display: inline-block;
-  position: absolute;
-  top: 6px;
-  right: 8px;
 }
 
 .heading-children.expanded {
@@ -138,12 +145,14 @@ a.selected.level-1,
   padding-left: 30px;
 }
 
-.level-1.expanded .material-icons, .level-2.expanded .material-icons {
+.level-1.expanded .mat-icon, .level-2.expanded .mat-icon {
   @include rotate(90deg);
+  top: 10px;
 }
 
-.level-1:not(.expanded) .material-icons, .level-2:not(.expanded) .material-icons {
+.level-1:not(.expanded) .mat-icon, .level-2:not(.expanded) .mat-icon {
   @include rotate(0deg);
+  margin: 4px;
 }
 
 .promo-img-container img {
@@ -161,5 +170,15 @@ aio-nav-menu.top-menu {
   aio-nav-item:last-child div {
     border-bottom: 2px solid rgba($mediumgray, 0.5);
   }
-  
+
+}
+
+// Angular version selector
+md-sidenav .doc-version {
+  padding: 10px;
+
+  &:hover {
+    text-shadow: 0 0 5px #ffffff;
+    background-color: $lightgray;
+  }
 }

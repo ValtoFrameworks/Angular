@@ -1,7 +1,6 @@
 const remark = require('remark');
-const slug = require('remark-slug');
-const autolinkHeadings = require('remark-autolink-headings');
 const html = require('remark-html');
+const code = require('./handlers/code');
 
 /**
  * @dgService renderMarkdown
@@ -9,6 +8,7 @@ const html = require('remark-html');
  * Render the markdown in the given string as HTML.
  */
 module.exports = function renderMarkdown() {
+  const handlers = { code };
   const renderer = remark()
                     .use(inlineTagDefs)
                     .use(noIndentedCodeBlocks)
@@ -17,9 +17,7 @@ module.exports = function renderMarkdown() {
                     // .use(() => tree => {
                     //   console.log(require('util').inspect(tree, { colors: true, depth: 4 }));
                     // })
-                    .use(slug)
-                    .use(autolinkHeadings)
-                    .use(html);
+                    .use(html, { handlers });
 
   return function renderMarkdownImpl(content) {
     return renderer.processSync(content).toString();
@@ -106,13 +104,6 @@ module.exports = function renderMarkdown() {
     }
   }
 };
-
-
-
-
-
-
-
 
 /**
  * matchRecursiveRegExp

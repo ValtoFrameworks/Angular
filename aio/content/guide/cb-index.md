@@ -34,10 +34,10 @@ the purpose, context, and design choices behind the code snippets.
 ## Feedback
 
 Post *documentation* requests and comments as
-<a href="https://github.com/angular/angular.io/issues" target="_blank" title="Documentation issues on github">
+<a href="https://github.com/angular/angular.io/issues" title="Documentation issues on github">
 <i>issues</i> on the angular.io</a> github repository.
 Fixes (small ones) are greatly appreciated as
-<a href="https://github.com/angular/angular.io/pulls" target="_blank" title="Documentation PRs on github">
+<a href="https://github.com/angular/angular.io/pulls" title="Documentation PRs on github">
 <i>pull requests</i></a>.
 
 Post issues with *Angular itself* to the [angular](https://github.com/angular/angular) github repository.

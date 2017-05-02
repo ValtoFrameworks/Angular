@@ -1,7 +1,7 @@
 <md-toolbar color="primary" class="app-toolbar">
   <button class="hamburger" md-button
     (click)="sidenav.toggle()" title="Docs menu">
-    <md-icon>menu</md-icon>
+    <md-icon svgIcon="menu"></md-icon>
   </button>
   <a class="nav-link home" href="/"><img src="{{ homeImageUrl }}" title="Home" alt="Home"></a>
   <aio-top-menu *ngIf="isSideBySide" [nodes]="topMenuNodes"></aio-top-menu>
@@ -10,11 +10,17 @@
 </md-toolbar>
 
 <a id="top-of-page"></a>
-<md-sidenav-container class="sidenav-container" role="main">
+<md-sidenav-container class="sidenav-container" [class.starting]="isStarting" role="main">
 
   <md-sidenav [ngClass]="{'collapsed': !isSideBySide }" #sidenav class="sidenav" [opened]="isOpened" [mode]="mode">
     <aio-nav-menu *ngIf="!isSideBySide" class="top-menu" [nodes]="topMenuNodes" [currentNode]="currentNode"></aio-nav-menu>
     <aio-nav-menu [nodes]="sideNavNodes" [currentNode]="currentNode" ></aio-nav-menu>
+
+    <div class="doc-version" title="Angular docs version {{currentDocVersion?.title}}">
+      <select (change)="onDocVersionChange($event.target.selectedIndex)">
+        <option *ngFor="let version of docVersions" [value]="version.title">{{version.title}}</option>
+      </select>
+    </div>
   </md-sidenav>
 
   <section class="sidenav-content" [id]="pageId" role="content">
@@ -22,12 +28,11 @@
     <aio-dt [on]="dtOn" [(doc)]="currentDocument"></aio-dt>
   </section>
 
-  <footer>
-    <aio-footer [nodes]="footerNodes" [versionInfo]="versionInfo" ></aio-footer>
-  </footer>
-
 </md-sidenav-container>
 
 <aio-search-results #searchResults></aio-search-results>
 
+  <footer>
+    <aio-footer [nodes]="footerNodes" [versionInfo]="versionInfo" ></aio-footer>
+  </footer>
 

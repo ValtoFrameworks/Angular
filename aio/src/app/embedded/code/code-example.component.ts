@@ -16,20 +16,26 @@ import { Component, ElementRef, OnInit } from '@angular/core';
   selector: 'code-example',
   template: `
     <header *ngIf="title">{{title}}</header>
-    <aio-code [ngClass]="{'headed-code':title, 'simple-code':!title}" [code]="code" [language]="language" [linenums]="linenums"></aio-code>
+    <aio-code [ngClass]="{'headed-code':title, 'simple-code':!title}" [code]="code"
+    [language]="language" [linenums]="linenums" [path]="path" [region]="region"></aio-code>
   `
 })
-export class CodeExampleComponent implements OnInit { // implements AfterViewInit {
+export class CodeExampleComponent implements OnInit {
 
   code: string;
   language: string;
   linenums: boolean | number;
+  path: string;
+  region: string;
   title: string;
 
   constructor(private elementRef: ElementRef) {
     const element = this.elementRef.nativeElement;
+
     this.language = element.getAttribute('language') || '';
     this.linenums = element.getAttribute('linenums');
+    this.path = element.getAttribute('path') || '';
+    this.region = element.getAttribute('region') || '';
     this.title = element.getAttribute('title') || '';
   }
 

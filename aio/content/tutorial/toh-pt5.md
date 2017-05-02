@@ -19,7 +19,7 @@ When you’re done, users will be able to navigate the app like this:
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/toh/nav-diagram.png' alt="View navigations"></img>
+  <img src='content/images/guide/toh/nav-diagram.png' alt="View navigations"></img>
 </figure>
 
 
@@ -276,7 +276,7 @@ at the top of the `<head>` section.
 
 
 
-For more information, see the [Set the base href](guide/router#!)
+For more information, see the [Set the base href](guide/router)
 section of the [Routing and Navigation](guide/router) page.
 
 
@@ -482,7 +482,7 @@ to the array of route definitions:
 
 
 
-Read more about *redirects* in the [Redirecting routes](guide/router#!) section
+Read more about *redirects* in the [Redirecting routes](guide/router) section
 of the [Routing & Navigation](guide/router) page.
 
 
@@ -793,7 +793,7 @@ using the `Location` service you injected previously.
 
 Going back too far could take users out of the app.
 In a real app, you can prevent this issue with the <em>CanDeactivate</em> guard.
-Read more on the [CanDeactivate](api/router/index/CanDeactivate-interface) page.
+Read more on the [CanDeactivate](api/router/CanDeactivate) page.
 
 
 </div>
@@ -918,7 +918,7 @@ such as `RouterLink` and `RouterOutlet`.
 ### Update *AppModule*
 
 Delete the routing configuration from `AppModule` and import the `AppRoutingModule`.
-Use an ES `import` statement *and* add it to the `NgModule.imports` list.
+Use an ES2015 `import` statement *and* add it to the `NgModule.imports` list.
 
 Here is the revised `AppModule`, compared to its pre-refactor state:
 
@@ -967,7 +967,7 @@ After clicking a hero, users should see something like this below the hero list:
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/toh/mini-hero-detail.png' alt="Mini Hero Detail" height="70"></img>
+  <img src='content/images/guide/toh/mini-hero-detail.png' alt="Mini Hero Detail" height="70"></img>
 </figure>
 
 
@@ -1007,12 +1007,12 @@ You still have to update the component class to support navigation to the
 The component file is big.
 It's difficult to find the component logic amidst the noise of HTML and CSS.
 
-Before making any more changes, migrate the template and styles to their own files. 
+Before making any more changes, migrate the template and styles to their own files.
 
-First, move the template contents from `heroes.component.ts` 
-into a new <code>heroes.component.html</code> file. 
-Don't copy the backticks. As for `heroes.component.ts`, you'll 
-come back to it in a minute. Next, move the 
+First, move the template contents from `heroes.component.ts`
+into a new <code>heroes.component.html</code> file.
+Don't copy the backticks. As for `heroes.component.ts`, you'll
+come back to it in a minute. Next, move the
 styles contents into a new <code>heroes.component.css</code> file.
 
 The two new files should look like this:
@@ -1032,8 +1032,8 @@ The two new files should look like this:
 
 
 
-Now, back in the component metadata for `heroes.component.ts`, 
-delete `template` and `styles`, replacing them with 
+Now, back in the component metadata for `heroes.component.ts`,
+delete `template` and `styles`, replacing them with
 `templateUrl` and `styleUrls` respectively.
 Set their properties to refer to the new files.
 
@@ -1207,7 +1207,7 @@ Here's an excerpt:
 
 
 Create the file <code>styles.css</code>.
-Ensure that the file contains the [master styles provided here](https://raw.githubusercontent.com/angular/angular.io/master/public/docs/_examples/_boilerplate/src/styles.css).
+Ensure that the file contains the [master styles provided here](https://raw.githubusercontent.com/angular/angular/master/aio/tools/examples/shared/boilerplate/src/styles.css).
 Also edit <code>index.html</code> to refer to this stylesheet.
 
 
@@ -1221,7 +1221,7 @@ Look at the app now. The dashboard, heroes, and navigation links are styled.
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/toh/heroes-dashboard-1.png' alt="View navigations"></img>
+  <img src='content/images/guide/toh/heroes-dashboard-1.png' alt="View navigations"></img>
 </figure>
 
 

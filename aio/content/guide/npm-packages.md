@@ -8,7 +8,7 @@ Recommended npm packages, and how to specify package dependencies.
 
 
 Angular applications and Angular itself depend upon features and functionality provided by a variety of third-party packages.
-These packages are maintained and installed with the Node Package Manager (<a href="https://docs.npmjs.com/" target="_blank">npm</a>).
+These packages are maintained and installed with the Node Package Manager (<a href="https://docs.npmjs.com/">npm</a>).
 
 <div class="l-sub-section">
 
@@ -16,7 +16,7 @@ These packages are maintained and installed with the Node Package Manager (<a hr
 
 Node.js and npm are essential to Angular development.
 
-<a href="https://docs.npmjs.com/getting-started/installing-node" target="_blank" title="Installing Node.js and updating npm">
+<a href="https://docs.npmjs.com/getting-started/installing-node" title="Installing Node.js and updating npm">
 Get them now</a> if they're not already installed on your machine.
 
 **Verify that you are running node `v4.x.x` or higher and npm `3.x.x` or higher**
@@ -32,7 +32,7 @@ you already have projects running on your machine that use other versions of nod
 
 
 
-During [Setup](guide/setup), a <a href="https://docs.npmjs.com/files/package.json" target="_blank">package.json</a>
+During [Setup](guide/setup), a <a href="https://docs.npmjs.com/files/package.json">package.json</a>
 file is installed with a comprehensive starter set of
 packages as specified in the `dependencies` and `devDependencies` sections.
 
@@ -104,7 +104,7 @@ the pieces that help render into the DOM.
 This package also includes the `bootstrapStatic()` method
 for bootstrapping applications for production builds that pre-compile templates offline.
 
-***@angular/platform-browser-dynamic***: Includes [Providers](api/core/index/Provider-type-alias)
+***@angular/platform-browser-dynamic***: Includes [Providers](api/core/Provider)
 and a [bootstrap](guide/ngmodule#bootstrap) method for applications that
 compile templates on the client. Don’t use offline compilation.
 Use this package for bootstrapping during development and for bootstrapping plunker samples.
@@ -170,7 +170,7 @@ without waiting for Angular updates.
 ***angular-in-memory-web-api***: An Angular-supported library that simulates a remote server's web api
 without requiring an actual server or real HTTP calls.
 Good for demos, samples, and early stage development (before you even have a server).
-Read about it in the [HTTP Client](guide/server-communication#in-mem-web-api) page.
+Read about it in the [HTTP Client](guide/http#in-mem-web-api) page.
 
 ***bootstrap***: [Bootstrap](http://getbootstrap.com/) is a popular HTML and CSS framework for designing responsive web apps.
 Some of the samples improve their appearance with *bootstrap*.

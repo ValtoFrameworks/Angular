@@ -7,6 +7,7 @@
  */
 
 import {Injector} from '../di';
+import {ErrorHandler} from '../error_handler';
 import {NgModuleRef} from '../linker/ng_module_factory';
 import {QueryList} from '../linker/query_list';
 import {TemplateRef} from '../linker/template_ref';
@@ -323,10 +324,14 @@ export interface ViewData {
  * Bitmask of states
  */
 export const enum ViewState {
-  FirstCheck = 1 << 0,
-  ChecksEnabled = 1 << 1,
-  Errored = 1 << 2,
-  Destroyed = 1 << 3
+  BeforeFirstCheck = 1 << 0,
+  FirstCheck = 1 << 1,
+  Attached = 1 << 2,
+  ChecksEnabled = 1 << 3,
+  Destroyed = 1 << 4,
+
+  CatDetectChanges = Attached | ChecksEnabled,
+  CatInit = BeforeFirstCheck | CatDetectChanges
 }
 
 export interface DisposableFn { (): void; }
@@ -429,6 +434,7 @@ export interface RootData {
   selectorOrNode: any;
   renderer: Renderer2;
   rendererFactory: RendererFactory2;
+  errorHandler: ErrorHandler;
   sanitizer: Sanitizer;
 }
 

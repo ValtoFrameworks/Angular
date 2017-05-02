@@ -103,7 +103,7 @@ The root `AppComponent` orchestrates these demos:
 </code-example>
 
 
-
+{@a http-providers}
 
 # Providing HTTP services
 
@@ -167,7 +167,7 @@ Loading its module now saves time.
 </div>
 
 
-
+{@a http-client}
 
 ## The Tour of Heroes HTTP client demo
 
@@ -178,7 +178,7 @@ The app uses the Angular <code>Http</code> client to communicate via **XMLHttpRe
 It works like this:
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/http/http-toh.gif' alt="ToH mini app" width="250"></img>
+  <img src='content/images/guide/http/http-toh.gif' alt="ToH mini app" width="250"></img>
 </figure>
 
 
@@ -257,14 +257,14 @@ With a basic understanding of the component, you're ready to look inside the `He
 
 {@a HeroService}
 
-
+{@a fetch-data}
 
 ## Fetch data with _http.get()_
 
 In many of the previous samples the app faked the interaction with the server by
 returning mock heroes in a service like this one:
 
-<code-example path="toh-pt4/src/app/hero.service.ts" region="just-get-heroes" title="toh-4/src/app/hero.service.ts" linenums="false">
+<code-example path="toh-pt4/src/app/hero.service.ts" region="just-get-heroes" title="toh-pt4/src/app/hero.service.ts" linenums="false">
 
 </code-example>
 
@@ -318,7 +318,7 @@ Alternatively, you can temporarily target a JSON file by changing the endpoint U
 
 {@a rxjs}
 If you are familiar with asynchronous methods in modern JavaScript, you might expect the `get` method to return a
-<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise" target="_blank" title="Promise">promise</a>.
+<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise" title="Promise">promise</a>.
 You'd expect to chain a call to `then()` and extract the heroes.
 Instead you're calling a `map()` method.
 Clearly this is not a promise.
@@ -332,14 +332,14 @@ and `map()` is one of the RxJS *operators*.
 
 
 ## RxJS library
-<a href="http://reactivex.io/rxjs" target="_blank" title="RxJS Reactive Extensions">RxJS</a>
-is a third party library, endorsed by Angular, that implements the 
-<a href="https://www.youtube.com/watch?v=VLGCCpOWFFw" target="_blank" title="Video: Rob Wormald on Observables"><b>asynchronous Observable</b></a> pattern.
+<a href="http://reactivex.io/rxjs" title="RxJS Reactive Extensions">RxJS</a>
+is a third party library, endorsed by Angular, that implements the
+<a href="https://www.youtube.com/watch?v=VLGCCpOWFFw" title="Video: Rob Wormald on Observables"><b>asynchronous Observable</b></a> pattern.
 
 All of the Developer Guide samples have installed the RxJS npm package
 because Observables are used widely in Angular applications.
 _This_ app needs it when working with the HTTP client.
-But you must take a critical extra step to make RxJS Observables usable: 
+But you must take a critical extra step to make RxJS Observables usable:
 _you must import the RxJS operators individually_.
 
 ### Enable RxJS operators
@@ -580,7 +580,7 @@ In the `headers` object, the `Content-Type` specifies that the body represents J
 
 Next, the `headers` object is used to configure the `options` object. The `options`
 object is a new instance of `RequestOptions`, a class that allows you to specify
-certain settings when instantiating a request. In this way, [headers](api/http/index/Headers-class) is one of the [RequestOptions](api/http/index/RequestOptions-class).
+certain settings when instantiating a request. In this way, [headers](api/http/Headers) is one of the [RequestOptions](api/http/RequestOptions).
 
 In the `return` statement, `options` is the *third* argument of the `post()` method, as shown above.
 
@@ -646,8 +646,8 @@ highlighting just the parts that are different.
 You can follow the Promise `then(this.extractData).catch(this.handleError)` pattern as in
 this example.
 
-Alternatively, you can call `toPromise(success, fail)`. The Observable's `map` callback moves to the 
-first *success* parameter and its `catch` callback to the second *fail* parameter 
+Alternatively, you can call `toPromise(success, fail)`. The Observable's `map` callback moves to the
+first *success* parameter and its `catch` callback to the second *fail* parameter
 in this pattern: `.toPromise(this.extractData, this.handleError)`.
 
 The `errorHandler` forwards an error message as a failed `Promise` instead of a failed `Observable`.
@@ -680,15 +680,15 @@ Both methods take the same functional arguments.
 
 The less obvious but critical difference is that these two methods return very different results.
 
-The Promise-based `then()` returns another Promise. You can keep chaining 
+The Promise-based `then()` returns another Promise. You can keep chaining
 more `then()` and `catch()` calls, getting a new promise each time.
 
 The `subscribe()` method returns a `Subscription`. A `Subscription` is not another `Observable`.
 It's the end of the line for Observables. You can't call `map()` on it or call `subscribe()` again.
 The `Subscription` object has a different purpose, signified by its primary method, `unsubscribe`.
 
-To understand the implications and consequences of subscriptions, 
-watch [Ben Lesh's talk on Observables](https://www.youtube.com/watch?v=3LKMwkuK0ZE) 
+To understand the implications and consequences of subscriptions,
+watch [Ben Lesh's talk on Observables](https://www.youtube.com/watch?v=3LKMwkuK0ZE)
 or his video course on [egghead.io](https://egghead.io/lessons/rxjs-rxjs-observables-vs-promises).
 
 
@@ -746,7 +746,7 @@ types in a text box:
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/http/wiki-1.gif' alt="Wikipedia search app (v.1)" width="250"></img>
+  <img src='content/images/guide/http/wiki-1.gif' alt="Wikipedia search app (v.1)" width="250"></img>
 </figure>
 
 
@@ -831,7 +831,7 @@ turn your attention to the component (template and class) that takes user input 
 The template presents an `<input>` element *search box* to gather search terms from the user,
 and calls a `search(term)` method after each `keyup` event.
 
-The component's `search(term)` method delegates to the `WikipediaService`, which returns an 
+The component's `search(term)` method delegates to the `WikipediaService`, which returns an
 Observable array of string results (`Observable<string[]>`).
 Instead of subscribing to the Observable inside the component, as in the `HeroListComponent`,
 the app forwards the Observable result to the template (via `items`) where the `async` pipe
@@ -865,7 +865,7 @@ It should only make requests when the user *stops typing*.
 Here's how it will work after refactoring:
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/http/wiki-2.gif' alt="Wikipedia search app (v.2)" width="250"></img>
+  <img src='content/images/guide/http/wiki-2.gif' alt="Wikipedia search app (v.2)" width="250"></img>
 </figure>
 
 
@@ -962,13 +962,13 @@ processes that stream _before_ calling the service.
 
 
 
-* <a href="https://github.com/Reactive-Extensions/RxJS/blob/master/doc/api/core/operators/debounce.md" target="_blank" title="debounce operator"><i>debounceTime</i></a>
+* <a href="https://github.com/Reactive-Extensions/RxJS/blob/master/doc/api/core/operators/debounce.md" title="debounce operator"><i>debounceTime</i></a>
 waits for the user to stop typing for at least 300 milliseconds.
 
-* <a href="https://github.com/Reactive-Extensions/RxJS/blob/master/doc/api/core/operators/distinctuntilchanged.md" target="_blank" title="distinctUntilChanged operator"><i>distinctUntilChanged</i></a>
+* <a href="https://github.com/Reactive-Extensions/RxJS/blob/master/doc/api/core/operators/distinctuntilchanged.md" title="distinctUntilChanged operator"><i>distinctUntilChanged</i></a>
 ensures that the service is called only when the new search term is different from the previous search term.
 
-* The <a href="https://github.com/Reactive-Extensions/RxJS/blob/master/doc/api/core/operators/flatmaplatest.md" target="_blank" title="switchMap operator"><i>switchMap</i></a>
+* The <a href="https://github.com/Reactive-Extensions/RxJS/blob/master/doc/api/core/operators/flatmaplatest.md" title="switchMap operator"><i>switchMap</i></a>
 calls the `WikipediaService` with a fresh, debounced search term and coordinates the stream(s) of service response.
 
 The role of `switchMap` is particularly important.
@@ -1008,7 +1008,7 @@ See the [XSRF topic on the Security page](guide/security#xsrf) for more informat
 ## Override default request headers (and other request options)
 
 Request options (such as headers) are merged into the
-[default _RequestOptions_](https://angular.io/docs/ts/latest/api/http/index/BaseRequestOptions-class.html "API: BaseRequestOptions")
+[default _RequestOptions_](/api/http/BaseRequestOptions "API: BaseRequestOptions")
 before the request is processed.
 The `HttpModule` provides these default options via the `RequestOptions` token.
 
@@ -1104,11 +1104,11 @@ it substitutes the Angular _in-memory web api_ simulator for the actual XHR back
 
 The in-memory web api is not part of Angular _proper_.
 It's an optional service in its own
-<a href="https://github.com/angular/in-memory-web-api" target="_blank" title="In-memory Web API"><i>angular-in-memory-web-api</i></a>
+<a href="https://github.com/angular/in-memory-web-api" title="In-memory Web API"><i>angular-in-memory-web-api</i></a>
 library installed with npm (see `package.json`).
 
 See the
-<a href="https://github.com/angular/in-memory-web-api/blob/master/README.md" target="_blank" title='In-memory Web API "README.md"'><i>README file</i></a>
+<a href="https://github.com/angular/in-memory-web-api/blob/master/README.md" title='In-memory Web API "README.md"'><i>README file</i></a>
 for configuration options, default behaviors, and limitations.
 
 

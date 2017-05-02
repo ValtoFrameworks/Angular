@@ -13,7 +13,7 @@ Setting the document or window title using the Title service.
 Your app should be able to make the browser title bar say whatever you want it to say.
 This cookbook explains how to do it.
 
-See the <live-example name="cb-set-document-title"></live-example>.
+See the <live-example name="set-document-title"></live-example>.
 
 
 <table>
@@ -29,7 +29,7 @@ See the <live-example name="cb-set-document-title"></live-example>.
     </td>
 
     <td>
-      <img src='assets/images/devguide/plunker-switch-to-editor-button.png' width="200px" height="70px" alt="pop out the window" align="right"></img>      <br></br>      <img src='assets/images/devguide/plunker-separate-window-button.png' width="200px" height="47px" alt="pop out the window" align="right"></img>
+      <img src='content/images/plunker/plunker-switch-to-editor-button.png' width="200px" height="70px" alt="pop out the window" align="right"></img>      <br></br>      <img src='content/images/plunker/plunker-separate-window-button.png' width="200px" height="47px" alt="pop out the window" align="right"></img>
     </td>
 
   </tr>
@@ -71,16 +71,16 @@ means that you could run your app inside Electron.js or Windows Universal to del
 
 ## Use the *Title* service
 Fortunately, Angular bridges the gap by providing a `Title` service as part of the *Browser platform*.
-The [Title](api/platform-browser/index/Title-class) service is a simple class that provides an API
+The [Title](api/platform-browser/Title) service is a simple class that provides an API
 for getting and setting the current HTML document title:
 
 * `getTitle() : string`&mdash;Gets the title of the current HTML document.
-* `setTitle( newTitle : string )`&mdash;Sets the title of the current HTML document. 
+* `setTitle( newTitle : string )`&mdash;Sets the title of the current HTML document.
 
 You can inject the `Title` service into the root `AppComponent` and expose a bindable `setTitle` method that calls it:
 
 
-<code-example path="cb-set-document-title/src/app/app.component.ts" region="class" title="src/app/app.component.ts (class)" linenums="false">
+<code-example path="set-document-title/src/app/app.component.ts" region="class" title="src/app/app.component.ts (class)" linenums="false">
 
 </code-example>
 
@@ -89,7 +89,7 @@ You can inject the `Title` service into the root `AppComponent` and expose a bin
 Bind that method to three anchor tags and voilà!
 
 <figure class='image-display'>
-  <img src="assets/images/cookbooks/set-document-title/set-title-anim.gif" alt="Set title"></img>
+  <img src="content/images/guide/set-document-title/set-title-anim.gif" alt="Set title"></img>
 </figure>
 
 
@@ -99,15 +99,15 @@ Here's the complete solution:
 
 <code-tabs>
 
-  <code-pane title="src/main.ts" path="cb-set-document-title/src/main.ts">
+  <code-pane title="src/main.ts" path="set-document-title/src/main.ts">
 
   </code-pane>
 
-  <code-pane title="src/app/app.module.ts" path="cb-set-document-title/src/app/app.module.ts">
+  <code-pane title="src/app/app.module.ts" path="set-document-title/src/app/app.module.ts">
 
   </code-pane>
 
-  <code-pane title="src/app/app.component.ts" path="cb-set-document-title/src/app/app.component.ts">
+  <code-pane title="src/app/app.component.ts" path="set-document-title/src/app/app.component.ts">
 
   </code-pane>
 
@@ -126,7 +126,7 @@ a location you reserve for configuring the runtime Angular environment.
 That's exactly what you're doing.
 The `Title` service is part of the Angular *browser platform*.
 If you bootstrap your application into a different platform,
-you'll have to provide a different `Title` service that understands 
+you'll have to provide a different `Title` service that understands
 the concept of a "document title" for that specific platform.
 Ideally, the application itself neither knows nor cares about the runtime environment.
 

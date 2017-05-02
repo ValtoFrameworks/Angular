@@ -18,7 +18,7 @@ The final UI looks like this:
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/displaying-data/final.png" alt="Final UI"></img>
+  <img src="content/images/guide/displaying-data/final.png" alt="Final UI"></img>
 </figure>
 
 
@@ -41,7 +41,7 @@ snippets described in this page.
 </div>
 
 
-
+{@a interpolation}
 
 ## Showing component properties with interpolation
 The easiest way to display a component property
@@ -126,7 +126,7 @@ inside the `<my-app>` tag.
 Now run the app. It should display the title and hero name:
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/displaying-data/title-and-hero.png" alt="Title and Hero"></img>
+  <img src="content/images/guide/displaying-data/title-and-hero.png" alt="Title and Hero"></img>
 </figure>
 
 
@@ -162,7 +162,7 @@ Although this example uses variable assignment to initialize the components, you
 
 This app uses more terse "variable assignment" style simply for brevity.
 
-
+{@a ngFor}
 
 ## Showing an array property with ***ngFor**
 
@@ -233,7 +233,7 @@ Now the heroes appear in an unordered list.
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/displaying-data/hero-names-list.png" alt="After ngfor"></img>
+  <img src="content/images/guide/displaying-data/hero-names-list.png" alt="After ngfor"></img>
 </figure>
 
 
@@ -306,7 +306,7 @@ Fix that to display only the hero's `name` property.
 
 The display looks the same, but the code is clearer.
 
-
+{@a ngIf}
 
 ## Conditional display with NgIf
 

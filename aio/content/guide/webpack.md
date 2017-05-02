@@ -57,7 +57,7 @@ This guide offers a taste of Webpack and explains how to use it with Angular app
 * [Highlights](guide/webpack#highlights)
 * [Conclusion](guide/webpack#conclusion)
 
-You can also <a href="/resources/zips/webpack/webpack.zip">download the final result.</a>
+You can also <a href="/content/zips/webpack/webpack.zip" target="_blank">download the final result.</a>
 
 {@a what-is-webpack}
 
@@ -402,7 +402,7 @@ The configuration imports dependencies with `require` statements
 and exports several objects as properties of a `module.exports` object.
 
 * [`entry`](guide/webpack#common-entries)&mdash;the entry-point files that define the bundles.
-* [`resolve`](guide/webpack#common-resolve)&mdash;how to resolve file names when they lack extensions.
+* [`resolve`](guide/webpack#common-resolves)&mdash;how to resolve file names when they lack extensions.
 * [`module.rules`](guide/webpack#common-rules)&mdash; `module` is an object with `rules` for deciding how files are loaded.
 * [`plugins`](guide/webpack#common-plugins)&mdash;creates instances of the plugins.
 
@@ -428,7 +428,7 @@ This `entry` object defines the three bundles:
 * `app`&mdash;the application code.
 
 
-{@a common-resolve}
+{@a common-resolves}
 
 
 #### _resolve_ extension-less imports
@@ -783,7 +783,7 @@ Webpack techniques covered in this guide.
 
 
 The <code>app.component.html</code> displays this downloadable Angular logo
-<a href="assets/images/logos/angular/angular.png" target="_blank">
+<a href="assets/images/logos/angular/angular.png">
 <img src="assets/images/logos/angular/angular.png" height="40px" title="download Angular logo"></a>.
 Create a folder called `images` under the project's `assets` folder, then right-click (Cmd+click on Mac) 
 on the image and download it to that folder.

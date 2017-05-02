@@ -88,16 +88,22 @@ aio-code.headed-code {
 }
 
 .copy-button {
+  display: inline-block;
+  position: absolute;
+  top: 6px;
+  right: 8px;
+
   color: $lightgray;
   background-color: transparent;
   border: none;
+  cursor: pointer;
   &:hover {
     color: $mediumgray;
   }
-  
+
   @media (max-width: 480px) {
     top: 0;
-    bottom: 0;
+    right: 0;
   }
 }
 
@@ -112,19 +118,6 @@ aio-code.headed-code {
   height: auto;
   transform: none;
 }
-
-$blue-grey-50: #ECEFF1;
-$blue-grey-100: #CFD8DC;
-$blue-grey-200: #B0BEC5;
-$blue-grey-300: #90A4AE;
-$blue-grey-400: #78909C;
-$blue-grey-500: #607D8B;
-$blue-grey-600: #546E7A;
-$blue-grey-700: #455A64;
-$blue-grey-800: #37474F;
-$blue-grey-900: #263238;
-
-$white: #FFFFFF;
 
 /* SCREEN COLORS */
 
@@ -224,7 +217,7 @@ code-example.code-shell, code-example[language=sh], code-example[language=bash] 
 }
 
 // REMOVE RIPPLE EFFECT FROM MATERIAL TABS
-code-tabs md-tab-group *.mat-ripple-element, code-tabs md-tab-group *.mat-tab-body-active, code-tabs md-tab-group *.mat-tab-body-content, code-tabs md-tab-group *.mat-tab-list, code-tabs md-tab-gropu *.mat-tab-body-content {
+code-tabs md-tab-group *.mat-ripple-element, code-tabs md-tab-group *.mat-tab-body-active, code-tabs md-tab-group *.mat-tab-body-content, code-tabs md-tab-group *.mat-tab-body-content {
   transform: none !important;
 }
 

@@ -13,7 +13,7 @@ during a build process.
 
 # Contents
 
-* [Overview](guide/overview)
+* [Overview](guide/aot-compiler#overview)
 * [Ahead-of-time (AOT) vs just-in-time (JIT)](guide/aot-compiler#aot-jit)
 * [Why do AOT compilation?](guide/aot-compiler#why-aot)
 * [Compile with AOT](guide/aot-compiler#compile)
@@ -43,7 +43,7 @@ the components and templates must be converted to executable JavaScript by the _
 
 <div class="l-sub-section">
 
-  <a href="https://www.youtube.com/watch?v=kW9cJsvcsGo" target="_blank">Watch compiler author Tobias Bosch explain the Angular Compiler</a> at AngularConnect 2016.
+  <a href="https://www.youtube.com/watch?v=kW9cJsvcsGo">Watch compiler author Tobias Bosch explain the Angular Compiler</a> at AngularConnect 2016.
 
 </div>
 
@@ -111,9 +111,9 @@ Take the <a href='../guide/setup.html'>Setup</a> as a starting point.
 A few minor changes to the lone `app.component` lead to these two class and HTML files:
 
 <code-tabs>
-  <code-pane title="src/app/app.component.html" path="cb-aot-compiler/src/app/app.component.html">
+  <code-pane title="src/app/app.component.html" path="aot-compiler/src/app/app.component.html">
   </code-pane>
-  <code-pane title="src/app/app.component.ts" path="cb-aot-compiler/src/app/app.component.ts">
+  <code-pane title="src/app/app.component.ts" path="aot-compiler/src/app/app.component.ts">
   </code-pane>
 </code-tabs>
 
@@ -132,7 +132,7 @@ instead of the TypeScript compiler (`tsc`).
 Copy the original `src/tsconfig.json` to a file called `tsconfig-aot.json` on the project root,
 then modify it as follows.
 
-<code-example path="cb-aot-compiler/tsconfig-aot.json" title="tsconfig-aot.json" linenums="false">
+<code-example path="aot-compiler/tsconfig-aot.json" title="tsconfig-aot.json" linenums="false">
 </code-example>
 
 The `compilerOptions` section is unchanged except for one property.
@@ -215,13 +215,13 @@ Switch from the `platformBrowserDynamic.bootstrap` used in JIT compilation to
 Here is AOT bootstrap in `main.ts` next to the original JIT version:
 
 <code-tabs>
-  <code-pane title="src/main.ts" path="cb-aot-compiler/src/main.ts">
+  <code-pane title="src/main.ts" path="aot-compiler/src/main.ts">
   </code-pane>
-  <code-pane title="src/main-jit.ts" path="cb-aot-compiler/src/main-jit.ts">
+  <code-pane title="src/main-jit.ts" path="aot-compiler/src/main-jit.ts">
   </code-pane>
 </code-tabs>
 
-Be sure to [recompile](guide/aot-compiler#compiling-aot) with `ngc`!
+Be sure to [recompile](guide/aot-compiler#compile) with `ngc`!
 
 {@a tree-shaking}
 
@@ -272,7 +272,7 @@ Next, create a configuration file (`rollup-config.js`)
 in the project root directory to tell Rollup how to process the application.
 The cookbook configuration file looks like this.
 
-<code-example path="cb-aot-compiler/rollup-config.js" title="rollup-config.js" linenums="false">
+<code-example path="aot-compiler/rollup-config.js" title="rollup-config.js" linenums="false">
 </code-example>
 
 This config file tells Rollup that the app entry point is `src/app/main.js` .
@@ -297,27 +297,27 @@ The _RxJs_ Observable library is an essential Angular dependency published as an
 
 Luckily, there is a Rollup plugin that modifies _RxJs_
 to use the ES `import` and `export` statements that Rollup requires.
-Rollup then preserves the parts of `RxJS` referenced by the application 
-in the final bundle. Using it is straigthforward. Add the following to 
+Rollup then preserves the parts of `RxJS` referenced by the application
+in the final bundle. Using it is straigthforward. Add the following to
 the `plugins` array in `rollup-config.js`:
 
-<code-example path="cb-aot-compiler/rollup-config.js" region="commonjs" title="rollup-config.js (CommonJs to ES2015 Plugin)" linenums="false">
+<code-example path="aot-compiler/rollup-config.js" region="commonjs" title="rollup-config.js (CommonJs to ES2015 Plugin)" linenums="false">
 </code-example>
 
 *Minification*
 
 Rollup tree shaking reduces code size considerably.  Minification makes it smaller still.
-This cookbook relies on the _uglify_ Rollup plugin to minify and mangle the code. 
+This cookbook relies on the _uglify_ Rollup plugin to minify and mangle the code.
 Add the following to the `plugins` array:
 
-<code-example path="cb-aot-compiler/rollup-config.js" region="uglify" title="rollup-config.js (CommonJs to ES2015 Plugin)" linenums="false">
+<code-example path="aot-compiler/rollup-config.js" region="uglify" title="rollup-config.js (CommonJs to ES2015 Plugin)" linenums="false">
 </code-example>
 
 <div class="l-sub-section">
 
   In a production setting, you would also enable gzip on the web server to compress
   the code into an even smaller package going over the wire.
-  
+
 </div>
 
 {@a run-rollup}
@@ -347,7 +347,7 @@ Loading the generated application bundle does not require a module loader like S
 Remove the scripts that concern SystemJS.
 Instead, load the bundle file using a single `<script>` tag **_after_** the `</body>` tag:
 
-<code-example path="cb-aot-compiler/src/index.html" region="bundle" title="index.html (load bundle)" linenums="false">
+<code-example path="aot-compiler/src/index.html" region="bundle" title="index.html (load bundle)" linenums="false">
 </code-example>
 
 {@a serve}
@@ -370,17 +370,17 @@ The server starts, launches a browser, and the app should appear.
 Here's the pertinent source code:
 
 <code-tabs>
-  <code-pane title="src/app/app.component.html" path="cb-aot-compiler/src/app/app.component.html">
+  <code-pane title="src/app/app.component.html" path="aot-compiler/src/app/app.component.html">
   </code-pane>
-  <code-pane title="src/app/app.component.ts" path="cb-aot-compiler/src/app/app.component.ts">
+  <code-pane title="src/app/app.component.ts" path="aot-compiler/src/app/app.component.ts">
   </code-pane>
-  <code-pane title="src/main.ts" path="cb-aot-compiler/src/main.ts">
+  <code-pane title="src/main.ts" path="aot-compiler/src/main.ts">
   </code-pane>
-  <code-pane title="src/index.html" path="cb-aot-compiler/src/index.html">
+  <code-pane title="src/index.html" path="aot-compiler/src/index.html">
   </code-pane>
-  <code-pane title="tsconfig-aot.json" path="cb-aot-compiler/tsconfig-aot.json">
+  <code-pane title="tsconfig-aot.json" path="aot-compiler/tsconfig-aot.json">
   </code-pane>
-  <code-pane title="rollup-config.js" path="cb-aot-compiler/rollup-config.js">
+  <code-pane title="rollup-config.js" path="aot-compiler/rollup-config.js">
   </code-pane>
 </code-tabs>
 
@@ -411,7 +411,7 @@ The same source code can be built both ways. Here's one way to do that.
 * Delete the script at the bottom of `index-jit.html` that loads `bundle.js`
 * Restore the SystemJS scripts like this:
 
-<code-example path="cb-aot-compiler/src/index-jit.html" region="jit" title="src/index-jit.html (SystemJS scripts)" linenums="false">
+<code-example path="aot-compiler/src/index-jit.html" region="jit" title="src/index-jit.html (SystemJS scripts)" linenums="false">
 </code-example>
 
 Notice the slight change to the `system.import` which now specifies `src/app/main-jit`.
@@ -535,11 +535,9 @@ Rollup does the tree shaking as before.
 
   The general audience instructions for running the AOT build of the Tour of Heroes app are not ready.
 
-  The following instructions presuppose that you have cloned the
-  <a href="https://github.com/angular/angular.io" target="_blank">angular.io</a>
-  github repository and prepared it for development as explained in the repo's README.md.
-
-  The _Tour of Heroes_ source code is in the `public/docs/_examples/toh-6/ts` folder.
+  The following instructions presuppose that you have downloaded the
+  <a href="/content/zips/toh-pt6/toh-pt6.zip" target="_blank">Tour of Heroes' zip</a>
+  and run `npm install` on it.
 
 </div>
 
@@ -584,7 +582,7 @@ Now AOT-compile the app and launch it with the `lite-server`:
 
 It's fascinating to see what the generated JavaScript bundle looks like after Rollup.
 The code is minified, so you won't learn much from inspecting the bundle directly.
-But the <a href="https://github.com/danvk/source-map-explorer/blob/master/README.md" target="_blank">source-map-explorer</a>
+But the <a href="https://github.com/danvk/source-map-explorer/blob/master/README.md">source-map-explorer</a>
 tool can be quite revealing.
 
 Install it:
@@ -603,8 +601,9 @@ The `source-map-explorer` analyzes the source map generated with the bundle and 
 showing exactly which application and Angular modules and classes are included in the bundle.
 
 Here's the map for _Tour of Heroes_.
-<a href="assets/images/cookbooks/aot-compiler/toh6-bundle.png" target="_blank" title="View larger image">
+
+<a href="content/images/guide/aot-compiler/toh-pt6-bundle.png" title="View larger image">
   <figure class='image-display'>
-    <img src="assets/images/cookbooks/aot-compiler/toh6-bundle.png" alt="TOH-6-bundle"></img>
+    <img src="content/images/guide/aot-compiler/toh-pt6-bundle.png" alt="toh-pt6-bundle"></img>
   </figure>
 </a>

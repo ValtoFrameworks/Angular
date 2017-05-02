@@ -765,6 +765,7 @@ export function main() {
              try {
                ctx.detectChanges(false);
              } catch (e) {
+               expect(e.message).toBe('Boom!');
                errored = true;
              }
              expect(errored).toBe(true);
@@ -776,7 +777,8 @@ export function main() {
              try {
                ctx.detectChanges(false);
              } catch (e) {
-               throw new Error('Second detectChanges() should not have run detection.');
+               expect(e.message).toBe('Boom!');
+               throw new Error('Second detectChanges() should not have called ngOnInit.');
              }
              expect(directiveLog.filter(['ngOnInit'])).toEqual([]);
            }));
@@ -1175,6 +1177,21 @@ export function main() {
            expect(renderLog.log).toEqual([]);
          }));
 
+      it('Detached should disable OnPush', fakeAsync(() => {
+           const ctx = createCompFixture('<push-cmp [value]="value"></push-cmp>');
+           ctx.componentInstance.value = 0;
+           ctx.detectChanges();
+           renderLog.clear();
+
+           const cmp: CompWithRef = queryDirs(ctx.debugElement, PushComp)[0];
+           cmp.changeDetectorRef.detach();
+
+           ctx.componentInstance.value = 1;
+           ctx.detectChanges();
+
+           expect(renderLog.log).toEqual([]);
+         }));
+
       it('Detached view can be checked locally', fakeAsync(() => {
            const ctx = createCompFixture('<wrap-comp-with-ref></wrap-comp-with-ref>');
            const cmp: CompWithRef = queryDirs(ctx.debugElement, CompWithRef)[0];
@@ -1225,7 +1242,6 @@ export function main() {
 
            ctx.detectChanges();
            expect(cmp.renderCount).toBe(count);
-
          }));
 
     });

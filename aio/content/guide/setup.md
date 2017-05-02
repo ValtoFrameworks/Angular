@@ -10,9 +10,6 @@ Install the Angular QuickStart seed for faster, more efficient development on yo
 
 {@a develop-locally}
 
-
-## Setup a local development environment
-
 The <live-example name=quickstart>QuickStart live-coding</live-example> example is an Angular _playground_.
 It's not where you'd develop a real application. 
 You [should develop locally](guide/setup#why-locally "Why develop locally") on your own machine ... and that's also how we think you should learn Angular.
@@ -287,7 +284,7 @@ The following are all in `src/`
     <td>
 
 
-      Compiles the application with the [JIT compiler](glossary#jit) and
+      Compiles the application with the [JIT compiler](guide/glossary#jit) and
       [bootstraps](guide/appmodule#main "bootstrap the application") 
       the application's main module (`AppModule`) to run in the browser.
       The JIT compiler is a reasonable choice during the development of most projects and
@@ -308,7 +305,7 @@ The following are all in `src/`
 
 ### Next Step
 
-If you're new to Angular, we recommend staying on the [learning path](guide/learning-angular "Angular learning path").
+If you're new to Angular, we recommend you follow the [tutorial](tutorial "Tour of Heroes tutorial").
 
 
 </div>
@@ -349,7 +346,7 @@ use other versions of node and npm.
 Links on almost every documentation page open completed samples in the browser.
 You can play with the sample code, share your changes with friends, and download and run the code on your own machine.
 
-The [QuickStart](quickstart "Angular QuickStart Playground") shows just the `AppComponent` file.
+The [QuickStart](guide/quickstart "Angular QuickStart Playground") shows just the `AppComponent` file.
 It creates the equivalent of `app.module.ts` and `main.ts` internally _for the playground only_.
 so the reader can discover Angular without distraction.
 The other samples are based on the QuickStart seed. 
@@ -364,7 +361,7 @@ As much fun as this is ...
 Use the <live-example title="QuickStart Seed in Plunker">live coding</live-example> environment as a _playground_, 
 a place to try the documentation samples and experiment on your own.
 It's the perfect place to reproduce a bug when you want to
-<a href="https://github.com/angular/angular.io/issues/new" target="_blank" title="File a documentation issue">file a documentation issue</a> or
-<a href="https://github.com/angular/angular/issues/new" target="_blank" title="File an Angular issue">file an issue with Angular itself</a>.
+<a href="https://github.com/angular/angular/issues/new" title="File a documentation issue">file a documentation issue</a> or
+<a href="https://github.com/angular/angular/issues/new" title="File an Angular issue">file an issue with Angular itself</a>.
 
 For real development, we strongly recommend [developing locally](guide/setup#develop-locally).

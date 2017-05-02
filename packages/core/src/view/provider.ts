@@ -148,7 +148,14 @@ export function createDirectiveInstance(view: ViewData, def: NodeDef): any {
 }
 
 function eventHandlerClosure(view: ViewData, index: number, eventName: string) {
-  return (event: any) => dispatchEvent(view, index, eventName, event);
+  return (event: any) => {
+    try {
+      return dispatchEvent(view, index, eventName, event);
+    } catch (e) {
+      // Attention: Don't rethrow, as it would cancel Observable subscriptions!
+      view.root.errorHandler.handleError(e);
+    }
+  }
 }
 
 export function checkAndUpdateDirectiveInline(
@@ -354,6 +361,12 @@ export function resolveDep(
     notFoundValue = null;
   }
   const tokenKey = depDef.tokenKey;
+
+  if (tokenKey === ChangeDetectorRefTokenKey) {
+    // directives on the same element as a component should be able to control the change detector
+    // of that component as well.
+    allowPrivateServices = !!(elDef && elDef.element !.componentView);
+  }
 
   if (elDef && (depDef.flags & DepFlags.SkipSelf)) {
     allowPrivateServices = false;

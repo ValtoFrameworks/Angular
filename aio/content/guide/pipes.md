@@ -51,7 +51,7 @@ Focus on the component's template.
 
 
 Inside the interpolation expression, you flow the component's `birthday` value through the
-[pipe operator](guide/template-syntax#pipe) ( | ) to the [Date pipe](api/common/index/DatePipe-pipe)
+[pipe operator](guide/template-syntax#pipe) ( | ) to the [Date pipe](api/common/DatePipe)
 function on the right. All pipes work this way.
 
 
@@ -85,7 +85,7 @@ They are all available for use in any template.
 
 
 
-Read more about these and many other built-in pipes in the [pipes topics](api/#!?query=pipe) of the
+Read more about these and many other built-in pipes in the [pipes topics](api?type=pipe) of the
 [API Reference](api); filter for entries that include the word "pipe".
 
 Angular doesn't have a `FilterPipe` or an `OrderByPipe` for reasons explained in the [Appendix](guide/pipes#no-filter-pipe) of this page.
@@ -145,7 +145,7 @@ As you click the button, the displayed date alternates between
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/pipes/date-format-toggle-anim.gif' alt="Date Format Toggle"></img>
+  <img src='content/images/guide/pipes/date-format-toggle-anim.gif' alt="Date Format Toggle"></img>
 </figure>
 
 
@@ -154,7 +154,7 @@ As you click the button, the displayed date alternates between
 
 
 
-Read more about the `DatePipe` format options in the [Date Pipe](api/common/index/DatePipe-pipe)
+Read more about the `DatePipe` format options in the [Date Pipe](api/common/DatePipe)
 API Reference page.
 
 
@@ -237,7 +237,7 @@ Now you need a component to demonstrate the pipe.
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/pipes/power-booster.png' alt="Power Booster"></img>
+  <img src='content/images/guide/pipes/power-booster.png' alt="Power Booster"></img>
 </figure>
 
 
@@ -285,7 +285,7 @@ your pipe and two-way data binding with `ngModel`.
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/pipes/power-boost-calculator-anim.gif' alt="Power Boost Calculator"></img>
+  <img src='content/images/guide/pipes/power-boost-calculator-anim.gif' alt="Power Boost Calculator"></img>
 </figure>
 
 
@@ -372,7 +372,7 @@ code with checkbox switches and additional displays to help you experience these
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/pipes/flying-heroes-anim.gif' alt="Flying Heroes"></img>
+  <img src='content/images/guide/pipes/flying-heroes-anim.gif' alt="Flying Heroes"></img>
 </figure>
 
 
@@ -536,7 +536,7 @@ Remember that impure pipes are called every few milliseconds.
 If you're not careful, this pipe will punish the server with requests.
 
 In the following code, the pipe only calls the server when the request URL changes and it caches the server response.
-The code uses the [Angular http](guide/server-communication) client to retrieve data</span>:
+The code uses the [Angular http](guide/http) client to retrieve data</span>:
 
 
 <code-example path="pipes/src/app/fetch-json.pipe.ts" title="src/app/fetch-json.pipe.ts">
@@ -559,7 +559,7 @@ The component renders as the following:
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/pipes/hero-list.png' alt="Hero List"></img>
+  <img src='content/images/guide/pipes/hero-list.png' alt="Hero List"></img>
 </figure>
 
 
@@ -586,7 +586,7 @@ It displays the same hero data in JSON format by chaining through to the built-i
 
 
 
-The [JsonPipe](api/common/index/JsonPipe-pipe)
+The [JsonPipe](api/common/JsonPipe)
 provides an easy way to diagnosis a mysteriously failing data binding or
 inspect an object for future binding.
 
@@ -621,7 +621,7 @@ transformations. Use them like styles, dropping them
 into your template's expressions to enrich the appeal and usability
 of your views.
 
-Explore Angular's inventory of built-in pipes in the [API Reference](api/#!?query=pipe).
+Explore Angular's inventory of built-in pipes in the [API Reference](api?type=pipe).
 Try writing a custom pipe and perhaps contributing it to the community.
 
 

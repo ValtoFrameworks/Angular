@@ -284,7 +284,7 @@ There are two fast paths to getting started with unit testing.
 1. Start a new project following the instructions in [Setup](guide/setup "Setup").
 
 1. Start a new project with the
-<a href="https://github.com/angular/angular-cli/blob/master/README.md" target="_blank" title="Angular CLI">Angular CLI</a>.
+<a href="https://github.com/angular/angular-cli/blob/master/README.md" title="Angular CLI">Angular CLI</a>.
 
 Both approaches install npm packages, files, and scripts pre-configured for applications
 built in their respective modalities.
@@ -389,7 +389,7 @@ The Angular CLI has different commands to do the same thing. Adjust accordingly.
 After a few moments, karma opens a browser and starts writing to the console.
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/testing/karma-browser.png' style="width:400px;" alt="Karma browser"></img>
+  <img src='content/images/guide/testing/karma-browser.png' style="width:400px;" alt="Karma browser"></img>
 </figure>
 
 
@@ -473,7 +473,7 @@ Debug specs in the browser in the same way that you debug an application.
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/testing/karma-1st-spec-debug.png' style="width:700px;" alt="Karma debugging"></img>
+  <img src='content/images/guide/testing/karma-1st-spec-debug.png' style="width:700px;" alt="Karma debugging"></img>
 </figure>
 
 
@@ -636,7 +636,7 @@ A query predicate receives a `DebugElement` and returns `true` if the element me
 
 The **`By`** class is an Angular testing utility that produces useful predicates.
 Its `By.css` static method produces a
-<a href="https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Getting_started/Selectors" target="_blank">standard CSS selector</a>
+<a href="https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Getting_started/Selectors">standard CSS selector</a>
 predicate that filters the same way as a jQuery selector.
 
 Finally, the setup assigns the DOM element from the `DebugElement` **`nativeElement`** property to `el`.
@@ -897,6 +897,8 @@ into a `compileComponents().then(...)` callback and write only one `beforeEach`.
 
 Most developers find that hard to read.
 The two `beforeEach` calls are widely preferred.
+
+{@a live-external-template-example}
 
 ### Try the live example
 
@@ -1509,7 +1511,7 @@ Make that easy by encapsulating the _click-triggering_ process in a helper such 
 
 The first parameter is the _element-to-click_. If you wish, you can pass a
 custom event object as the second parameter. The default is a (partial)
-<a href="https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button" target="_blank">left-button mouse event object</a>
+<a href="https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button">left-button mouse event object</a>
 accepted by many handlers including the `RouterLink` directive.
 
 
@@ -1811,7 +1813,7 @@ Notable features of this stub are:
 
 * The stub implements only two of the `ActivatedRoute` capabilities: `params` and `snapshot.params`.
 
-* <a href="https://github.com/Reactive-Extensions/RxJS/blob/master/doc/api/subjects/behaviorsubject.md" target="_blank">_BehaviorSubject_</a>
+* <a href="https://github.com/Reactive-Extensions/RxJS/blob/master/doc/api/subjects/behaviorsubject.md">_BehaviorSubject_</a>
 drives the stub's `params` _Observable_ and returns the same value to every `params` subscriber until it's given a new value.
 
 * The `HeroDetailComponent` chains its expressions to this stub `params` _Observable_ which is now under the tester's control.
@@ -1914,7 +1916,7 @@ Inspect and download _all_ of the guide's application test code with this <live-
 The `HeroDetailComponent` is a simple view with a title, two hero fields, and two buttons.
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/testing/hero-detail.component.png' alt="HeroDetailComponent in action"></img>
+  <img src='content/images/guide/testing/hero-detail.component.png' alt="HeroDetailComponent in action"></img>
 </figure>
 
 
@@ -2505,7 +2507,7 @@ A better solution is to create an artificial test component that demonstrates al
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/testing/highlight-directive-spec.png' width="200px" alt="HighlightDirective spec in action"></img>
+  <img src='content/images/guide/testing/highlight-directive-spec.png' width="200px" alt="HighlightDirective spec in action"></img>
 </figure>
 
 
@@ -2533,7 +2535,7 @@ A few techniques are noteworthy:
 
 * The `By.directive` predicate is a great way to get the elements that have this directive _when their element types are unknown_.
 
-* The <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/:not" target="_blank">`:not` pseudo-class</a>
+* The <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/:not">`:not` pseudo-class</a>
 in `By.css('h2:not([highlight])')` helps find `<h2>` elements that _do not_ have the directive.
 `By.css('*:not([highlight])')` finds _any_ element that does not have the directive.
 
@@ -2847,7 +2849,7 @@ Here's a summary of the stand-alone functions, in order of likely utility:
 
       Simulates the passage of time and the completion of pending asynchronous activities
       by flushing both _timer_ and _micro-task_ queues within the _fakeAsync test zone_.
-      
+
 
 <div class="l-sub-section">
 
@@ -2855,7 +2857,7 @@ Here's a summary of the stand-alone functions, in order of likely utility:
 
       The curious, dedicated reader might enjoy this lengthy blog post,
       "<a href="https://jakearchibald.com/2015/tasks-microtasks-queues-and-schedules/"
-      target="_blank">_Tasks, microtasks, queues and schedules_</a>".      
+    >_Tasks, microtasks, queues and schedules_</a>".
 
 </div>
 
@@ -3013,6 +3015,7 @@ appropriate to the method, that is, the parameter of an `@NgModule`,
 
 
 {@a testbed-methods}
+{@a testbed-api-summary}
 
 
 The `TestBed` API consists of static class methods that either update or reference a _global_ instance of the`TestBed`.
@@ -3601,7 +3604,7 @@ Here are the most useful `DebugElement` members for testers, in approximate orde
 
 
       The immediate `DebugElement` children. Walk the tree by descending through `children`.
-      
+
 
 <div class="l-sub-section">
 
@@ -3609,7 +3612,7 @@ Here are the most useful `DebugElement` members for testers, in approximate orde
 
       `DebugElement` also has `childNodes`, a list of `DebugNode` objects.
       `DebugElement` derives from `DebugNode` objects and there are often
-      more nodes than elements. Testers can usually ignore plain nodes.      
+      more nodes than elements. Testers can usually ignore plain nodes.
 
 </div>
 

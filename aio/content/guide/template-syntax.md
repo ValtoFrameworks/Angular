@@ -17,10 +17,10 @@ Learn how to write templates that display data and consume user events with the 
 
 
 
-The Angular application manages what the user sees and can do, achieving this through the interaction of a 
+The Angular application manages what the user sees and can do, achieving this through the interaction of a
 component class instance (the *component*) and its user-facing template.
 
-You may be familiar with the component/template duality from your experience with model-view-controller (MVC) or model-view-viewmodel (MVVM). 
+You may be familiar with the component/template duality from your experience with model-view-controller (MVC) or model-view-viewmodel (MVVM).
 In Angular, the component plays the part of the controller/viewmodel, and the template represents the view.
 
 
@@ -78,17 +78,17 @@ demonstrates all of the syntax and code snippets described in this guide.
 ## HTML in templates
 
 HTML is the language of the Angular template.
-Almost all HTML syntax is valid template syntax. 
-The `<script>` element is a notable exception; 
+Almost all HTML syntax is valid template syntax.
+The `<script>` element is a notable exception;
 it is forbidden, eliminating the risk of script injection attacks.
 In practice, `<script>` is ignored and a warning appears in the browser console.
 See the [Security](guide/security) page for details.
 
-Some legal HTML doesn't make much sense in a template. 
-The `<html>`, `<body>`, and `<base>` elements have no useful role. 
+Some legal HTML doesn't make much sense in a template.
+The `<html>`, `<body>`, and `<base>` elements have no useful role.
 Pretty much everything else is fair game.
 
-You can extend the HTML vocabulary of your templates with components and directives that appear as new elements and attributes. 
+You can extend the HTML vocabulary of your templates with components and directives that appear as new elements and attributes.
 In the following sections, you'll learn how to get and set DOM (Document Object Model) values dynamically through data binding.
 
 Begin with the first form of data binding&mdash;interpolation&mdash;to see how much richer template HTML can be.
@@ -151,7 +151,7 @@ it assigns this composite interpolated result to an **element or directive prope
 You appear to be inserting the result between element tags and assigning it to attributes.
 It's convenient to think so, and you rarely suffer for this mistake.
 Though this is not exactly true. Interpolation is a special syntax that Angular converts into a
-[property binding](guide/template-syntax#property-binding), as is explained [below](guide/template-syntax#property-binding-or-interpolation-).
+[property binding](guide/template-syntax#property-binding), as is explained [below](guide/template-syntax#property-binding-or-interpolation).
 
 But first, let's take a closer look at template expressions and statements.
 <a href="#toc">back to top</a>
@@ -888,8 +888,8 @@ If the element raises events, you can listen to them with an [event binding](gui
 If you must read a target element property or call one of its methods,
 you'll need a different technique.
 See the API reference for
-[ViewChild](api/core/index/ViewChild-decorator) and
-[ContentChild](api/core/index/ContentChild-decorator).
+[ViewChild](api/core/ViewChild) and
+[ContentChild](api/core/ContentChild).
 
 
 </div>
@@ -1017,6 +1017,8 @@ not a template expression. Angular sets it and forgets about it.
 
 The `[hero]` binding, on the other hand, remains a live binding to the component's `currentHero` property.
 
+{@a property-binding-or-interpolation}
+
 ### Property binding or interpolation?
 
 You often have a choice between interpolation and property binding.
@@ -1067,7 +1069,7 @@ content harmlessly.
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/template-syntax/evil-title.png' alt="evil title made safe" width='500px'></img>
+  <img src='content/images/guide/template-syntax/evil-title.png' alt="evil title made safe" width='500px'></img>
 </figure>
 
 
@@ -1407,7 +1409,7 @@ If the event belongs to a directive (recall that components are directives),
 
 ### Custom events with <span class="syntax">EventEmitter</span>
 
-Directives typically raise custom events with an Angular [EventEmitter](api/core/index/EventEmitter-class).
+Directives typically raise custom events with an Angular [EventEmitter](api/core/EventEmitter).
 The directive creates an `EventEmitter` and exposes it as a property.
 The directive calls `EventEmitter.emit(payload)` to fire an event, passing in a message payload, which can be anything.
 Parent directives listen for the event by binding to this property and accessing the payload through the `$event` object.
@@ -1786,7 +1788,7 @@ The `ngModel` data property sets the element's value property and the `ngModelCh
 listens for changes to the element's value.
 
 The details are specific to each kind of element and therefore the `NgModel` directive only works for an element
-supported by a [ControlValueAccessor](api/forms/index/ControlValueAccessor-interface)
+supported by a [ControlValueAccessor](api/forms/ControlValueAccessor)
 that adapts an element to this protocol.
 The `<input>` box is one of those elements.
 Angular provides *value accessors* for all of the basic HTML form elements and the
@@ -1837,7 +1839,7 @@ Here are all variations in action, including the uppercase version:
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/template-syntax/ng-model-anim.gif' alt="NgModel variations"></img>
+  <img src='content/images/guide/template-syntax/ng-model-anim.gif' alt="NgModel variations"></img>
 </figure>
 
 
@@ -2081,7 +2083,7 @@ The next example captures the `index` in a variable named `i` and displays it wi
 
 
 Learn about the other `NgFor` context values such as `last`, `even`,
-and `odd` in the [NgFor API reference](api/common/index/NgFor-directive).
+and `odd` in the [NgFor API reference](api/common/NgFor).
 
 
 </div>
@@ -2132,7 +2134,7 @@ Here is an illustration of the _trackBy_ effect.
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/template-syntax/ng-for-track-by-anim.gif' alt="trackBy"></img>
+  <img src='content/images/guide/template-syntax/ng-for-track-by-anim.gif' alt="trackBy"></img>
 </figure>
 
 
@@ -2167,7 +2169,7 @@ Angular puts only the *selected* element into the DOM.
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/template-syntax/switch-anim.gif' alt="trackBy"></img>
+  <img src='content/images/guide/template-syntax/switch-anim.gif' alt="trackBy"></img>
 </figure>
 
 
@@ -2220,7 +2222,7 @@ For example, you could replace the `<confused-hero>` switch case with the follow
 
 A **template reference variable** is often a reference to a DOM element within a template.
 It can also be a reference to an Angular component or directive or a
-<a href="https://developer.mozilla.org/en-US/docs/Web/Web_Components" target="_blank" title="MDN: Web Components">web component</a>.
+<a href="https://developer.mozilla.org/en-US/docs/Web/Web_Components" title="MDN: Web Components">web component</a>.
 
 Use the hash symbol (#) to declare a reference variable.
 The `#phone` declares a `phone` variable on an `<input>` element.
@@ -2266,7 +2268,7 @@ What is the value of `heroForm`?
 
 If Angular hadn't taken it over when you imported the `FormsModule`,
 it would be the [HTMLFormElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement).
-The `heroForm` is actually a reference to an Angular [NgForm](api/forms/index/NgForm-directive "API: NgForm")
+The `heroForm` is actually a reference to an Angular [NgForm](api/forms/NgForm "API: NgForm")
 directive with the ability to track the value and validity of every control in the form.
 
 The native `<form>` element doesn't have a `form` property.
@@ -2417,7 +2419,7 @@ The terms _input_ and _output_ reflect the perspective of the target directive.
 
 
 <figure class='image-display'>
-  <img src='assets/images/devguide/template-syntax/input-output.png' alt="Inputs and outputs"></img>
+  <img src='content/images/guide/template-syntax/input-output.png' alt="Inputs and outputs"></img>
 </figure>
 
 
@@ -2669,5 +2671,5 @@ It works perfectly with long property paths such as `a?.b?.c?.d`.
 
 
 ## Summary
-You've completed this survey of template syntax. 
+You've completed this survey of template syntax.
 Now it's time to put that knowledge to work on your own components and directives.

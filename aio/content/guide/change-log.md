@@ -13,7 +13,7 @@ This log calls attention to recent significant changes.
 
 ## Updated to Angular 4.0. Documentation for Angular 2.x can be found at [v2.angular.io](https://v2.angular.io).
 
-## All mention of moduleId removed. "Component relative paths" cookbook deleted (2017-03-13)
+## All mention of moduleId removed. "Component relative paths" guide deleted (2017-03-13)
 We added a new SystemJS plugin (systemjs-angular-loader.js) to our recommended SystemJS configuration.
 This plugin dynamically converts "component-relative" paths in templateUrl and styleUrls to "absolute paths" for you.
 
@@ -39,7 +39,7 @@ It helps clearly separate app code from setup and configuration files.
 All samples now have a `src/` folder at the project root.
 The former `app/` folder moves under `src/`. 
 Read about moving your existing project to this structure in 
-<a href="https://github.com/angular/quickstart#updating-to-a-newer-version-of-the-quickstart-repo" target="_blank" target="Migrating samples/quickstart app to the src folder">
+<a href="https://github.com/angular/quickstart#updating-to-a-newer-version-of-the-quickstart-repo" target="Migrating samples/quickstart app to the src folder">
 the QuickStart repo update instructions</a>.
 
 Notably:
@@ -75,7 +75,7 @@ Revised samples are clearer and cover all topics discussed.
 added (optional) instructions on how to remove _non-essential_ files. 
 * No longer consolidate RxJS operator imports in `rxjs-extensions` file; each file should import what it needs.
 * All samples prepend template/style URLs with `./` as a best practice.
-* [Style Guide](guide/style-guide): copy edits and revised rules.
+* [Style Guide](guide/styleguide): copy edits and revised rules.
 
 ## Router: more detail (2016-12-21)
 
@@ -85,7 +85,7 @@ including sections named outlets, wildcard routes, and preload strategies.
 ## HTTP: how to set default request headers (and other request options) (2016-12-14)
 
 Added section on how to set default request headers (and other request options) to 
-[HTTP](guide/server-communication#override-default-request-options) guide.
+[HTTP](guide/http#override-default-request-options) guide.
 
 ## Testing: added component test plunkers (2016-12-02)
 
@@ -94,7 +94,7 @@ Linked to these plunkers in [Testing](guide/testing#live-examples) and [Setup an
 
 ## Internationalization: pluralization and _select_ (2016-11-30)
 
-The [Internationalization (i18n)](cookbook/i18n) guide explains how to handle pluralization and
+The [Internationalization (i18n)](guide/i18n) guide explains how to handle pluralization and
 translation of alternative texts with `select`.
 The sample demonstrates these features too.
 
@@ -126,7 +126,7 @@ The documentation for the version prior to v.2.2.0 has been removed.
 
 ## ES6  described in "TypeScript to JavaScript" (2016-11-14)
 
-The updated [TypeScript to JavaScript](cookbook/ts-to-js) cookbook 
+The updated [TypeScript to JavaScript](guide/ts-to-js) guide 
 now explains how to write apps in ES6/7
 by translating the common idioms in the TypeScript documentation examples
 (and elsewhere on the web) to ES6/7 and ES5.
@@ -154,7 +154,7 @@ re-explains `[(ngModel)]` in terms of the basic `[()]` syntax.
 
 This change supports ES6 developers and aligns better with typical Angular libraries.
 It does not affect the module's API but it does affect how you load and import it.
-See the <a href="https://github.com/angular/in-memory-web-api/blob/master/CHANGELOG.md#0113-2016-10-20" target="_blank">change note</a>
+See the <a href="https://github.com/angular/in-memory-web-api/blob/master/CHANGELOG.md#0113-2016-10-20">change note</a>
 in the `in-memory-web-api` repo.
 
 ## "Router" _preload_ syntax and _:enter_/_:leave_ animations (2016-10-19)
@@ -168,9 +168,9 @@ New `:enter` and `:leave` aliases make animation more natural.
 
 Docs and code samples updated and tested with Angular v.2.1.0.
 
-## NEW "Ahead of time (AOT) Compilation" cookbook (2016-10-11)
+## NEW "Ahead of time (AOT) Compilation" guide (2016-10-11)
 
-The NEW [Ahead of time (AOT) Compilation](guide/aot-compiler) cookbook
+The NEW [Ahead of time (AOT) Compilation](guide/aot-compiler) guide
 explains what AOT compilation is and why you'd want it.
 It demonstrates the basics with a QuickStart app
 followed by the more advanced considerations of compiling and bundling the Tour of Heroes.
@@ -187,11 +187,11 @@ The _Routing Module_ replaces the previous _routing object_ involving the `Modul
 
 All guided samples with routing use the _Routing Module_ and prose content has been updated,
 most conspicuously in the 
-[NgModule](guide/ngmodule) guide and [NgModule FAQ](cookbook/ngmodule-faq) cookbook.
+[NgModule](guide/ngmodule) guide and [NgModule FAQ](guide/ngmodule-faq) guide.
 
-## New "Internationalization" Cookbook (2016-09-30)
+## New "Internationalization" guide (2016-09-30)
 
-Added a new [Internationalization (i18n)](cookbook/i18n) cookbook that shows how
+Added a new [Internationalization (i18n)](guide/i18n) guide that shows how
 to use Angular "i18n" facilities to translate template text into multiple languages.
 
 ## "angular-in-memory-web-api" package rename (2016-09-27)
@@ -201,11 +201,11 @@ This library is also useful to you during early development before you have a se
 
 The package name was changed from "angular2-in-memory-web-api" which is still frozen-in-time on npm.
 The new "angular-in-memory-web-api" has new features. 
-<a href="https://github.com/angular/in-memory-web-api/blob/master/README.md" target="_blank">Read about them on github</a>.
+<a href="https://github.com/angular/in-memory-web-api/blob/master/README.md">Read about them on github</a>.
 
 ## "Style Guide" with _NgModules_ (2016-09-27)
 
-[StyleGuide](guide/style-guide) explains recommended conventions for Angular modules (NgModule).
+[StyleGuide](guide/styleguide) explains recommended conventions for Angular modules (NgModule).
 Barrels now are far less useful and have been removed from the style guide;
 they remain valuable but are not a matter of Angular style.
 Also relaxed the rule that discouraged use of the `@Component.host` property.

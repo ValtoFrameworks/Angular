@@ -14,8 +14,12 @@ export class LocationService {
   private readonly urlParser = document.createElement('a');
   private urlSubject = new Subject<string>();
   currentUrl = this.urlSubject
+    .map(url => this.stripSlashes(url))
     .do(url => this.gaService.locationChanged(url))
     .publishReplay(1);
+
+  currentPath = this.currentUrl
+    .map(url => url.match(/[^?#]*/)[0]); // strip query and hash
 
   constructor(
     private gaService: GaService,
@@ -23,23 +27,32 @@ export class LocationService {
     private platformLocation: PlatformLocation) {
 
     this.currentUrl.connect();
-    const initialUrl = this.stripLeadingSlashes(location.path(true));
-    this.urlSubject.next(initialUrl);
+    this.urlSubject.next(location.path(true));
 
     this.location.subscribe(state => {
-      const url = this.stripLeadingSlashes(state.url);
-      return this.urlSubject.next(url);
+      return this.urlSubject.next(state.url);
     });
   }
 
   // TODO?: ignore if url-without-hash-or-search matches current location?
   go(url: string) {
-    this.location.go(url);
-    this.urlSubject.next(url);
+    if (!url) { return; }
+    url = this.stripSlashes(url);
+    if (/^http/.test(url)) {
+      // Has http protocol so leave the site
+      this.goExternal(url);
+    } else {
+      this.location.go(url);
+      this.urlSubject.next(url);
+    }
   }
 
-  private stripLeadingSlashes(url: string) {
-    return url.replace(/^\/+/, '');
+  goExternal(url: string) {
+    location.assign(url);
+  }
+
+  private stripSlashes(url: string) {
+    return url.replace(/^\/+/, '').replace(/\/+(\?|#|$)/, '$1');
   }
 
   search(): { [index: string]: string; } {
@@ -112,7 +125,7 @@ export class LocationService {
       return true;
     }
 
-    this.go(this.stripLeadingSlashes(relativeUrl));
+    this.go(relativeUrl);
     return false;
   }
 }

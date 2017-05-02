@@ -90,7 +90,9 @@ class ComponentFactory_ extends ComponentFactory<any> {
     const view = Services.createRootView(
         injector, projectableNodes || [], rootSelectorOrNode, viewDef, ngModule, EMPTY_CONTEXT);
     const component = asProviderData(view, componentNodeIndex).instance;
-    view.renderer.setAttribute(asElementData(view, 0).renderElement, 'ng-version', VERSION.full);
+    if (rootSelectorOrNode) {
+      view.renderer.setAttribute(asElementData(view, 0).renderElement, 'ng-version', VERSION.full);
+    }
 
     return new ComponentRef_(view, new ViewRef_(view), component);
   }
@@ -236,11 +238,11 @@ export class ViewRef_ implements EmbeddedViewRef<any>, InternalViewRef {
   get destroyed(): boolean { return (this._view.state & ViewState.Destroyed) !== 0; }
 
   markForCheck(): void { markParentViewsForCheck(this._view); }
-  detach(): void { this._view.state &= ~ViewState.ChecksEnabled; }
+  detach(): void { this._view.state &= ~ViewState.Attached; }
   detectChanges(): void { Services.checkAndUpdateView(this._view); }
   checkNoChanges(): void { Services.checkNoChangesView(this._view); }
 
-  reattach(): void { this._view.state |= ViewState.ChecksEnabled; }
+  reattach(): void { this._view.state |= ViewState.Attached; }
   onDestroy(callback: Function) {
     if (!this._view.disposables) {
       this._view.disposables = [];

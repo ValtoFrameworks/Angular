@@ -29,7 +29,7 @@ This page shows you how to build a simple form from scratch. Along the way you'l
 
 You can run the <live-example></live-example> in Plunker and download the code from there.
 
-
+{@a template-driven}
 
 ## Template-driven forms
 
@@ -41,7 +41,7 @@ the form-specific directives and techniques described in this page.
 
 
 
-You can also use a reactive (or model-driven) approach to build forms. 
+You can also use a reactive (or model-driven) approach to build forms.
 However, this page focuses on template-driven forms.
 
 
@@ -60,7 +60,7 @@ You'll learn to build a template-driven form that looks like this:
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/forms/hero-form-1.png" width="400px" alt="Clean Form"></img>
+  <img src="content/images/guide/forms/hero-form-1.png" width="400px" alt="Clean Form"></img>
 </figure>
 
 
@@ -74,7 +74,7 @@ If you delete the hero name, the form displays a validation error in an attentio
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/forms/hero-form-2.png" width="400px" alt="Invalid, Name Required"></img>
+  <img src="content/images/guide/forms/hero-form-2.png" width="400px" alt="Invalid, Name Required"></img>
 </figure>
 
 
@@ -148,7 +148,7 @@ You can create a new hero like this:
 
 ## Create a form component
 
-An Angular form has two parts: an HTML-based _template_ and a component _class_ 
+An Angular form has two parts: an HTML-based _template_ and a component _class_
 to handle data and user interactions programmatically.
 Begin with the class because it states, in brief, what the hero editor can do.
 
@@ -301,7 +301,7 @@ You added a *Submit* button at the bottom with some classes on it for styling.
 
 
 
-In template driven forms, if you've imported `FormsModule`, you don't have to do anything 
+In template driven forms, if you've imported `FormsModule`, you don't have to do anything
 to the `<form>` tag in order to make use of `FormsModule`. Continue on to see how this works.
 
 
@@ -364,7 +364,7 @@ This code repeats the `<option>` tag for each power in the list of powers.
 The `pow` template input variable is a different power in each iteration;
 you display its name using the interpolation syntax.
 
-
+{@a ngModel}
 
 ## Two-way data binding with _ngModel_
 
@@ -372,7 +372,7 @@ Running the app right now would be disappointing.
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/forms/hero-form-3.png" width="400px" alt="Early form with no binding"></img>
+  <img src="content/images/guide/forms/hero-form-3.png" width="400px" alt="Early form with no binding"></img>
 </figure>
 
 
@@ -413,8 +413,8 @@ You left yourself a note to throw it away when you're done.
 
 Focus on the binding syntax: `[(ngModel)]="..."`.
 
-You need one more addition to display the data. Declare 
-a template variable for the form. Update the `<form>` tag with 
+You need one more addition to display the data. Declare
+a template variable for the form. Update the `<form>` tag with
 `#heroForm="ngForm"` as follows:
 
 
@@ -429,12 +429,12 @@ The variable `heroForm` is now a reference to the `NgForm` directive that govern
 
 <div class="l-sub-section">
 
-
+{@a ngForm}
 
 ### The _NgForm_ directive
 
 What `NgForm` directive?
-You didn't add an [NgForm](api/forms/index/NgForm-directive) directive.
+You didn't add an [NgForm](api/forms/NgForm) directive.
 
 Angular did. Angular automatically creates and attaches an `NgForm` directive to the `<form>` tag.
 
@@ -456,7 +456,7 @@ At some point it might look like this:
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/forms/ng-model-in-action.png" width="400px" alt="ngModel in action"></img>
+  <img src="content/images/guide/forms/ng-model-in-action.png" width="400px" alt="ngModel in action"></img>
 </figure>
 
 
@@ -529,7 +529,7 @@ If you run the app now and change every hero model property, the form might disp
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/forms/ng-model-in-action-2.png" width="400px" alt="ngModel in action"></img>
+  <img src="content/images/guide/forms/ng-model-in-action-2.png" width="400px" alt="ngModel in action"></img>
 </figure>
 
 
@@ -642,7 +642,7 @@ The actions and effects are as follows:
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/forms/control-state-transitions-anim.gif" alt="Control State Transition"></img>
+  <img src="content/images/guide/forms/control-state-transitions-anim.gif" alt="Control State Transition"></img>
 </figure>
 
 
@@ -651,7 +651,7 @@ You should see the following transitions and class names:
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/forms/ng-control-class-changes.png" width="500px" alt="Control state transitions"></img>
+  <img src="content/images/guide/forms/ng-control-class-changes.png" width="500px" alt="Control state transitions"></img>
 </figure>
 
 
@@ -671,7 +671,7 @@ on the left of the input box:
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/forms/validity-required-indicator.png" width="400px" alt="Invalid Form"></img>
+  <img src="content/images/guide/forms/validity-required-indicator.png" width="400px" alt="Invalid Form"></img>
 </figure>
 
 
@@ -705,7 +705,7 @@ When the user deletes the name, the form should look like this:
 
 
 <figure class='image-display'>
-  <img src="assets/images/devguide/forms/name-required-error.png" width="400px" alt="Name required"></img>
+  <img src="content/images/guide/forms/name-required-error.png" width="400px" alt="Name required"></img>
 </figure>
 
 
@@ -733,7 +733,7 @@ Here you created a variable called `name` and gave it the value "ngModel".
 
 
 Why "ngModel"?
-A directive's [exportAs](api/core/index/Directive-decorator) property
+A directive's [exportAs](api/core/Directive) property
 tells Angular how to link the reference variable to the directive.
 You set `name` to `ngModel` because the `ngModel` directive's `exportAs` property happens to be "ngModel".
 
@@ -762,7 +762,7 @@ you'll see the error message immediately, before you've done anything.
 
 Some developers want the message to display only when the user makes an invalid change.
 Hiding the message while the control is "pristine" achieves that goal.
-You'll see the significance of this choice when you [add a new hero](guide/forms#new-hero) to the form.
+You'll see the significance of this choice when you add a new hero to the form.
 
 The hero *Alter Ego* is optional so you can leave that be.
 
@@ -833,8 +833,8 @@ to the hero form component's `onSubmit()` method:
 
 
 
-You'd already defined a template reference variable, 
-`#heroForm`, and initialized it with the value "ngForm". 
+You'd already defined a template reference variable,
+`#heroForm`, and initialized it with the value "ngForm".
 Now, use that variable to access the form with the Submit button.
 
 
@@ -849,7 +849,7 @@ using an event binding. Here's the code:
 
 
 
-If you run the application now, you find that the button is enabled&mdash;although 
+If you run the application now, you find that the button is enabled&mdash;although
 it doesn't do anything useful yet.
 
 Now if you delete the Name, you violate the "required" rule, which

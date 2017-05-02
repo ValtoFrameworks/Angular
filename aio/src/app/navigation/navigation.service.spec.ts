@@ -9,6 +9,8 @@ import { Logger } from 'app/shared/logger.service';
 describe('NavigationService', () => {
 
   let injector: ReflectiveInjector;
+  let backend: MockBackend;
+  let navService: NavigationService;
 
   function createResponse(body: any) {
     return new Response(new ResponseOptions({ body: JSON.stringify(body) }));
@@ -25,19 +27,16 @@ describe('NavigationService', () => {
     ]);
   });
 
+  beforeEach(() => {
+    backend = injector.get(ConnectionBackend);
+    navService = injector.get(NavigationService);
+  });
+
   it('should be creatable', () => {
-    const navService: NavigationService = injector.get(NavigationService);
     expect(navService).toBeTruthy();
   });
 
   describe('navigationViews', () => {
-    let backend: MockBackend;
-    let navService: NavigationService;
-
-    beforeEach(() => {
-      backend = injector.get(ConnectionBackend);
-      navService = injector.get(NavigationService);
-    });
 
     it('should make a single connection to the server', () => {
       expect(backend.connectionsArray.length).toEqual(1);
@@ -78,25 +77,57 @@ describe('NavigationService', () => {
       expect(views3).toBe(views1);
     });
 
-
     it('should do WHAT(?) if the request fails');
+  });
+
+  describe('node.tooltip', () => {
+    let view: NavigationNode[];
+
+    const sideNav: NavigationNode[] = [
+      { title: 'a', tooltip: 'a tip' },
+      { title: 'b' },
+      { title: 'c!'},
+      { url: 'foo' }
+    ];
+
+    beforeEach(() => {
+      navService.navigationViews.subscribe(views => view = views.sideNav);
+      backend.connectionsArray[0].mockRespond(createResponse({sideNav}));
+    });
+
+    it('should have the supplied tooltip', () => {
+      expect(view[0].tooltip).toEqual('a tip');
+    });
+
+    it('should create a tooltip from title + period', () => {
+      expect(view[1].tooltip).toEqual('b.');
+    });
+
+    it('should create a tooltip from title, keeping its trailing punctuation', () => {
+      expect(view[2].tooltip).toEqual('c!');
+    });
+
+    it('should not create a tooltip if there is no title', () => {
+      expect(view[3].tooltip).toBeUndefined();
+    });
   });
 
   describe('currentNode', () => {
     let currentNode: CurrentNode;
     let locationService: MockLocationService;
-    let navService: NavigationService;
 
-    const topBarNodes: NavigationNode[] = [{ url: 'features', title: 'Features' }];
+    const topBarNodes: NavigationNode[] = [
+      { url: 'features', title: 'Features', tooltip: 'tip' }
+    ];
     const sideNavNodes: NavigationNode[] = [
-        { title: 'a', children: [
-          { url: 'b', title: 'b', children: [
-            { url: 'c', title: 'c' },
-            { url: 'd', title: 'd' }
+        { title: 'a', tooltip: 'tip', children: [
+          { url: 'b', title: 'b', tooltip: 'tip', children: [
+            { url: 'c', title: 'c', tooltip: 'tip' },
+            { url: 'd', title: 'd', tooltip: 'tip' }
           ] },
-          { url: 'e', title: 'e' }
+          { url: 'e', title: 'e', tooltip: 'tip' }
         ] },
-        { url: 'f', title: 'f' }
+        { url: 'f', title: 'f', tooltip: 'tip' }
       ];
 
     const navJson = {
@@ -105,14 +136,9 @@ describe('NavigationService', () => {
       __versionInfo: {}
     };
 
-
     beforeEach(() => {
       locationService = injector.get(LocationService);
-
-      navService = injector.get(NavigationService);
       navService.currentNode.subscribe(selected => currentNode = selected);
-
-      const backend = injector.get(ConnectionBackend);
       backend.connectionsArray[0].mockRespond(createResponse(navJson));
     });
 
@@ -178,9 +204,6 @@ describe('NavigationService', () => {
       locationService.go('c');
       expect(currentNode).toEqual(cnode, 'location: c');
 
-      locationService.go('c/');
-      expect(currentNode).toEqual(cnode, 'location: c/');
-
       locationService.go('c#foo');
       expect(currentNode).toEqual(cnode, 'location: c#foo');
 
@@ -193,13 +216,10 @@ describe('NavigationService', () => {
   });
 
   describe('versionInfo', () => {
-    let navService: NavigationService, versionInfo: VersionInfo;
+    let versionInfo: VersionInfo;
 
     beforeEach(() => {
-      navService = injector.get(NavigationService);
       navService.versionInfo.subscribe(info => versionInfo = info);
-
-      const backend = injector.get(ConnectionBackend);
       backend.connectionsArray[0].mockRespond(createResponse({
         __versionInfo: { raw: '4.0.0' }
       }));
@@ -207,6 +227,31 @@ describe('NavigationService', () => {
 
     it('should extract the version info', () => {
       expect(versionInfo).toEqual({ raw: '4.0.0' });
+    });
+  });
+
+  describe('docVersions', () => {
+    let actualDocVersions: NavigationNode[];
+    let docVersions: NavigationNode[];
+    let expectedDocVersions: NavigationNode[];
+
+    beforeEach(() => {
+      actualDocVersions = [];
+      docVersions = [
+        { title: 'v4.0.0' },
+        { title: 'v2', url: 'https://v2.angular.io' }
+      ];
+
+      expectedDocVersions = docVersions.map(v => (
+        {...v, ...{ tooltip: v.title + '.'}})
+      );
+
+      navService.navigationViews.subscribe(views => actualDocVersions = views.docVersions);
+    });
+
+    it('should extract the docVersions', () => {
+      backend.connectionsArray[0].mockRespond(createResponse({ docVersions }));
+      expect(actualDocVersions).toEqual(expectedDocVersions);
     });
   });
 });

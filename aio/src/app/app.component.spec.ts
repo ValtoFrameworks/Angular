@@ -1,3 +1,4 @@
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { async, inject, ComponentFixture, TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { APP_BASE_HREF } from '@angular/common';
@@ -9,18 +10,20 @@ import { of } from 'rxjs/observable/of';
 
 import { AppComponent } from './app.component';
 import { AppModule } from './app.module';
-import { GaService } from 'app/shared/ga.service';
-import { SearchResultsComponent } from 'app/search/search-results/search-results.component';
-import { SearchBoxComponent } from 'app/search/search-box/search-box.component';
-import { SearchService } from 'app/search/search.service';
-import { MockSearchService } from 'testing/search.service';
 import { AutoScrollService } from 'app/shared/auto-scroll.service';
+import { DocViewerComponent } from 'app/layout/doc-viewer/doc-viewer.component';
+import { GaService } from 'app/shared/ga.service';
 import { LocationService } from 'app/shared/location.service';
-import { MockLocationService } from 'testing/location.service';
 import { Logger } from 'app/shared/logger.service';
+import { MockLocationService } from 'testing/location.service';
 import { MockLogger } from 'testing/logger.service';
-import { SwUpdateNotificationsService } from 'app/sw-updates/sw-update-notifications.service';
+import { MockSearchService } from 'testing/search.service';
 import { MockSwUpdateNotificationsService } from 'testing/sw-update-notifications.service';
+import { NavigationNode } from 'app/navigation/navigation.service';
+import { SearchBoxComponent } from 'app/search/search-box/search-box.component';
+import { SearchResultsComponent } from 'app/search/search-results/search-results.component';
+import { SearchService } from 'app/search/search.service';
+import { SwUpdateNotificationsService } from 'app/sw-updates/sw-update-notifications.service';
 
 describe('AppComponent', () => {
   let component: AppComponent;
@@ -31,21 +34,8 @@ describe('AppComponent', () => {
   let locationService: MockLocationService;
   let sidenav: HTMLElement;
 
-  const initialUrl = 'a/b';
-
   beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      imports: [ AppModule ],
-      providers: [
-        { provide: APP_BASE_HREF, useValue: '/' },
-        { provide: GaService, useClass: TestGaService },
-        { provide: Http, useClass: TestHttp },
-        { provide: LocationService, useFactory: () => new MockLocationService(initialUrl) },
-        { provide: Logger, useClass: MockLogger },
-        { provide: SearchService, useClass: MockSearchService },
-        { provide: SwUpdateNotificationsService, useClass: MockSwUpdateNotificationsService },
-      ]
-    });
+    createTestingModule('a/b');
     TestBed.compileComponents();
   }));
 
@@ -205,9 +195,34 @@ describe('AppComponent', () => {
     });
   });
 
+  describe('SideNav version selector', () => {
+    beforeEach(() => {
+      component.onResize(1033); // side-by-side
+    });
+
+    it('should pick first (current) version by default', () => {
+      const versionSelector = sidenav.querySelector('select');
+      expect(versionSelector.value).toEqual(TestHttp.docVersions[0].title);
+      expect(versionSelector.selectedIndex).toEqual(0);
+    });
+
+    // Older docs versions have an href
+    it('should navigate when change to a version with an href', () => {
+      component.onDocVersionChange(1);
+      expect(locationService.go).toHaveBeenCalledWith(TestHttp.docVersions[1].url);
+    });
+
+    // The current docs version should not have an href
+    // This may change when we perfect our docs versioning approach
+    it('should not navigate when change to a version without an href', () => {
+      component.onDocVersionChange(0);
+      expect(locationService.go).not.toHaveBeenCalled();
+    });
+  });
+
   describe('pageId', () => {
 
-    it('should set the id of the doc viewer container based on the current url', () => {
+    it('should set the id of the doc viewer container based on the current doc', () => {
       const container = fixture.debugElement.query(By.css('section.sidenav-content'));
 
       locationService.go('guide/pipes');
@@ -226,7 +241,7 @@ describe('AppComponent', () => {
       expect(container.properties['id']).toEqual('home');
     });
 
-    it('should not be affected by changes to the query or hash', () => {
+    it('should not be affected by changes to the query', () => {
       const container = fixture.debugElement.query(By.css('section.sidenav-content'));
 
       locationService.go('guide/pipes');
@@ -236,11 +251,6 @@ describe('AppComponent', () => {
       fixture.detectChanges();
       expect(component.pageId).toEqual('guide-other');
       expect(container.properties['id']).toEqual('guide-other');
-
-      locationService.go('guide/http#anchor-1');
-      fixture.detectChanges();
-      expect(component.pageId).toEqual('guide-http');
-      expect(container.properties['id']).toEqual('guide-http');
     });
   });
 
@@ -261,7 +271,23 @@ describe('AppComponent', () => {
     it('should display a marketing page', () => {
       locationService.go('features');
       fixture.detectChanges();
-      expect(docViewer.innerText).toMatch(/Test Doc/i);
+      expect(docViewer.innerText).toMatch(/Features/i);
+    });
+
+    const marketingClassName = 'marketing';
+
+    it('should not have marketing CSS class on host element for a guide page (guide/pipes)', () => {
+      locationService.go('guide/pipes');
+      fixture.detectChanges();
+      const classes: string[] = fixture.nativeElement.className;
+      expect(classes).not.toContain(marketingClassName);
+    });
+
+    it('should have marketing CSS class on host element for a marketing page', () => {
+      locationService.go('features');
+      fixture.detectChanges();
+      const classes: string[] = fixture.nativeElement.className;
+      expect(classes).toContain(marketingClassName);
     });
 
     it('should update the document title', () => {
@@ -275,34 +301,89 @@ describe('AppComponent', () => {
     it('should update the document title, with a default value if the document has no title', () => {
       const titleService = TestBed.get(Title);
       spyOn(titleService, 'setTitle');
-      locationService.go('file-not-found');
+      locationService.go('no-title');
       fixture.detectChanges();
       expect(titleService.setTitle).toHaveBeenCalledWith('Angular');
     });
   });
 
-  describe('autoScrolling', () => {
-    it('should AutoScrollService.scroll when the url changes', () => {
-      const scrollService: AutoScrollService = fixture.debugElement.injector.get(AutoScrollService);
-      spyOn(scrollService, 'scroll');
-      locationService.go('some/url#fragment');
-      expect(scrollService.scroll).toHaveBeenCalledWith();
+  describe('autoScrolling with AutoScrollService', () => {
+    let scrollService: AutoScrollService;
+    let scrollSpy: jasmine.Spy;
+
+    beforeEach(() => {
+      scrollService = fixture.debugElement.injector.get(AutoScrollService);
+      scrollSpy = spyOn(scrollService, 'scroll');
     });
 
-    it('should be called when a document has been rendered', () => {
-      const scrollService: AutoScrollService = fixture.debugElement.injector.get(AutoScrollService);
-      spyOn(scrollService, 'scroll');
+    it('should not scroll immediately when the docId (path) changes', () => {
+      locationService.go('guide/pipes');
+      // deliberately not calling `fixture.detectChanges` because don't want `onDocRendered`
+      expect(scrollSpy).not.toHaveBeenCalled();
+    });
+
+    it('should scroll when just the hash changes (# alone)', () => {
+      locationService.go('guide/pipes');
+      locationService.go('guide/pipes#somewhere');
+      expect(scrollSpy).toHaveBeenCalled();
+    });
+
+    it('should scroll when just the hash changes (/#)', () => {
+      locationService.go('guide/pipes');
+      locationService.go('guide/pipes/#somewhere');
+      expect(scrollSpy).toHaveBeenCalled();
+    });
+
+    it('should scroll again when nav to the same hash twice in succession', () => {
+      locationService.go('guide/pipes');
+      locationService.go('guide/pipes#somewhere');
+      locationService.go('guide/pipes#somewhere');
+      expect(scrollSpy.calls.count()).toBe(2);
+    });
+
+    it('should scroll when call onDocRendered directly', () => {
       component.onDocRendered();
-      expect(scrollService.scroll).toHaveBeenCalledWith();
+      expect(scrollSpy).toHaveBeenCalled();
+    });
+
+    it('should scroll (via onDocRendered) when finish navigating to a new doc', () => {
+      locationService.go('guide/pipes');
+      fixture.detectChanges(); // triggers the event that calls onDocRendered
+      expect(scrollSpy).toHaveBeenCalled();
     });
   });
 
-  describe('initialization', () => {
+  describe('search worker', () => {
     it('should initialize the search worker', inject([SearchService], (searchService: SearchService) => {
       fixture.detectChanges(); // triggers ngOnInit
       expect(searchService.initWorker).toHaveBeenCalled();
       expect(searchService.loadIndex).toHaveBeenCalled();
     }));
+  });
+
+  describe('initial rendering', () => {
+    beforeEach(async(() => {
+      createTestingModule('a/b');
+      // Remove the DocViewer for this test and hide the missing component message
+      TestBed.overrideModule(AppModule, {
+        remove: { declarations: [DocViewerComponent] },
+        add: { schemas: [NO_ERRORS_SCHEMA] }
+      });
+      TestBed.compileComponents();
+    }));
+
+    it('should initially add the starting class until the first document is rendered', () => {
+      fixture = TestBed.createComponent(AppComponent);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.isStarting).toBe(true);
+      expect(fixture.debugElement.query(By.css('md-sidenav-container')).classes['starting']).toBe(true);
+
+      fixture.debugElement.query(By.css('aio-doc-viewer')).triggerEventHandler('docRendered', {});
+      fixture.detectChanges();
+      expect(fixture.componentInstance.isStarting).toBe(false);
+      expect(fixture.debugElement.query(By.css('md-sidenav-container')).classes['starting']).toBe(false);
+    });
   });
 
   describe('click intercepting', () => {
@@ -370,6 +451,22 @@ describe('AppComponent', () => {
 
 //// test helpers ////
 
+function createTestingModule(initialUrl: string) {
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    imports: [ AppModule ],
+    providers: [
+      { provide: APP_BASE_HREF, useValue: '/' },
+      { provide: GaService, useClass: TestGaService },
+      { provide: Http, useClass: TestHttp },
+      { provide: LocationService, useFactory: () => new MockLocationService(initialUrl) },
+      { provide: Logger, useClass: MockLogger },
+      { provide: SearchService, useClass: MockSearchService },
+      { provide: SwUpdateNotificationsService, useClass: MockSwUpdateNotificationsService },
+    ]
+  });
+}
+
 class TestGaService {
   locationChanged = jasmine.createSpy('locationChanged');
 }
@@ -382,13 +479,22 @@ class TestSearchService {
 class TestHttp {
   static versionFull = '4.0.0-local+sha.73808dd';
 
+  static docVersions: NavigationNode[] = [
+    { title: 'v4.0.0' },
+    { title: 'v2', url: 'https://v2.angular.io' }
+  ];
+
   // tslint:disable:quotemark
   navJson = {
     "TopBar": [
       {
         "url": "features",
         "title": "Features"
-      }
+      },
+      {
+        "url": "no-title",
+        "title": "No Title"
+      },
     ],
     "SideNav": [
       {
@@ -404,7 +510,7 @@ class TestHttp {
             "url": "guide/bags",
             "title": "Bags",
             "tooltip": "Pack your bags for a code adventure."
-          },
+          }
         ]
       },
       {
@@ -413,6 +519,8 @@ class TestHttp {
         "tooltip": "Details of the Angular classes and values."
       }
     ],
+    "docVersions": TestHttp.docVersions,
+
     "__versionInfo": {
       "raw": "4.0.0-rc.6",
       "major": 4,
@@ -431,35 +539,19 @@ class TestHttp {
     }
   };
 
-  apiDoc = {
-    "title": "API",
-    "contents": "<h1>API Doc</h1>"
-  };
-
-  pipesDoc = {
-    "title": "Pipes",
-    "contents": "<h1>Pipes Doc</h1>"
-  };
-
-  testDoc = {
-    "title": "Test",
-    "contents": "<h1>Test Doc</h1>"
-  };
-
-  fileNotFoundDoc = {
-    "title": "",
-    "contents": "Page not found"
-  };
-
-  // get = jasmine.createSpy('get').and.callFake((url: string) => { ... });
   get(url: string) {
-    const json =
-      /navigation.json/.test(url) ? this.navJson :
-      /api/.test(url) ? this.apiDoc :
-      /pipes/.test(url) ? this.pipesDoc :
-      /file-not-found/.test(url) ? this.fileNotFoundDoc :
-      this.testDoc;
-    return of({ json: () => json });
+    let data;
+    if (/navigation\.json/.test(url)) {
+      data = this.navJson;
+    } else {
+      const match = /content\/docs\/(.+)\.json/.exec(url);
+      const id = match[1];
+      // Make up a title for test purposes
+      const title = id.split('/').pop().replace(/^([a-z])/, (_, letter) => letter.toUpperCase());
+      const h1 = (id === 'no-title') ? '' : `<h1>${title}</h1>`;
+      const contents = `${h1}<h2 id="#somewhere">Some heading</h2>`;
+      data = { id, contents };
+    }
+    return of({ json: () => data });
   }
-
 }

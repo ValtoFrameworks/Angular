@@ -1,13 +1,11 @@
 {% if doc.inputs %}
-<section class="inputs">
+<div class="inputs api-section">
   <h2>Inputs</h2>
-  <div class="description">
-    {% for binding, property in doc.inputs %}
-    <div class="input">
-      <code>{$ property.bindingName $}</code>&nbsp;bound to&nbsp;<code>{$ property.memberDoc.classDoc.name $}.{$ property.propertyName $}</code>
-      {$ property.memberDoc.description | trimBlankLines | marked $}
-    </div>
-    {% endfor %}
+  {% for binding, property in doc.inputs %}
+  <div class="input">
+    <code>{$ property.bindingName $}</code>&nbsp;bound to&nbsp;<code>{$ property.memberDoc.classDoc.name $}.{$ property.propertyName $}</code>
+    {$ property.memberDoc.description | trimBlankLines | marked $}
   </div>
-</section>
+  {% endfor %}
+</div>
 {% endif %}

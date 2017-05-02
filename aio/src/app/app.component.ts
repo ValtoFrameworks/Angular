@@ -1,7 +1,6 @@
-import { Component, ElementRef, HostListener, OnInit,
+import { Component, ElementRef, HostBinding, HostListener, OnInit,
          QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { MdSidenav } from '@angular/material';
-import { Title } from '@angular/platform-browser';
 
 import { AutoScrollService } from 'app/shared/auto-scroll.service';
 import { CurrentNode, NavigationService, NavigationViews, NavigationNode, VersionInfo } from 'app/navigation/navigation.service';
@@ -21,10 +20,16 @@ const sideNavView = 'SideNav';
 export class AppComponent implements OnInit {
 
   currentNode: CurrentNode;
+  currentPath: string;
   dtOn = false;
   pageId: string;
   currentDocument: DocumentContents;
   footerNodes: NavigationNode[];
+
+  @HostBinding('class.marketing')
+  isMarketing = false;
+
+  isStarting = true;
   isSideBySide = false;
   private isSideNavDoc = false;
   private previousNavView: string;
@@ -32,6 +37,9 @@ export class AppComponent implements OnInit {
   private sideBySideWidth = 1032;
   sideNavNodes: NavigationNode[];
   topMenuNodes: NavigationNode[];
+
+  currentDocVersion: NavigationNode;
+  docVersions: NavigationNode[];
   versionInfo: VersionInfo;
 
   get homeImageUrl() {
@@ -60,8 +68,7 @@ export class AppComponent implements OnInit {
     private documentService: DocumentService,
     private locationService: LocationService,
     private navigationService: NavigationService,
-    private swUpdateNotifications: SwUpdateNotificationsService,
-    private titleService: Title
+    private swUpdateNotifications: SwUpdateNotificationsService
   ) { }
 
   ngOnInit() {
@@ -71,17 +78,18 @@ export class AppComponent implements OnInit {
 
     this.documentService.currentDocument.subscribe(doc => {
       this.currentDocument = doc;
-      this.setDocumentTitle(doc.title);
-      this.pageId = this.currentDocument.url.replace('/', '-');
-
-      // Special case the home page
-      if (this.pageId === 'index') {
-        this.pageId = 'home';
-      }
+      this.setPageId(doc.id);
     });
 
-    // scroll even if only the hash fragment changed
-    this.locationService.currentUrl.subscribe(url => this.autoScroll());
+    this.locationService.currentPath.subscribe(path => {
+        if (this.currentPath && path === this.currentPath) {
+          // scroll only if on same page (most likely a change to the hash)
+          this.autoScroll();
+        } else {
+          // don't scroll; leave that to `onDocRendered`
+          this.currentPath = path;
+        }
+      });
 
     this.navigationService.currentNode.subscribe(currentNode => {
       this.currentNode = currentNode;
@@ -90,13 +98,17 @@ export class AppComponent implements OnInit {
       if (this.previousNavView === currentNode.view) { return; }
       this.previousNavView = currentNode.view;
       this.isSideNavDoc = currentNode.view === sideNavView;
+      this.isMarketing = !this.isSideNavDoc;
       this.sideNavToggle(this.isSideNavDoc && this.isSideBySide);
     });
 
     this.navigationService.navigationViews.subscribe(views => {
+      this.docVersions  = views['docVersions']  || [];
       this.footerNodes  = views['Footer']  || [];
       this.sideNavNodes = views['SideNav'] || [];
       this.topMenuNodes = views['TopBar']  || [];
+
+      this.currentDocVersion = this.docVersions[0];
     });
 
     this.navigationService.versionInfo.subscribe( vi => this.versionInfo = vi );
@@ -104,15 +116,22 @@ export class AppComponent implements OnInit {
     this.swUpdateNotifications.enable();
   }
 
-  // Scroll to the anchor in the hash fragment.
+  // Scroll to the anchor in the hash fragment or top of doc.
   autoScroll() {
     this.autoScrollService.scroll();
   }
 
   onDocRendered() {
-    // This handler is needed because the subscription to the `currentUrl` in `ngOnInit`
-    // gets triggered too early before the doc-viewer has finished rendering the doc
+    // Scroll after the doc-viewer has finished rendering the new doc
     this.autoScroll();
+    this.isStarting = false;
+  }
+
+  onDocVersionChange(versionIndex: number) {
+    const version = this.docVersions[versionIndex];
+    if (version.url) {
+      this.locationService.go(version.url);
+    }
   }
 
   @HostListener('window:resize', ['$event.target.innerWidth'])
@@ -151,11 +170,8 @@ export class AppComponent implements OnInit {
     this.sidenav.toggle(value);
   }
 
-  setDocumentTitle(title) {
-    if (title.trim()) {
-      this.titleService.setTitle(`Angular - ${title}`);
-    } else {
-      this.titleService.setTitle('Angular');
-    }
+  setPageId(id: string) {
+    // Special case the home page
+    this.pageId = (id === 'index') ? 'home' : id.replace('/', '-');
   }
 }

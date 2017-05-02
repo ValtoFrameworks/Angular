@@ -1,9 +1,7 @@
 {%- if doc.howToUse %}
   <!-- QUICK REFERENCE CODE EXAMPLE -->
-  <section class="how-to-use">
+  <div class="how-to-use api-section">
     <h2>How To Use</h2>
-    <div class="description">
-      {$ doc.howToUse | marked $}
-    </div>
-  </section>
+    {$ doc.howToUse | marked $}
+  </div>
 {% endif %}

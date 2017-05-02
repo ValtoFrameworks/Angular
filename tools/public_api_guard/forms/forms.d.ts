@@ -179,18 +179,18 @@ export declare class FormArray extends AbstractControl {
     at(index: number): AbstractControl;
     getRawValue(): any[];
     insert(index: number, control: AbstractControl): void;
-    patchValue(value: any[], {onlySelf, emitEvent}?: {
+    patchValue(value: any[], options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
     }): void;
     push(control: AbstractControl): void;
     removeAt(index: number): void;
-    reset(value?: any, {onlySelf, emitEvent}?: {
+    reset(value?: any, options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
     }): void;
     setControl(index: number, control: AbstractControl): void;
-    setValue(value: any[], {onlySelf, emitEvent}?: {
+    setValue(value: any[], options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
     }): void;
@@ -231,11 +231,11 @@ export declare class FormControl extends AbstractControl {
     }): void;
     registerOnChange(fn: Function): void;
     registerOnDisabledChange(fn: (isDisabled: boolean) => void): void;
-    reset(formState?: any, {onlySelf, emitEvent}?: {
+    reset(formState?: any, options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
     }): void;
-    setValue(value: any, {onlySelf, emitEvent, emitModelToViewChange, emitViewToModelChange}?: {
+    setValue(value: any, options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
         emitModelToViewChange?: boolean;
@@ -289,20 +289,20 @@ export declare class FormGroup extends AbstractControl {
     getRawValue(): any;
     patchValue(value: {
         [key: string]: any;
-    }, {onlySelf, emitEvent}?: {
+    }, options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
     }): void;
     registerControl(name: string, control: AbstractControl): AbstractControl;
     removeControl(name: string): void;
-    reset(value?: any, {onlySelf, emitEvent}?: {
+    reset(value?: any, options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
     }): void;
     setControl(name: string, control: AbstractControl): void;
     setValue(value: {
         [key: string]: any;
-    }, {onlySelf, emitEvent}?: {
+    }, options?: {
         onlySelf?: boolean;
         emitEvent?: boolean;
     }): void;
@@ -352,9 +352,25 @@ export declare class MaxLengthValidator implements Validator, OnChanges {
     validate(c: AbstractControl): ValidationErrors | null;
 }
 
+/** @experimental */
+export declare class MaxValidator implements Validator, OnChanges {
+    max: string;
+    ngOnChanges(changes: SimpleChanges): void;
+    registerOnValidatorChange(fn: () => void): void;
+    validate(c: AbstractControl): ValidationErrors | null;
+}
+
 /** @stable */
 export declare class MinLengthValidator implements Validator, OnChanges {
     minlength: string;
+    ngOnChanges(changes: SimpleChanges): void;
+    registerOnValidatorChange(fn: () => void): void;
+    validate(c: AbstractControl): ValidationErrors | null;
+}
+
+/** @experimental */
+export declare class MinValidator implements Validator, OnChanges {
+    min: string;
     ngOnChanges(changes: SimpleChanges): void;
     registerOnValidatorChange(fn: () => void): void;
     validate(c: AbstractControl): ValidationErrors | null;
@@ -532,11 +548,13 @@ export interface ValidatorFn {
 
 /** @stable */
 export declare class Validators {
-    static compose(validators: null): null;
     static compose(validators: (ValidatorFn | null | undefined)[]): ValidatorFn | null;
+    static compose(validators: null): null;
     static composeAsync(validators: (AsyncValidatorFn | null)[]): AsyncValidatorFn | null;
     static email(control: AbstractControl): ValidationErrors | null;
+    static max(max: number): ValidatorFn;
     static maxLength(maxLength: number): ValidatorFn;
+    static min(min: number): ValidatorFn;
     static minLength(minLength: number): ValidatorFn;
     static nullValidator(c: AbstractControl): ValidationErrors | null;
     static pattern(pattern: string | RegExp): ValidatorFn;
