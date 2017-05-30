@@ -18,6 +18,26 @@
     }
   ],
 
+  "TopBarNarrow": [
+    {
+      "title": "About Angular",
+      "children": [
+        {
+          "url": "features",
+          "title": "Features"
+        },
+        {
+          "url": "resources",
+          "title": "Resources"
+        },
+        {
+          "url": "events",
+          "title": "Events"
+        }
+      ]
+    }
+  ],
+
   "SideNav": [
     {
       "url": "docs",
@@ -87,7 +107,6 @@
 
     {
       "title": "Fundamentals",
-      "url": "guide/fundamentals",
       "tooltip": "The fundamentals of Angular",
       "children": [
 
@@ -144,7 +163,7 @@
               "tooltip": "Angular calls lifecycle hook methods on directives and components as it creates, changes, and destroys them."
             },
             {
-              "url": "guide/component-communication",
+              "url": "guide/component-interaction",
               "title": "Component Interaction",
               "tooltip": "Share information between different directives and components."
             },
@@ -157,6 +176,11 @@
               "url": "guide/dynamic-component-loader",
               "title": "Dynamic Components",
               "tooltip": "Load components dynamically."
+            },
+            {
+              "url": "guide/pipes",
+              "title": "Pipes",
+              "tooltip": "Pipes transform displayed values within a template."
             }
           ]
         },
@@ -213,12 +237,6 @@
         },
 
         {
-          "url": "guide/pipes",
-          "title": "Pipes",
-          "tooltip": "Pipes transform displayed values within a template."
-        },
-
-        {
           "url": "guide/router",
           "title": "Routing & Navigation",
           "tooltip": "Discover the basics of screen navigation with the Angular Router."
@@ -260,7 +278,6 @@
 
     {
       "title": "Techniques",
-      "url": "guide/techniques",
       "tooltip": "Techniques for putting Angular to work in your environment",
       "children": [
 
@@ -487,7 +504,6 @@
   ],
 
   "docVersions": [
-    { "title": "v4.0.0", "url": null },
-    { "title": "v2",     "url": "https://v2.angular.io" }
+    { "title": "v2", "url": "https://v2.angular.io" }
   ]
 }

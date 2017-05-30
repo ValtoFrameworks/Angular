@@ -65,6 +65,13 @@ describe('CodeExampleComponent', () => {
     const actual = codeExampleDe.query(By.css('header')).nativeElement.innerText;
     expect(actual).toBe('Great Example');
   });
+
+  it('should pass hideCopy to CodeComonent', () => {
+    TestBed.overrideComponent(HostComponent, {
+      set: {template: '<code-example hideCopy="true"></code-example>'}});
+    createComponent(oneLineCode);
+    expect(codeComponent.hideCopy).toBe(true);
+  });
 });
 
 //// Test helpers ////
@@ -80,9 +87,10 @@ describe('CodeExampleComponent', () => {
 class TestCodeComponent {
   @Input() code = '';
   @Input() language: string;
-  @Input() linenums: boolean | number;
+  @Input() linenums: string;
   @Input() path: string;
   @Input() region: string;
+  @Input() hideCopy: boolean;
 
   get someCode() {
     return this.code && this.code.length > 30 ? this.code.substr(0, 30) + '...' : this.code;

@@ -18,8 +18,8 @@ There are new requirements for the Tour of Heroes app:
 When you’re done, users will be able to navigate the app like this:
 
 
-<figure class='image-display'>
-  <img src='content/images/guide/toh/nav-diagram.png' alt="View navigations"></img>
+<figure>
+  <img src='generated/images/guide/toh/nav-diagram.png' alt="View navigations">
 </figure>
 
 
@@ -966,8 +966,8 @@ Add the following HTML fragment at the bottom of the template where the `<hero-d
 After clicking a hero, users should see something like this below the hero list:
 
 
-<figure class='image-display'>
-  <img src='content/images/guide/toh/mini-hero-detail.png' alt="Mini Hero Detail" height="70"></img>
+<figure>
+  <img src='generated/images/guide/toh/mini-hero-detail.png' alt="Mini Hero Detail">
 </figure>
 
 
@@ -1220,8 +1220,8 @@ Also edit <code>index.html</code> to refer to this stylesheet.
 Look at the app now. The dashboard, heroes, and navigation links are styled.
 
 
-<figure class='image-display'>
-  <img src='content/images/guide/toh/heroes-dashboard-1.png' alt="View navigations"></img>
+<figure>
+  <img src='generated/images/guide/toh/heroes-dashboard-1.png' alt="View navigations">
 </figure>
 
 
@@ -1373,5 +1373,5 @@ Your app should look like this <live-example></live-example>.
 You have much of the foundation you need to build an app.
 You're still missing a key piece: remote data access.
 
-In the next page,
+In the [next tutorial page](tutorial/toh-pt6 "Http")
 you’ll replace the mock data with data retrieved from a server using http.

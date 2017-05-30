@@ -1,11 +1,7 @@
-@title
-Cheat Sheet
+# Cheat Sheet
 
-@description
-
-<div class="l-content-small grid-fluid docs-content cheatsheet">
-
-<table>
+<div id="cheatsheet">
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Bootstrapping</th>
 <th><p><code>import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';</code>
@@ -19,7 +15,7 @@ Cheat Sheet
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>NgModules</th>
 <th><p><code>import { NgModule } from '@angular/core';</code>
@@ -54,7 +50,7 @@ is available to <code>declarations</code> of this module.</p>
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Template syntax</th>
 <th></th>
@@ -120,7 +116,7 @@ is available to <code>declarations</code> of this module.</p>
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Built-in directives</th>
 <th><p><code>import { CommonModule } from '@angular/common';</code>
@@ -146,7 +142,7 @@ is available to <code>declarations</code> of this module.</p>
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Forms</th>
 <th><p><code>import { FormsModule } from '@angular/forms';</code>
@@ -160,7 +156,7 @@ is available to <code>declarations</code> of this module.</p>
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Class decorators</th>
 <th><p><code>import { Directive, ... } from '@angular/core';</code>
@@ -187,7 +183,7 @@ is available to <code>declarations</code> of this module.</p>
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Directive configuration</th>
 <th><p><code>@Directive({ property1: value1, ... })</code>
@@ -207,7 +203,7 @@ is available to <code>declarations</code> of this module.</p>
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Component configuration</th>
 <th><p>
@@ -234,7 +230,7 @@ so the <code>@Directive</code> configuration applies to components as well</p>
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Class field decorators for directives and components</th>
 <th><p><code>import { Input, ... } from '@angular/core';</code>
@@ -277,7 +273,7 @@ so the <code>@Directive</code> configuration applies to components as well</p>
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Directive and component change detection and lifecycle hooks</th>
 <th><p>(implemented as class methods)
@@ -323,7 +319,7 @@ so the <code>@Directive</code> configuration applies to components as well</p>
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Dependency injection configuration</th>
 <th></th>
@@ -343,7 +339,7 @@ so the <code>@Directive</code> configuration applies to components as well</p>
 </tr>
 </tbody></table>
 
-<table>
+<table class="is-full-width is-fixed-layout">
 <tbody><tr>
 <th>Routing and navigation</th>
 <th><p><code>import { Routes, RouterModule, ... } from '@angular/router';</code>
@@ -388,5 +384,4 @@ so the <code>@Directive</code> configuration applies to components as well</p>
 </td>
 </tr>
 </tbody></table>
-
 </div>

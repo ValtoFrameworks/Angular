@@ -393,8 +393,8 @@ For example, when the user clicks "Magneta", it should render with a distinctive
 like this:
 
 
-<figure class='image-display'>
-  <img src='content/images/guide/toh/heroes-list-selected.png' alt="Selected hero"></img>
+<figure>
+  <img src='generated/images/guide/toh/heroes-list-selected.png' alt="Selected hero">
 </figure>
 
 
@@ -434,8 +434,8 @@ The final version of the `<li>` looks like this:
 After clicking "Magneta", the list should look like this:
 
 
-<figure class='image-display'>
-  <img src='content/images/guide/toh/heroes-list-1.png' alt="Output of heroes list app"></img>
+<figure>
+  <img src='generated/images/guide/toh/heroes-list-1.png' alt="Output of heroes list app">
 </figure>
 
 
@@ -463,4 +463,4 @@ Your app should look like this <live-example></live-example>.
 ## The road ahead
 You've expanded the Tour of Heroes app, but it's far from complete.
 An app shouldn't be one monolithic component.
-In the [next page](tutorial/toh-pt3), you'll split the app into subcomponents and make them work together.
+In the [next page](tutorial/toh-pt3 "Multiple Components"), you'll split the app into subcomponents and make them work together.

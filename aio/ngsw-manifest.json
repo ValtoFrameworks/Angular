@@ -12,14 +12,16 @@
   "static.ignore": [
     "\\.js\\.map$",
     "^/assets/images/.*/unused/",
-    "^/content/(?:docs/(?!api/api-list\\.json).*|images|live-examples|zips)/"
+    "^/generated/(?:docs/(?!api/api-list\\.json).*|images|live-examples|zips)/"
+  ],
+  "static.versioned": [
+    "\\.[0-9a-z]{20}\\."
   ],
   "routing": {
     "index": "/index.html",
     "routes": {
-      "/": {
-        "prefix": true,
-        "onlyWithoutExtension": true
+      "/(?!e?plnkr)[^/.]*$": {
+        "match": "regex"
       }
     }
   }

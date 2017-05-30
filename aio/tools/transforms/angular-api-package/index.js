@@ -9,7 +9,7 @@ const Package = require('dgeni').Package;
 
 const basePackage = require('../angular-base-package');
 const typeScriptPackage = require('dgeni-packages/typescript');
-const { API_SOURCE_PATH, requireFolder } = require('../config');
+const { API_SOURCE_PATH, API_TEMPLATES_PATH, requireFolder } = require('../config');
 
 module.exports = new Package('angular-api', [basePackage, typeScriptPackage])
 
@@ -23,6 +23,7 @@ module.exports = new Package('angular-api', [basePackage, typeScriptPackage])
   .processor(require('./processors/filterMemberDocs'))
   .processor(require('./processors/markBarredODocsAsPrivate'))
   .processor(require('./processors/filterPrivateDocs'))
+  .processor(require('./processors/computeSearchTitle'))
 
   // Where do we get the source files?
   .config(function(readTypeScriptModules, readFilesProcessor, collectExamples) {
@@ -107,10 +108,17 @@ module.exports = new Package('angular-api', [basePackage, typeScriptPackage])
     });
   })
 
-  .config(function(convertToJsonProcessor, postProcessHtml, EXPORT_DOC_TYPES) {
+  .config(function(templateFinder) {
+    // Where to find the templates for the API doc rendering
+    templateFinder.templateFolders.unshift(API_TEMPLATES_PATH);
+  })
+
+
+  .config(function(convertToJsonProcessor, postProcessHtml, EXPORT_DOC_TYPES, autoLinkCode) {
     const DOCS_TO_CONVERT = EXPORT_DOC_TYPES.concat([
       'decorator', 'directive', 'pipe', 'module'
     ]);
     convertToJsonProcessor.docTypes = convertToJsonProcessor.docTypes.concat(DOCS_TO_CONVERT);
     postProcessHtml.docTypes = convertToJsonProcessor.docTypes.concat(DOCS_TO_CONVERT);
+    autoLinkCode.docTypes = DOCS_TO_CONVERT;
   });

@@ -10,12 +10,13 @@ import 'rxjs/add/operator/publishReplay';
 
 import { Logger } from 'app/shared/logger.service';
 import { LocationService } from 'app/shared/location.service';
+import { CONTENT_URL_PREFIX } from 'app/documents/document.service';
 
 // Import and re-export the Navigation model types
 import { CurrentNode, NavigationNode, NavigationResponse, NavigationViews, VersionInfo } from './navigation.model';
 export { CurrentNode, NavigationNode, NavigationResponse, NavigationViews, VersionInfo } from './navigation.model';
 
-const navigationPath = 'content/navigation.json';
+const navigationPath = CONTENT_URL_PREFIX + 'navigation.json';
 
 @Injectable()
 export class NavigationService {
@@ -58,26 +59,30 @@ export class NavigationService {
    */
   private fetchNavigationInfo(): Observable<NavigationResponse> {
     const navigationInfo = this.http.get(navigationPath)
-             .map(res => res.json() as NavigationResponse)
-             .publishLast();
+      .map(res => res.json() as NavigationResponse)
+      .publishLast();
     navigationInfo.connect();
     return navigationInfo;
   }
 
   private getVersionInfo(navigationInfo: Observable<NavigationResponse>) {
-    const versionInfo = navigationInfo.map(response => response.__versionInfo).publishReplay(1);
+    const versionInfo = navigationInfo
+      .map(response => response.__versionInfo)
+      .publishLast();
     versionInfo.connect();
     return versionInfo;
   }
 
   private getNavigationViews(navigationInfo: Observable<NavigationResponse>): Observable<NavigationViews> {
-    const navigationViews = navigationInfo.map(response => {
-      const views: NavigationViews = Object.assign({}, response);
-      Object.keys(views).forEach(key => {
-        if (key[0] === '_') { delete views[key]; }
-      });
-      return views;
-    }).publishReplay(1);
+    const navigationViews = navigationInfo
+      .map(response => {
+        const views = Object.assign({}, response);
+        Object.keys(views).forEach(key => {
+          if (key[0] === '_') { delete views[key]; }
+        });
+        return views as NavigationViews;
+      })
+      .publishLast();
     navigationViews.connect();
     return navigationViews;
   }
@@ -92,6 +97,7 @@ export class NavigationService {
     const currentNode = combineLatest(
       navigationViews.map(views => this.computeUrlToNavNodesMap(views)),
       this.location.currentPath,
+
       (navMap, url) => {
         const urlKey = url.startsWith('api/') ? 'api' : url;
         return navMap[urlKey] || { view: '', url: urlKey, nodes: [] };
