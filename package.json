@@ -1,6 +1,6 @@
 {
   "name": "angular-srcs",
-  "version": "4.2.0-rc.1",
+  "version": "4.2.2",
   "private": true,
   "branchPattern": "2.0.*",
   "description": "Angular - a web framework for modern web apps",
@@ -10,7 +10,7 @@
   "engines": {
     "node": ">=6.9.5 <7.0.0",
     "npm": ">=3.10.7 <4.0.0",
-    "yarn": ">=0.21.3 <0.22.0"
+    "yarn": ">=0.21.3 <1.0.0"
   },
   "repository": {
     "type": "git",

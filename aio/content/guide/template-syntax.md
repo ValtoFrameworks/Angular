@@ -12,6 +12,13 @@ component class instance (the *component*) and its user-facing template.
 You may be familiar with the component/template duality from your experience with model-view-controller (MVC) or model-view-viewmodel (MVVM).
 In Angular, the component plays the part of the controller/viewmodel, and the template represents the view.
 
+This page is a comprehensive technical reference to the Angular template language. 
+It explains basic principles of the template language and describes most of the syntax that you'll encounter elsewhere in the documentation. 
+
+Many code snippets illustrate the points and concepts, all of them available
+in the <live-example title="Template Syntax Live Code"></live-example>.
+
+
 {@a html}
 ## HTML in templates
 
@@ -104,7 +111,7 @@ including:
 Other notable differences from JavaScript syntax include:
 
 * no support for the bitwise operators `|` and `&`
-* new [template expression operators](guide/template-syntax#expression-operators), such as `|` and `?.`
+* new [template expression operators](guide/template-syntax#expression-operators), such as `|`, `?.` and `!`.
 
 {@a expression-context}
 
@@ -1927,6 +1934,42 @@ The display is blank, but the app keeps rolling without errors.
 </code-example>
 
 It works perfectly with long property paths such as `a?.b?.c?.d`.
+
+<a href="#top-of-page">back to top</a>
+
+<hr/>
+
+{@a non-null-assertion-operator}
+
+### The non-null assertion operator ( <span class="syntax">!</span> )
+
+As of Typescript 2.0, you can enforce [strict null checking](http://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html "Strict null checking in TypeScript") with the `--strictNullChecks` flag. TypeScript then ensures that no variable is _unintentionally_ null or undefined.
+
+In this mode, typed variables disallow null and undefined by default. The type checker throws an error if you leave a variable unassigned or try to assign null or undefined to a variable whose type disallows null and undefined.
+
+The type checker also throws an error if it can't determine whether a variable will be null or undefined at runtime. 
+You may know that can't happen but the type checker doesn't know. 
+You tell the type checker that it can't happen by applying the post-fix
+[_non-null assertion operator (!)_]((http://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html#non-null-assertion-operator "Non-null assertion operator").
+
+The _Angular_ **non-null assertion operator (`!`)** serves the same purpose in an Angular template. 
+
+For example, after you use [*ngIf](guide/template-syntax#ngIf) to check that `hero` is defined, you can assert that
+`hero` properties are also defined.
+
+<code-example path="template-syntax/src/app/app.component.html" region="non-null-assertion-1" title="src/app/app.component.html" linenums="false">
+</code-example>
+
+When the Angular compiler turns your template into TypeScript code,
+it prevents TypeScript from reporting that `hero.name` might be null or undefined.
+
+Unlike the [_safe navigation operator_](guide/template-syntax#safe-navigation-operator "Safe naviation operator (?.)"),
+the **non-null assertion operator** does not guard against null or undefined.
+Rather it tells the TypeScript type checker to suspend strict null checks for a specific property expression.
+
+You'll need this template operator when you turn on strict null checks. It's optional otherwise.
+
+
 <a href="#top-of-page">back to top</a>
 
 <hr/>

@@ -223,7 +223,45 @@ export function main() {
         ]);
       });
 
-      it('should not cancel the previous transition if a follow-up transition is not matched',
+      it('should allow a state value to be `0`', () => {
+        @Component({
+          selector: 'if-cmp',
+          template: `
+            <div [@myAnimation]="exp"></div>
+          `,
+          animations: [trigger(
+              'myAnimation',
+              [
+                transition(
+                    '0 => 1', [style({height: '0px'}), animate(1234, style({height: '100px'}))]),
+                transition(
+                    '* => 1', [style({width: '0px'}), animate(4567, style({width: '100px'}))])
+              ])]
+        })
+        class Cmp {
+          exp: any = false;
+        }
+
+        TestBed.configureTestingModule({declarations: [Cmp]});
+
+        const engine = TestBed.get(ɵAnimationEngine);
+        const fixture = TestBed.createComponent(Cmp);
+        const cmp = fixture.componentInstance;
+        cmp.exp = 0;
+        fixture.detectChanges();
+        engine.flush();
+        resetLog();
+
+        cmp.exp = 1;
+        fixture.detectChanges();
+        engine.flush();
+
+        expect(getLog().length).toEqual(1);
+        const player = getLog().pop() !;
+        expect(player.duration).toEqual(1234);
+      });
+
+      it('should always cancel the previous transition if a follow-up transition is not matched',
          fakeAsync(() => {
            @Component({
              selector: 'if-cmp',
@@ -290,7 +328,7 @@ export function main() {
            fixture.detectChanges();
            engine.flush();
 
-           expect(engine.players.length).toEqual(1);
+           expect(engine.players.length).toEqual(0);
            expect(getLog().length).toEqual(0);
 
            flushMicrotasks();
@@ -299,7 +337,7 @@ export function main() {
            expect(cmp.startEvent.toState).toEqual('c');
            expect(cmp.startEvent.totalTime).toEqual(0);
 
-           expect(completed).toBe(false);
+           expect(completed).toBe(true);
          }));
 
       it('should only turn a view removal as into `void` state transition', () => {
@@ -1127,14 +1165,13 @@ export function main() {
         expect(count).toEqual(2);
       });
 
-      it('should always make children wait for the parent animation to finish before any removals occur',
+      it('should allow inner removals to happen when a non removal-based parent animation is set to animate',
          () => {
            @Component({
              selector: 'ani-cmp',
              template: `
             <div #parent [@parent]="exp1" class="parent">
-              <div #child1 *ngIf="exp2" class="child1"></div>
-              <div #child2 *ngIf="exp2" class="child2"></div>
+              <div #child *ngIf="exp2" class="child"></div>
             </div>
           `,
              animations: [trigger(
@@ -1148,9 +1185,7 @@ export function main() {
 
              @ViewChild('parent') public parent: any;
 
-             @ViewChild('child1') public child1Elm: any;
-
-             @ViewChild('child2') public child2Elm: any;
+             @ViewChild('child') public child: any;
            }
 
            TestBed.configureTestingModule({declarations: [Cmp]});
@@ -1171,8 +1206,67 @@ export function main() {
 
            const player = getLog()[0];
            const p = cmp.parent.nativeElement;
+           const c = cmp.child.nativeElement;
+
+           expect(p.contains(c)).toBeTruthy();
+
+           cmp.exp2 = false;
+           fixture.detectChanges();
+           engine.flush();
+
+           expect(p.contains(c)).toBeFalsy();
+
+           player.finish();
+
+           expect(p.contains(c)).toBeFalsy();
+         });
+
+      it('should make inner removals wait until a parent based removal animation has finished',
+         () => {
+           @Component({
+             selector: 'ani-cmp',
+             template: `
+            <div #parent *ngIf="exp1" @parent class="parent">
+              <div #child1 *ngIf="exp2" class="child1"></div>
+              <div #child2 *ngIf="exp2" class="child2"></div>
+            </div>
+          `,
+             animations: [trigger(
+                 'parent',
+                 [transition(
+                     ':leave', [style({opacity: 0}), animate(1000, style({opacity: 1}))])])]
+           })
+           class Cmp {
+             public exp1: any;
+             public exp2: any;
+
+             @ViewChild('parent') public parent: any;
+
+             @ViewChild('child1') public child1Elm: any;
+
+             @ViewChild('child2') public child2Elm: any;
+           }
+
+           TestBed.configureTestingModule({declarations: [Cmp]});
+
+           const engine = TestBed.get(ɵAnimationEngine);
+           const fixture = TestBed.createComponent(Cmp);
+           const cmp = fixture.componentInstance;
+
+           cmp.exp1 = true;
+           cmp.exp2 = true;
+           fixture.detectChanges();
+           engine.flush();
+           resetLog();
+
+           const p = cmp.parent.nativeElement;
            const c1 = cmp.child1Elm.nativeElement;
            const c2 = cmp.child2Elm.nativeElement;
+
+           cmp.exp1 = false;
+           cmp.exp2 = false;
+           fixture.detectChanges();
+           engine.flush();
 
            expect(p.contains(c1)).toBeTruthy();
            expect(p.contains(c2)).toBeTruthy();
@@ -1183,11 +1277,6 @@ export function main() {
 
            expect(p.contains(c1)).toBeTruthy();
            expect(p.contains(c2)).toBeTruthy();
-
-           player.finish();
-
-           expect(p.contains(c1)).toBeFalsy();
-           expect(p.contains(c2)).toBeFalsy();
          });
 
       it('should substitute in values if the provided state match is an object with values', () => {

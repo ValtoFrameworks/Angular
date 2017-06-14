@@ -2,7 +2,7 @@ import { Component, ElementRef, HostBinding, HostListener, OnInit,
          QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { MdSidenav } from '@angular/material';
 
-import { CurrentNode, NavigationService, NavigationViews, NavigationNode, VersionInfo } from 'app/navigation/navigation.service';
+import { CurrentNodes, NavigationService, NavigationViews, NavigationNode, VersionInfo } from 'app/navigation/navigation.service';
 import { DocumentService, DocumentContents } from 'app/documents/document.service';
 import { DocViewerComponent } from 'app/layout/doc-viewer/doc-viewer.component';
 import { LocationService } from 'app/shared/location.service';
@@ -12,7 +12,9 @@ import { SearchResultsComponent } from 'app/search/search-results/search-results
 import { SearchBoxComponent } from 'app/search/search-box/search-box.component';
 import { SearchService } from 'app/search/search.service';
 import { SwUpdateNotificationsService } from 'app/sw-updates/sw-update-notifications.service';
+import { TocService } from 'app/shared/toc.service';
 
+import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { combineLatest } from 'rxjs/observable/combineLatest';
 
 const sideNavView = 'SideNav';
@@ -25,7 +27,7 @@ export class AppComponent implements OnInit {
 
   currentDocument: DocumentContents;
   currentDocVersion: NavigationNode;
-  currentNode: CurrentNode;
+  currentNodes: CurrentNodes;
   currentPath: string;
   docVersions: NavigationNode[];
   dtOn = false;
@@ -59,15 +61,15 @@ export class AppComponent implements OnInit {
   isSideBySide = false;
   private isFetchingTimeout: any;
   private isSideNavDoc = false;
-  private previousNavView: string;
 
   private sideBySideWidth = 992;
   sideNavNodes: NavigationNode[];
   topMenuNodes: NavigationNode[];
   topMenuNarrowNodes: NavigationNode[];
 
-  showFloatingToc = false;
-  showFloatingTocWidth = 800;
+  hasFloatingToc = true;
+  private showFloatingToc = new BehaviorSubject(false);
+  private showFloatingTocWidth = 800;
   tocMaxHeight: string;
   private tocMaxHeightOffset = 0;
 
@@ -104,12 +106,16 @@ export class AppComponent implements OnInit {
     private navigationService: NavigationService,
     private scrollService: ScrollService,
     private searchService: SearchService,
-    private swUpdateNotifications: SwUpdateNotificationsService
-  ) {  }
+    private swUpdateNotifications: SwUpdateNotificationsService,
+    private tocService: TocService
+  ) { }
 
   ngOnInit() {
-    this.searchService.initWorker('app/search/search-worker.js');
-    this.searchService.loadIndex();
+    // Do not initialize the search on browsers that lack web worker support
+    if ('Worker' in window) {
+      this.searchService.initWorker('app/search/search-worker.js');
+      this.searchService.loadIndex();
+    }
 
     this.onResize(window.innerWidth);
 
@@ -136,17 +142,17 @@ export class AppComponent implements OnInit {
       }
     });
 
-    this.navigationService.currentNode.subscribe(currentNode => {
-      this.currentNode = currentNode;
+    this.navigationService.currentNodes.subscribe(currentNodes => {
+      this.currentNodes = currentNodes;
 
       // Preserve current sidenav open state by default
       let openSideNav = this.sidenav.opened;
+      const isSideNavDoc = !!currentNodes[sideNavView];
 
-      if (this.previousNavView !== currentNode.view) {
-        this.previousNavView = currentNode.view;
+      if (this.isSideNavDoc !== isSideNavDoc) {
         // View type changed. Is it now a sidenav view (e.g, guide or tutorial)?
         // Open if changed to a sidenav doc; close if changed to a marketing doc.
-        openSideNav = this.isSideNavDoc = currentNode.view === sideNavView;
+        openSideNav = this.isSideNavDoc = isSideNavDoc;
       }
       // May be open or closed when wide; always closed when narrow
       this.sideNavToggle(this.isSideBySide ? openSideNav : false);
@@ -172,6 +178,10 @@ export class AppComponent implements OnInit {
     this.navigationService.versionInfo.subscribe( vi => this.versionInfo = vi );
 
     this.swUpdateNotifications.enable();
+
+    const hasNonEmptyToc = this.tocService.tocList.map(tocList => tocList.length > 0);
+    combineLatest(hasNonEmptyToc, this.showFloatingToc)
+        .subscribe(([hasToc, showFloatingToc]) => this.hasFloatingToc = hasToc && showFloatingToc);
   }
 
   // Scroll to the anchor in the hash fragment or top of doc.
@@ -182,6 +192,9 @@ export class AppComponent implements OnInit {
   onDocRendered() {
     // Stop fetching timeout (which, when render is fast, means progress bar never shown)
     clearTimeout(this.isFetchingTimeout);
+
+    // Put page in a clean visual state
+    this.scrollService.scrollToTop();
 
     // Scroll 500ms after the doc-viewer has finished rendering the new doc
     // The delay is to allow time for async layout to complete
@@ -202,7 +215,7 @@ export class AppComponent implements OnInit {
   @HostListener('window:resize', ['$event.target.innerWidth'])
   onResize(width) {
     this.isSideBySide = width > this.sideBySideWidth;
-    this.showFloatingToc = width > this.showFloatingTocWidth;
+    this.showFloatingToc.next(width > this.showFloatingTocWidth);
   }
 
   @HostListener('click', ['$event.target', '$event.button', '$event.ctrlKey', '$event.metaKey', '$event.altKey'])
@@ -250,9 +263,9 @@ export class AppComponent implements OnInit {
     const sideNavOpen = `sidenav-${this.sidenav.opened ? 'open' : 'closed'}`;
     const pageClass = `page-${this.pageId}`;
     const folderClass = `folder-${this.folderId}`;
-    const viewClass = `view-${this.currentNode && this.currentNode.view}`;
+    const viewClasses = Object.keys(this.currentNodes || {}).map(view => `view-${view}`).join(' ');
 
-    this.hostClasses = `${sideNavOpen} ${pageClass} ${folderClass} ${viewClass}`;
+    this.hostClasses = `${sideNavOpen} ${pageClass} ${folderClass} ${viewClasses}`;
   }
 
   // Dynamically change height of table of contents container
@@ -268,6 +281,25 @@ export class AppComponent implements OnInit {
     }
 
     this.tocMaxHeight = (document.body.scrollHeight - window.pageYOffset - this.tocMaxHeightOffset).toFixed(2);
+  }
+
+  // Restrain scrolling inside an element, when the cursor is over it
+  restrainScrolling(evt: WheelEvent) {
+    const elem = evt.currentTarget as Element;
+    const scrollTop = elem.scrollTop;
+
+    if (evt.deltaY < 0) {
+      // Trying to scroll up: Prevent scrolling if already at the top.
+      if (scrollTop < 1) {
+        evt.preventDefault();
+      }
+    } else {
+      // Trying to scroll down: Prevent scrolling if already at the bottom.
+      const maxScrollTop = elem.scrollHeight - elem.clientHeight;
+      if (maxScrollTop - scrollTop < 1) {
+        evt.preventDefault();
+      }
+    }
   }
 
 

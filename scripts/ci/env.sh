@@ -37,7 +37,7 @@ fi
 setEnvVar NODE_VERSION 6.9.5
 setEnvVar NPM_VERSION 3.10.7 # do not upgrade to >3.10.8 unless https://github.com/npm/npm/issues/14042 is resolved
 setEnvVar YARN_VERSION 0.21.3
-setEnvVar CHROMIUM_VERSION 433059 # Chrome 53 linux stable, see https://www.chromium.org/developers/calendar
+setEnvVar CHROMIUM_VERSION 464641 # Chrome 59 linux stable, see https://www.chromium.org/developers/calendar
 setEnvVar SAUCE_CONNECT_VERSION 4.3.11
 setEnvVar PROJECT_ROOT $(cd ${thisDir}/../..; pwd)
 
@@ -59,6 +59,10 @@ if [[ ${TRAVIS:-} ]]; then
       setEnvVar KARMA_JS_BROWSERS `node -e "console.log(require('/home/travis/build/angular/angular/browser-providers.conf').browserstackAliases.CI_OPTIONAL.join(','))"`
       ;;
     aio)
+      # Determine the current stable branch.
+      readonly versionRe="^\s*([0-9]+\.[0-9]+)\.[0-9]+.*$"
+      setEnvVar STABLE_BRANCH `npm info @angular/core dist-tags.latest | sed -r "s/$versionRe/\1.x/"`
+
       setEnvVar MIN_PWA_SCORE 95
       ;;
   esac
