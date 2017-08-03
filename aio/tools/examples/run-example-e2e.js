@@ -22,15 +22,24 @@ const IGNORED_EXAMPLES = [
  *   --filter to filter/select _example app subdir names
  *    e.g. --filter=foo  // all example apps with 'foo' in their folder names.
  *
- *    --setup run yarn install, copy boilerplate and update webdriver
+ *  --setup run yarn install, copy boilerplate and update webdriver
  *    e.g. --setup
+ *
+ *  --local to use the locally built Angular packages, rather than versions from npm
+ *    Must be used in conjunction with --setup as this is when the packages are copied.
+ *    e.g. --setup --local
+ *
+ *  --shard to shard the specs into groups to allow you to run them in parallel
+ *    e.g. --shard=0/2 // the even specs: 0, 2, 4, etc
+ *    e.g. --shard=1/2 // the odd specs: 1, 3, 5, etc
+ *    e.g. --shard=1/3 // the second of every three specs: 1, 4, 7, etc
  */
 function runE2e() {
   let promise = Promise.resolve();
   if (argv.setup) {
     // Run setup.
     console.log('runE2e: copy boilerplate');
-    const spawnInfo = spawnExt('yarn', ['boilerplate:add'], { cwd: AIO_PATH });
+    const spawnInfo = spawnExt('yarn', ['boilerplate:add', argv.local ? '-- --local': ''], { cwd: AIO_PATH });
     promise = spawnInfo.promise
       .then(() => {
         console.log('runE2e: update webdriver');
@@ -41,7 +50,7 @@ function runE2e() {
   const outputFile = path.join(AIO_PATH, './protractor-results.txt');
 
   return promise
-    .then(() => findAndRunE2eTests(argv.filter, outputFile))
+    .then(() => findAndRunE2eTests(argv.filter, outputFile, argv.shard))
     .then((status) => {
       reportStatus(status, outputFile);
       if (status.failed.length > 0) {
@@ -55,7 +64,12 @@ function runE2e() {
 
 // Finds all of the *e2e-spec.tests under the examples folder along with the corresponding apps
 // that they should run under. Then run each app/spec collection sequentially.
-function findAndRunE2eTests(filter, outputFile) {
+function findAndRunE2eTests(filter, outputFile, shard) {
+
+  const shardParts = shard ? shard.split('/') : [0,1];
+  const shardModulo = parseInt(shardParts[0], 10);
+  const shardDivider = parseInt(shardParts[1], 10);
+
   // create an output file with header.
   const startTime = new Date().getTime();
   let header = `Doc Sample Protractor Results on ${new Date().toLocaleString()}\n`;
@@ -65,7 +79,9 @@ function findAndRunE2eTests(filter, outputFile) {
   // Run the tests sequentially.
   const status = { passed: [], failed: [] };
   return getE2eSpecPaths(EXAMPLES_PATH, filter)
-    .then(e2eSpecPaths => e2eSpecPaths.reduce((promise, specPath) => {
+    .then(e2eSpecPaths => e2eSpecPaths
+      .filter((paths, index) => index % shardDivider === shardModulo)
+      .reduce((promise, specPath) => {
       return promise.then(() => {
         const examplePath = path.dirname(specPath);
         return runE2eTests(examplePath, outputFile).then((ok) => {

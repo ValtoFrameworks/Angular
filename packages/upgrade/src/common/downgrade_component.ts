@@ -6,12 +6,17 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {ComponentFactory, ComponentFactoryResolver, Injector, Type} from '@angular/core';
+import {ComponentFactory, ComponentFactoryResolver, Injector, NgZone, Type} from '@angular/core';
 
 import * as angular from './angular1';
-import {$COMPILE, $INJECTOR, $PARSE, INJECTOR_KEY, REQUIRE_INJECTOR, REQUIRE_NG_MODEL} from './constants';
+import {$COMPILE, $INJECTOR, $PARSE, INJECTOR_KEY, LAZY_MODULE_REF, REQUIRE_INJECTOR, REQUIRE_NG_MODEL} from './constants';
 import {DowngradeComponentAdapter} from './downgrade_component_adapter';
-import {controllerKey, getComponentName} from './util';
+import {LazyModuleRef, controllerKey, getComponentName, isFunction} from './util';
+
+
+interface Thenable<T> {
+  then(callback: (value: T) => any): any;
+}
 
 let downgradeCount = 0;
 
@@ -50,6 +55,8 @@ let downgradeCount = 0;
  */
 export function downgradeComponent(info: {
   component: Type<any>;
+  /** @experimental */
+  propagateDigest?: boolean;
   /** @deprecated since v4. This parameter is no longer used */
   inputs?: string[];
   /** @deprecated since v4. This parameter is no longer used */
@@ -65,6 +72,14 @@ export function downgradeComponent(info: {
                                        $compile: angular.ICompileService,
                                        $injector: angular.IInjectorService,
                                        $parse: angular.IParseService): angular.IDirective {
+    // When using `UpgradeModule`, we don't need to ensure callbacks to Angular APIs (e.g. change
+    // detection) are run inside the Angular zone, because `$digest()` will be run inside the zone
+    // (except if explicitly escaped, in which case we shouldn't force it back in).
+    // When using `downgradeModule()` though, we need to ensure such callbacks are run inside the
+    // Angular zone.
+    let needsNgZone = false;
+    let wrapCallback = <T>(cb: () => T) => cb;
+    let ngZone: NgZone;
 
     return {
       restrict: 'E',
@@ -76,11 +91,17 @@ export function downgradeComponent(info: {
         // triggered by `UpgradeNg1ComponentAdapterBuilder`, before the Angular templates have
         // been compiled.
 
-        const parentInjector: Injector|ParentInjectorPromise =
-            required[0] || $injector.get(INJECTOR_KEY);
         const ngModel: angular.INgModelController = required[1];
+        let parentInjector: Injector|Thenable<Injector>|undefined = required[0];
+        let ranAsync = false;
 
-        const downgradeFn = (injector: Injector) => {
+        if (!parentInjector) {
+          const lazyModuleRef = $injector.get(LAZY_MODULE_REF) as LazyModuleRef;
+          needsNgZone = lazyModuleRef.needsNgZone;
+          parentInjector = lazyModuleRef.injector || lazyModuleRef.promise as Promise<Injector>;
+        }
+
+        const doDowngrade = (injector: Injector) => {
           const componentFactoryResolver: ComponentFactoryResolver =
               injector.get(ComponentFactoryResolver);
           const componentFactory: ComponentFactory<any> =
@@ -94,22 +115,40 @@ export function downgradeComponent(info: {
           const injectorPromise = new ParentInjectorPromise(element);
           const facade = new DowngradeComponentAdapter(
               id, element, attrs, scope, ngModel, injector, $injector, $compile, $parse,
-              componentFactory);
+              componentFactory, wrapCallback);
 
           const projectableNodes = facade.compileContents();
           facade.createComponent(projectableNodes);
-          facade.setupInputs();
+          facade.setupInputs(needsNgZone, info.propagateDigest);
           facade.setupOutputs();
-          facade.registerCleanup();
+          facade.registerCleanup(needsNgZone);
 
           injectorPromise.resolve(facade.getInjector());
+
+          if (ranAsync) {
+            // If this is run async, it is possible that it is not run inside a
+            // digest and initial input values will not be detected.
+            scope.$evalAsync(() => {});
+          }
         };
 
-        if (parentInjector instanceof ParentInjectorPromise) {
+        const downgradeFn = !needsNgZone ? doDowngrade : (injector: Injector) => {
+          if (!ngZone) {
+            ngZone = injector.get(NgZone);
+            wrapCallback = <T>(cb: () => T) => () =>
+                NgZone.isInAngularZone() ? cb() : ngZone.run(cb);
+          }
+
+          wrapCallback(() => doDowngrade(injector))();
+        };
+
+        if (isThenable<Injector>(parentInjector)) {
           parentInjector.then(downgradeFn);
         } else {
           downgradeFn(parentInjector);
         }
+
+        ranAsync = true;
       }
     };
   };
@@ -154,4 +193,8 @@ class ParentInjectorPromise {
     this.callbacks.forEach(callback => callback(injector));
     this.callbacks.length = 0;
   }
+}
+
+function isThenable<T>(obj: object): obj is Thenable<T> {
+  return isFunction((obj as any).then);
 }

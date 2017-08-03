@@ -46,7 +46,7 @@ export class MockLanguageServiceHost implements ts.LanguageServiceHost, Compiler
       lib: ['lib.es2015.d.ts', 'lib.dom.d.ts'],
       paths: {'@angular/*': [calcRootPath() + '/packages/*']}
     };
-    this.context = new MockAotContext(currentDirectory, files)
+    this.context = new MockAotContext(currentDirectory, files);
   }
 
   getCompilationSettings(): ts.CompilerOptions { return this.options; }
@@ -110,12 +110,14 @@ const summaryResolver = new AotSummaryResolver(
     staticSymbolCache);
 
 export class DiagnosticContext {
+  // tslint:disable
   _analyzedModules: NgAnalyzedModules;
   _staticSymbolResolver: StaticSymbolResolver|undefined;
   _reflector: StaticReflector|undefined;
   _errors: {e: any, path?: string}[] = [];
   _resolver: CompileMetadataResolver|undefined;
   _refletor: StaticReflector;
+  // tslint:enable
 
   constructor(
       public service: ts.LanguageService, public program: ts.Program,

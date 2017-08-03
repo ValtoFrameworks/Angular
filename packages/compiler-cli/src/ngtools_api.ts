@@ -79,19 +79,17 @@ class CustomLoaderModuleResolutionHostAdapter extends ModuleResolutionHostAdapte
   readResource(path: string) { return this._readResource(path); }
 }
 
-
 /**
  * @internal
- * @private
  */
 export class NgTools_InternalApi_NG_2 {
   /**
    * @internal
-   * @private
    */
   static codeGen(options: NgTools_InternalApi_NG2_CodeGen_Options): Promise<any> {
     const hostContext: CompilerHostContext =
         new CustomLoaderModuleResolutionHostAdapter(options.readResource, options.host);
+
     const cliOptions: NgcCliOptions = {
       i18nFormat: options.i18nFormat !,
       i18nFile: options.i18nFile !,
@@ -114,7 +112,6 @@ export class NgTools_InternalApi_NG_2 {
 
   /**
    * @internal
-   * @private
    */
   static listLazyRoutes(options: NgTools_InternalApi_NG2_ListLazyRoutes_Options):
       NgTools_InternalApi_NG_2_LazyRouteMap {
@@ -144,7 +141,6 @@ export class NgTools_InternalApi_NG_2 {
 
   /**
    * @internal
-   * @private
    */
   static extractI18n(options: NgTools_InternalApi_NG2_ExtractI18n_Options): Promise<any> {
     const hostContext: CompilerHostContext =

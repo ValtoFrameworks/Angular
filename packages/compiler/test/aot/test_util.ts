@@ -405,7 +405,7 @@ export class MockMetadataBundlerHost implements MetadataBundlerHost {
 
   constructor(private host: ts.CompilerHost) {}
 
-  getMetadataFor(moduleName: string): ModuleMetadata {
+  getMetadataFor(moduleName: string): ModuleMetadata|undefined {
     const source = this.host.getSourceFile(moduleName + '.ts', ts.ScriptTarget.Latest);
     return this.collector.getMetadata(source);
   }
@@ -513,8 +513,9 @@ const minCoreIndex = `
   export * from './src/codegen_private_exports';
 `;
 
-export function setup(options: {compileAngular: boolean} = {
-  compileAngular: true
+export function setup(options: {compileAngular: boolean, compileAnimations: boolean} = {
+  compileAngular: true,
+  compileAnimations: true,
 }) {
   let angularFiles = new Map<string, string>();
 
@@ -522,6 +523,13 @@ export function setup(options: {compileAngular: boolean} = {
     if (options.compileAngular) {
       const emittingHost = new EmittingCompilerHost([], {emitMetadata: true});
       emittingHost.addScript('@angular/core/index.ts', minCoreIndex);
+      const emittingProgram = ts.createProgram(emittingHost.scripts, settings, emittingHost);
+      emittingProgram.emit();
+      emittingHost.writtenAngularFiles(angularFiles);
+    }
+    if (options.compileAnimations) {
+      const emittingHost =
+          new EmittingCompilerHost(['@angular/animations/index.ts'], {emitMetadata: true});
       const emittingProgram = ts.createProgram(emittingHost.scripts, settings, emittingHost);
       emittingProgram.emit();
       emittingHost.writtenAngularFiles(angularFiles);
@@ -551,8 +559,8 @@ export function expectNoDiagnostics(program: ts.Program) {
 
   function lineInfo(diagnostic: ts.Diagnostic): string {
     if (diagnostic.file) {
-      const start = diagnostic.start;
-      let end = diagnostic.start + diagnostic.length;
+      const start = diagnostic.start !;
+      let end = diagnostic.start ! + diagnostic.length !;
       const source = diagnostic.file.text;
       let lineStart = start;
       let lineEnd = end;
