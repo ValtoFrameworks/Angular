@@ -161,7 +161,7 @@ function validateNode(parent: NodeDef | null, node: NodeDef, nodeCount: number) 
     const parentFlags = parent ? parent.flags : 0;
     if ((parentFlags & NodeFlags.TypeElement) === 0) {
       throw new Error(
-          `Illegal State: Provider/Directive nodes need to be children of elements or anchors, at index ${node.index}!`);
+          `Illegal State: StaticProvider/Directive nodes need to be children of elements or anchors, at index ${node.index}!`);
     }
   }
   if (node.query) {
@@ -530,6 +530,8 @@ function destroyViewNodes(view: ViewData) {
       view.renderer.destroyNode !(asElementData(view, i).renderElement);
     } else if (def.flags & NodeFlags.TypeText) {
       view.renderer.destroyNode !(asTextData(view, i).renderText);
+    } else if (def.flags & NodeFlags.TypeContentQuery || def.flags & NodeFlags.TypeViewQuery) {
+      asQueryList(view, i).destroy();
     }
   }
 }

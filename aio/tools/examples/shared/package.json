@@ -25,14 +25,14 @@
     "@angular/router": "~4.3.1",
     "@angular/tsc-wrapped": "~4.3.1",
     "@angular/upgrade": "~4.3.1",
-    "angular-in-memory-web-api": "~0.3.2",
+    "angular-in-memory-web-api": "~0.4.0",
     "core-js": "^2.4.1",
     "rxjs": "^5.1.0",
     "systemjs": "0.19.39",
     "zone.js": "^0.8.4"
   },
   "devDependencies": {
-    "@angular/cli": "^1.2.0",
+    "@angular/cli": "^1.2.7",
     "@types/angular": "^1.5.16",
     "@types/angular-animate": "^1.5.5",
     "@types/angular-cookies": "^1.4.2",

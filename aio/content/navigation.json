@@ -299,11 +299,6 @@
           "tooltip": "Developing for content security in Angular applications."
         },
         {
-          "url": "guide/ts-to-js",
-          "title": "TypeScript to JavaScript",
-          "tooltip": "Convert Angular TypeScript examples into ES6 and ES5 JavaScript."
-        },
-        {
           "title": "Setup & Deployment",
           "tooltip": "Setup and Deployment",
           "children": [
@@ -337,6 +332,11 @@
               "url": "guide/aot-compiler",
               "title": "Ahead-of-Time Compilation",
               "tooltip": "Learn why and how to use the Ahead-of-Time (AOT) compiler."
+            },
+            {
+              "url": "guide/metadata",
+              "title": "Metadata and AOT",
+              "tooltip": "How Angular handles metadata with AOT."
             },
             {
               "url": "guide/deployment",
@@ -385,6 +385,12 @@
       "title": "API",
       "tooltip": "Details of the Angular classes and values.",
       "url": "api"
+    },
+    {
+      "url": "guide/change-log",
+      "title": "Change Log",
+      "tooltip": "Angular Documentation Change Log",
+      "hidden": true
     }
   ],
 
@@ -418,7 +424,7 @@
       "title": "Help",
       "children": [
         {
-          "url": "http://stackoverflow.com/questions/tagged/angular2",
+          "url": "https://stackoverflow.com/questions/tagged/angular",
           "title": "Stack Overflow",
           "tooltip": "Stack Overflow: where the community answers your technical Angular questions."
         },

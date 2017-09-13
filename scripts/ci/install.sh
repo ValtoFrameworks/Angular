@@ -28,21 +28,33 @@ mkdir -p ${LOGS_DIR}
 # Install node
 #nvm install ${NODE_VERSION}
 
-if [[ ${CI_MODE} != "aio" && ${CI_MODE} != 'docs_test' ]]; then
-  # Install version of npm that we are locked against
-  travisFoldStart "install-npm"
-    npm install -g npm@${NPM_VERSION}
-  travisFoldEnd "install-npm"
+# Install version of npm that we are locked against
+travisFoldStart "install-npm"
+  npm install -g npm@${NPM_VERSION}
+travisFoldEnd "install-npm"
 
 
-  # Install all npm dependencies according to shrinkwrap.json
-  travisFoldStart "npm-install"
-    node tools/npm/check-node-modules --purge || npm install
-  travisFoldEnd "npm-install"
-fi
+# Install all npm dependencies according to shrinkwrap.json
+travisFoldStart "npm-install"
+  node tools/npm/check-node-modules --purge || npm install
+travisFoldEnd "npm-install"
 
 
-if [[ ${TRAVIS} && (${CI_MODE} == "e2e" || ${CI_MODE} == "e2e_2" || ${CI_MODE} == "aio" || ${CI_MODE} == "aio_e2e" || ${CI_MODE} == "docs_test") ]]; then
+# Install Selenium WebDriver
+travisFoldStart "webdriver-manager-update"
+  # --gecko false prevents webdriver-manager to ping Github for updates
+  # which can hit the Github api limit.
+  $(npm bin)/webdriver-manager update --gecko false
+travisFoldEnd "webdriver-manager-update"
+
+
+# Install bower packages
+travisFoldStart "bower-install"
+  $(npm bin)/bower install
+travisFoldEnd "bower-install"
+
+
+if [[ ${TRAVIS} && (${CI_MODE} == "e2e" || ${CI_MODE} == "e2e_2" || ${CI_MODE} == "aio" || ${CI_MODE} == "aio_e2e" || ${CI_MODE} == "aio_tools_test") ]]; then
   # Install version of yarn that we are locked against
   travisFoldStart "install-yarn"
     curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version "${YARN_VERSION}"
@@ -50,7 +62,7 @@ if [[ ${TRAVIS} && (${CI_MODE} == "e2e" || ${CI_MODE} == "e2e_2" || ${CI_MODE} =
 fi
 
 
-if [[ ${TRAVIS} && (${CI_MODE} == "aio" || ${CI_MODE} == "aio_e2e" || ${CI_MODE} == "docs_test") ]]; then
+if [[ ${TRAVIS} && (${CI_MODE} == "aio" || ${CI_MODE} == "aio_e2e" || ${CI_MODE} == "aio_tools_test") ]]; then
   # angular.io: Install all yarn dependencies according to angular.io/yarn.lock
   travisFoldStart "yarn-install.aio"
     (
@@ -61,7 +73,7 @@ if [[ ${TRAVIS} && (${CI_MODE} == "aio" || ${CI_MODE} == "aio_e2e" || ${CI_MODE}
 fi
 
 # Install bazel
-if [[ ${TRAVIS} && ${CI_MODE} == "bazel" ]]; then
+if [[ ${TRAVIS} && (${CI_MODE} == "bazel" || ${CI_MODE} == "e2e_2") ]]; then
   travisFoldStart "bazel-install"
   (
     mkdir tmp
@@ -101,19 +113,6 @@ if [[ ${TRAVIS} && (${CI_MODE} == "browserstack_required" || ${CI_MODE} == "brow
     )
   travisFoldEnd "install-browserstack"
 fi
-
-
-# Install Selenium WebDriver
-travisFoldStart "webdriver-manager-update"
-  $(npm bin)/webdriver-manager update
-travisFoldEnd "webdriver-manager-update"
-
-
-# Install bower packages
-travisFoldStart "bower-install"
-  $(npm bin)/bower install
-travisFoldEnd "bower-install"
-
 
 # Print return arrows as a log separator
 travisFoldReturnArrows

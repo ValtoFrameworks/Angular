@@ -6,29 +6,97 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
+import {ModuleMetadata} from '@angular/tsc-wrapped';
 import * as ts from 'typescript';
 
-import {LoweringRequest, RequestLocationMap, getExpressionLoweringTransformFactory} from '../../src/transformers/lower_expressions';
+import {LowerMetadataCache, LoweringRequest, RequestLocationMap, getExpressionLoweringTransformFactory} from '../../src/transformers/lower_expressions';
 import {Directory, MockAotContext, MockCompilerHost} from '../mocks';
 
 describe('Expression lowering', () => {
-  it('should be able to lower a simple expression', () => {
-    expect(convert('const a = 1 +◊b: 2◊;')).toBe('const b = 2; const a = 1 + b; export { b };');
+  describe('transform', () => {
+    it('should be able to lower a simple expression', () => {
+      expect(convert('const a = 1 +◊b: 2◊;')).toBe('const b = 2; const a = 1 + b; export { b };');
+    });
+
+    it('should be able to lower an expression in a decorator', () => {
+      expect(convert(`
+          import {Component} from '@angular/core';
+
+          @Component({
+            provider: [{provide: 'someToken', useFactory:◊l: () => null◊}]
+          })
+          class MyClass {}
+      `)).toContain('const l = () => null; exports.l = l;');
+    });
+
+    it('should be able to export a variable if the whole value is lowered', () => {
+      expect(convert('/*a*/ const a =◊b: () => null◊;'))
+          .toBe('/*a*/ const a = () => null; const b = a; export { b };');
+    });
   });
 
-  it('should be able to lower an expression in a decorator', () => {
-    expect(convert(`
+  describe('collector', () => {
+    it('should request a lowering for useValue', () => {
+      const collected = collect(`
         import {Component} from '@angular/core';
-        
+
+        enum SomeEnum {
+          OK,
+          NotOK
+        }
+
         @Component({
-          provider: [{provide: 'someToken', useFactory:◊l: () => null◊}]
+          provider: [{provide: 'someToken', useValue:◊enum: SomeEnum.OK◊}]
         })
-        class MyClass {}
-    `)).toContain('const l = () => null; exports.l = l;');
+        export class MyClass {}
+      `);
+      expect(collected.requests.has(collected.annotations[0].start))
+          .toBeTruthy('did not find the useValue');
+    });
+
+    it('should request a lowering for useFactory', () => {
+      const collected = collect(`
+        import {Component} from '@angular/core';
+
+        @Component({
+          provider: [{provide: 'someToken', useFactory:◊lambda: () => null◊}]
+        })
+        export class MyClass {}
+      `);
+      expect(collected.requests.has(collected.annotations[0].start))
+          .toBeTruthy('did not find the useFactory');
+    });
+
+    it('should request a lowering for data', () => {
+      const collected = collect(`
+        import {Component} from '@angular/core';
+
+        enum SomeEnum {
+          OK,
+          NotOK
+        }
+
+        @Component({
+          provider: [{provide: 'someToken', data:◊enum: SomeEnum.OK◊}]
+        })
+        export class MyClass {}
+      `);
+      expect(collected.requests.has(collected.annotations[0].start))
+          .toBeTruthy('did not find the data field');
+    });
   });
 });
 
-function convert(annotatedSource: string) {
+// Helpers
+
+interface Annotation {
+  start: number;
+  length: number;
+  name: string;
+}
+
+function getAnnotations(annotatedSource: string):
+    {unannotatedSource: string, annotations: Annotation[]} {
   const annotations: {start: number, length: number, name: string}[] = [];
   let adjustment = 0;
   const unannotatedSource = annotatedSource.replace(
@@ -38,6 +106,13 @@ function convert(annotatedSource: string) {
         adjustment -= text.length - source.length;
         return source;
       });
+  return {unannotatedSource, annotations};
+}
+
+// Transform helpers
+
+function convert(annotatedSource: string) {
+  const {annotations, unannotatedSource} = getAnnotations(annotatedSource);
 
   const baseFileName = 'someFile';
   const moduleName = '/' + baseFileName;
@@ -51,11 +126,9 @@ function convert(annotatedSource: string) {
 
   for (const annotation of annotations) {
     const node = findNode(sourceFile, annotation.start, annotation.length);
-    expect(node).toBeDefined();
-    if (node) {
-      const location = node.pos;
-      requests.set(location, {name: annotation.name, kind: node.kind, location, end: node.end});
-    }
+    if (!node) throw new Error('Invalid test specification. Could not find the node to substitute');
+    const location = node.pos;
+    requests.set(location, {name: annotation.name, kind: node.kind, location, end: node.end});
   }
 
   const program = ts.createProgram(
@@ -104,4 +177,17 @@ function normalizeResult(result: string): string {
       .replace(/ +/g, ' ')
       .replace(/^ /g, '')
       .replace(/ $/g, '');
+}
+
+// Collector helpers
+
+function collect(annotatedSource: string) {
+  const {annotations, unannotatedSource} = getAnnotations(annotatedSource);
+  const cache = new LowerMetadataCache({});
+  const sourceFile = ts.createSourceFile(
+      'someName.ts', unannotatedSource, ts.ScriptTarget.Latest, /* setParentNodes */ true);
+  return {
+    metadata: cache.getMetadata(sourceFile),
+    requests: cache.getRequests(sourceFile), annotations
+  };
 }

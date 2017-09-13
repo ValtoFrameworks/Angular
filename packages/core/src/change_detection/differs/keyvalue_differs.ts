@@ -6,9 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {Optional, Provider, SkipSelf} from '../../di';
-import {ChangeDetectorRef} from '../change_detector_ref';
-
+import {Optional, SkipSelf, StaticProvider} from '../../di';
 
 
 /**
@@ -110,11 +108,6 @@ export interface KeyValueDifferFactory {
    * Create a `KeyValueDiffer`.
    */
   create<K, V>(): KeyValueDiffer<K, V>;
-
-  /**
-   * @deprecated v4.0.0 - ChangeDetectorRef is not used and is no longer a parameter
-   */
-  create<K, V>(_cdr?: ChangeDetectorRef): KeyValueDiffer<K, V>;
 }
 
 /**
@@ -156,7 +149,7 @@ export class KeyValueDiffers {
    * })
    * ```
    */
-  static extend<S>(factories: KeyValueDifferFactory[]): Provider {
+  static extend<S>(factories: KeyValueDifferFactory[]): StaticProvider {
     return {
       provide: KeyValueDiffers,
       useFactory: (parent: KeyValueDiffers) => {

@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {animate, style, transition, trigger} from '@angular/animations';
+import {AnimationBuilder, animate, style, transition, trigger} from '@angular/animations';
 import {APP_BASE_HREF, PlatformLocation, isPlatformServer} from '@angular/common';
 import {HttpClient, HttpClientModule} from '@angular/common/http';
 import {HttpClientTestingModule, HttpTestingController} from '@angular/common/http/testing';
@@ -16,7 +16,7 @@ import {Http, HttpModule, Response, ResponseOptions, XHRBackend} from '@angular/
 import {MockBackend, MockConnection} from '@angular/http/testing';
 import {BrowserModule, DOCUMENT, Title} from '@angular/platform-browser';
 import {getDOM} from '@angular/platform-browser/src/dom/dom_adapter';
-import {INITIAL_CONFIG, PlatformState, ServerModule, platformDynamicServer, renderModule, renderModuleFactory} from '@angular/platform-server';
+import {BEFORE_APP_SERIALIZED, INITIAL_CONFIG, PlatformState, ServerModule, platformDynamicServer, renderModule, renderModuleFactory} from '@angular/platform-server';
 import {Subscription} from 'rxjs/Subscription';
 import {filter} from 'rxjs/operator/filter';
 import {first} from 'rxjs/operator/first';
@@ -36,6 +36,50 @@ class MyServerApp {
   ]
 })
 class ExampleModule {
+}
+
+function getTitleRenderHook(doc: any) {
+  return () => {
+    // Set the title as part of the render hook.
+    doc.title = 'RenderHook';
+  };
+}
+
+function exceptionRenderHook() {
+  throw new Error('error');
+}
+
+function getMetaRenderHook(doc: any) {
+  return () => {
+    // Add a meta tag before rendering the document.
+    const metaElement = doc.createElement('meta');
+    metaElement.setAttribute('name', 'description');
+    doc.head.appendChild(metaElement);
+  };
+}
+
+@NgModule({
+  bootstrap: [MyServerApp],
+  declarations: [MyServerApp],
+  imports: [BrowserModule.withServerTransition({appId: 'render-hook'}), ServerModule],
+  providers: [
+    {provide: BEFORE_APP_SERIALIZED, useFactory: getTitleRenderHook, multi: true, deps: [DOCUMENT]},
+  ]
+})
+class RenderHookModule {
+}
+
+@NgModule({
+  bootstrap: [MyServerApp],
+  declarations: [MyServerApp],
+  imports: [BrowserModule.withServerTransition({appId: 'render-hook'}), ServerModule],
+  providers: [
+    {provide: BEFORE_APP_SERIALIZED, useFactory: getTitleRenderHook, multi: true, deps: [DOCUMENT]},
+    {provide: BEFORE_APP_SERIALIZED, useValue: exceptionRenderHook, multi: true},
+    {provide: BEFORE_APP_SERIALIZED, useFactory: getMetaRenderHook, multi: true, deps: [DOCUMENT]},
+  ]
+})
+class MultiRenderHookModule {
 }
 
 @Component({selector: 'app', template: `Works too!`})
@@ -100,6 +144,8 @@ class SVGServerModule {
       [transition('void => *', [style({'opacity': '0'}), animate(500, style({'opacity': '1'}))])])],
 })
 class MyAnimationApp {
+  constructor(private builder: AnimationBuilder) {}
+
   text = 'Works!';
 }
 
@@ -229,9 +275,8 @@ export function main() {
 
            expect(doc.head).toBe(getDOM().querySelector(doc, 'head'));
            expect(doc.body).toBe(getDOM().querySelector(doc, 'body'));
-           expect((<any>doc)._window).toEqual({});
 
-           expect(getDOM().getText(doc)).toEqual('Works!');
+           expect(getDOM().getText(doc.documentElement)).toEqual('Works!');
 
            platform.destroy();
          });
@@ -247,13 +292,13 @@ export function main() {
 
          platform.bootstrapModule(ExampleModule).then((moduleRef) => {
            const doc = moduleRef.injector.get(DOCUMENT);
-           expect(getDOM().getText(doc)).toEqual('Works!');
+           expect(getDOM().getText(doc.documentElement)).toEqual('Works!');
            platform.destroy();
          });
 
          platform2.bootstrapModule(ExampleModule2).then((moduleRef) => {
            const doc = moduleRef.injector.get(DOCUMENT);
-           expect(getDOM().getText(doc)).toEqual('Works too!');
+           expect(getDOM().getText(doc.documentElement)).toEqual('Works too!');
            platform2.destroy();
          });
        }));
@@ -308,7 +353,7 @@ export function main() {
            const appRef: ApplicationRef = ref.injector.get(ApplicationRef);
            const app = appRef.components[0].location.nativeElement;
            const img = getDOM().getElementsByTagName(app, 'img')[0] as any;
-           expect(img.attribs['src']).toEqual('link');
+           expect(img.attributes['src'].value).toEqual('link');
          });
        }));
 
@@ -381,7 +426,7 @@ export function main() {
       let doc: string;
       let called: boolean;
       let expectedOutput =
-          '<html><head></head><body><app ng-version="0.0.0-PLACEHOLDER">Works!<h1 innerText="fine">fine</h1></app></body></html>';
+          '<html><head></head><body><app ng-version="0.0.0-PLACEHOLDER">Works!<h1 innertext="fine">fine</h1></app></body></html>';
 
       beforeEach(() => {
         // PlatformConfig takes in a parsed document so that it can be cached across requests.
@@ -437,9 +482,8 @@ export function main() {
 
       it('works with animation', async(() => {
            renderModule(AnimationServerModule, {document: doc}).then(output => {
-             expect(output).toBe(
-                 '<html><head></head><body><app ng-version="0.0.0-PLACEHOLDER">' +
-                 '<div>Works!</div></app></body></html>');
+             expect(output).toContain('Works!');
+             expect(output).toContain('ng-trigger-myAnimation');
              called = true;
            });
          }));
@@ -466,6 +510,28 @@ export function main() {
              expect(output).toBe(
                  '<html><head></head><body><app ng-version="0.0.0-PLACEHOLDER">' +
                  '<input name=""></app></body></html>');
+             called = true;
+           });
+         }));
+
+      it('should call render hook', async(() => {
+           renderModule(RenderHookModule, {document: doc}).then(output => {
+             // title should be added by the render hook.
+             expect(output).toBe(
+                 '<html><head><title>RenderHook</title></head><body>' +
+                 '<app ng-version="0.0.0-PLACEHOLDER">Works!</app></body></html>');
+             called = true;
+           });
+         }));
+
+      it('should call mutliple render hooks', async(() => {
+           const consoleSpy = spyOn(console, 'warn');
+           renderModule(MultiRenderHookModule, {document: doc}).then(output => {
+             // title should be added by the render hook.
+             expect(output).toBe(
+                 '<html><head><title>RenderHook</title><meta name="description"></head>' +
+                 '<body><app ng-version="0.0.0-PLACEHOLDER">Works!</app></body></html>');
+             expect(consoleSpy).toHaveBeenCalled();
              called = true;
            });
          }));

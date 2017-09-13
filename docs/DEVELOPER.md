@@ -126,6 +126,8 @@ $ ./test.sh tools            # Run angular tooling (not framework) tests
 
 You should execute the 3 test suites before submitting a PR to github.
 
+See [DEBUG.md](DEBUG.md) for information on debugging the code while running the unit tests.
+
 All the tests are executed on our Continuous Integration infrastructure and a PR could only be merged once the tests pass.
 
 - CircleCI fails if your code is not formatted properly,
@@ -177,7 +179,7 @@ First time, you need to create the github repositories:
 
 ``` shell
 $ export TOKEN=[get one from https://github.com/settings/tokens]
-$ CREATE_REPOS=1 ./scripts/publish/publish-build-artifacts.sh [github username]
+$ CREATE_REPOS=1 TRAVIS= ./scripts/ci/publish-build-artifacts.sh [github username]
 ```
 
 For subsequent snapshots, just run

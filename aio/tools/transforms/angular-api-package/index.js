@@ -27,7 +27,11 @@ module.exports = new Package('angular-api', [basePackage, typeScriptPackage])
   .processor(require('./processors/simplifyMemberAnchors'))
 
   // Where do we get the source files?
-  .config(function(readTypeScriptModules, readFilesProcessor, collectExamples) {
+  .config(function(readTypeScriptModules, readFilesProcessor, collectExamples, tsParser) {
+
+    // Tell TypeScript how to load modules that start with with `@angular`
+    tsParser.options.paths = { '@angular/*': [API_SOURCE_PATH + '/*'] };
+    tsParser.options.baseUrl = '.';
 
     // API files are typescript
     readTypeScriptModules.basePath = API_SOURCE_PATH;
@@ -124,4 +128,5 @@ module.exports = new Package('angular-api', [basePackage, typeScriptPackage])
     convertToJsonProcessor.docTypes = convertToJsonProcessor.docTypes.concat(DOCS_TO_CONVERT);
     postProcessHtml.docTypes = convertToJsonProcessor.docTypes.concat(DOCS_TO_CONVERT);
     autoLinkCode.docTypes = DOCS_TO_CONVERT;
+    autoLinkCode.codeElements = ['code', 'code-example', 'code-pane'];
   });

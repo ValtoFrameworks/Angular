@@ -9,7 +9,7 @@
 import {AotCompiler, AotCompilerHost, AotCompilerOptions, EmitterVisitorContext, GeneratedFile, NgAnalyzedModules, ParseSourceSpan, Statement, StaticReflector, TypeScriptEmitter, createAotCompiler} from '@angular/compiler';
 import * as ts from 'typescript';
 
-import {Diagnostic, DiagnosticCategory} from '../transformers/api';
+import {DEFAULT_ERROR_CODE, Diagnostic, SOURCE} from '../transformers/api';
 
 interface FactoryInfo {
   source: ts.SourceFile;
@@ -137,21 +137,25 @@ export class TypeChecker {
       if (this._currentCancellationToken.isCancellationRequested()) return result;
       const sourceFile = program.getSourceFile(factoryName);
       for (const diagnostic of this.diagnosticProgram.getSemanticDiagnostics(sourceFile)) {
-        const span = this.sourceSpanOf(diagnostic.file, diagnostic.start, diagnostic.length);
-        if (span) {
-          const fileName = span.start.file.url;
-          const diagnosticsList = diagnosticsFor(fileName);
-          diagnosticsList.push({
-            message: diagnosticMessageToString(diagnostic.messageText),
-            category: diagnosticCategoryConverter(diagnostic.category), span
-          });
+        if (diagnostic.file && diagnostic.start) {
+          const span = this.sourceSpanOf(diagnostic.file, diagnostic.start);
+          if (span) {
+            const fileName = span.start.file.url;
+            const diagnosticsList = diagnosticsFor(fileName);
+            diagnosticsList.push({
+              messageText: diagnosticMessageToString(diagnostic.messageText),
+              category: diagnostic.category, span,
+              source: SOURCE,
+              code: DEFAULT_ERROR_CODE
+            });
+          }
         }
       }
     }
     return result;
   }
 
-  private sourceSpanOf(source: ts.SourceFile, start: number, length: number): ParseSourceSpan|null {
+  private sourceSpanOf(source: ts.SourceFile, start: number): ParseSourceSpan|null {
     // Find the corresponding TypeScript node
     const info = this.factories.get(source.fileName);
     if (info) {
@@ -166,14 +170,13 @@ function diagnosticMessageToString(message: ts.DiagnosticMessageChain | string):
   return ts.flattenDiagnosticMessageText(message, '\n');
 }
 
-function diagnosticCategoryConverter(kind: ts.DiagnosticCategory) {
-  // The diagnostics kind matches ts.DiagnosticCategory. Review this code if this changes.
-  return kind as any as DiagnosticCategory;
-}
+const REWRITE_PREFIX = /^\u0275[0-9]+$/;
 
 function createFactoryInfo(emitter: TypeScriptEmitter, file: GeneratedFile): FactoryInfo {
-  const {sourceText, context} =
-      emitter.emitStatementsAndContext(file.srcFileUrl, file.genFileUrl, file.stmts !);
+  const {sourceText, context} = emitter.emitStatementsAndContext(
+      file.srcFileUrl, file.genFileUrl, file.stmts !,
+      /* preamble */ undefined, /* emitSourceMaps */ undefined,
+      /* referenceFilter */ reference => !!(reference.name && REWRITE_PREFIX.test(reference.name)));
   const source = ts.createSourceFile(
       file.genFileUrl, sourceText, ts.ScriptTarget.Latest, /* setParentNodes */ true);
   return {source, context};

@@ -78,7 +78,7 @@ function coerceToAsyncValidator(
                                              origAsyncValidator || null;
 }
 
-export type FormHooks = 'change' | 'blur';
+export type FormHooks = 'change' | 'blur' | 'submit';
 
 export interface AbstractControlOptions {
   validators?: ValidatorFn|ValidatorFn[]|null;
@@ -108,8 +108,18 @@ function isOptionsObj(
 export abstract class AbstractControl {
   /** @internal */
   _value: any;
+
+  /** @internal */
+  _pendingDirty: boolean;
+
+  /** @internal */
+  _pendingTouched: boolean;
+
   /** @internal */
   _onCollectionChange = () => {};
+
+  /** @internal */
+  _updateOn: FormHooks;
 
   private _valueChanges: EventEmitter<any>;
   private _statusChanges: EventEmitter<any>;
@@ -236,6 +246,15 @@ export abstract class AbstractControl {
   get statusChanges(): Observable<any> { return this._statusChanges; }
 
   /**
+   * Returns the update strategy of the `AbstractControl` (i.e.
+   * the event on which the control will update itself).
+   * Possible values: `'change'` (default) | `'blur'` | `'submit'`
+   */
+  get updateOn(): FormHooks {
+    return this._updateOn ? this._updateOn : (this.parent ? this.parent.updateOn : 'change');
+  }
+
+  /**
    * Sets the synchronous validators that are active on this control.  Calling
    * this will overwrite any existing sync validators.
    */
@@ -284,6 +303,7 @@ export abstract class AbstractControl {
    */
   markAsUntouched(opts: {onlySelf?: boolean} = {}): void {
     this._touched = false;
+    this._pendingTouched = false;
 
     this._forEachChild(
         (control: AbstractControl) => { control.markAsUntouched({onlySelf: true}); });
@@ -316,6 +336,7 @@ export abstract class AbstractControl {
    */
   markAsPristine(opts: {onlySelf?: boolean} = {}): void {
     this._pristine = true;
+    this._pendingDirty = false;
 
     this._forEachChild((control: AbstractControl) => { control.markAsPristine({onlySelf: true}); });
 
@@ -497,7 +518,7 @@ export abstract class AbstractControl {
   get(path: Array<string|number>|string): AbstractControl|null { return _find(this, path, '.'); }
 
   /**
-   * Returns true if the control with the given path has the error specified. Otherwise
+   * Returns error data if the control with the given path has the error specified. Otherwise
    * returns null or undefined.
    *
    * If no path is given, it checks for the error on the present control.
@@ -569,6 +590,9 @@ export abstract class AbstractControl {
   abstract _allControlsDisabled(): boolean;
 
   /** @internal */
+  abstract _syncPendingControls(): boolean;
+
+  /** @internal */
   _anyControlsHaveStatus(status: string): boolean {
     return this._anyControls((control: AbstractControl) => control.status === status);
   }
@@ -612,6 +636,13 @@ export abstract class AbstractControl {
 
   /** @internal */
   _registerOnCollectionChange(fn: () => void): void { this._onCollectionChange = fn; }
+
+  /** @internal */
+  _setUpdateStrategy(opts?: ValidatorFn|ValidatorFn[]|AbstractControlOptions|null): void {
+    if (isOptionsObj(opts) && (opts as AbstractControlOptions).updateOn != null) {
+      this._updateOn = (opts as AbstractControlOptions).updateOn !;
+    }
+  }
 }
 
 /**
@@ -672,6 +703,9 @@ export abstract class AbstractControl {
  * const c = new FormControl('', { updateOn: 'blur' });
  * ```
  *
+ * You can also set `updateOn` to `'submit'`, which will delay value and validity
+ * updates until the parent form of the control fires a submit event.
+ *
  * See its superclass, {@link AbstractControl}, for more properties and methods.
  *
  * * **npm package**: `@angular/forms`
@@ -683,13 +717,7 @@ export class FormControl extends AbstractControl {
   _onChange: Function[] = [];
 
   /** @internal */
-  _updateOn: FormHooks = 'change';
-
-  /** @internal */
   _pendingValue: any;
-
-  /** @internal */
-  _pendingDirty: boolean;
 
   constructor(
       formState: any = null,
@@ -782,7 +810,6 @@ export class FormControl extends AbstractControl {
   reset(formState: any = null, options: {onlySelf?: boolean, emitEvent?: boolean} = {}): void {
     this._applyFormState(formState);
     this.markAsPristine(options);
-    this._pendingDirty = false;
     this.markAsUntouched(options);
     this.setValue(this._value, options);
   }
@@ -828,6 +855,17 @@ export class FormControl extends AbstractControl {
    */
   _forEachChild(cb: Function): void {}
 
+  /** @internal */
+  _syncPendingControls(): boolean {
+    if (this.updateOn === 'submit') {
+      this.setValue(this._pendingValue, {onlySelf: true, emitModelToViewChange: false});
+      if (this._pendingDirty) this.markAsDirty();
+      if (this._pendingTouched) this.markAsTouched();
+      return true;
+    }
+    return false;
+  }
+
   private _applyFormState(formState: any) {
     if (this._isBoxedValue(formState)) {
       this._value = this._pendingValue = formState.value;
@@ -835,12 +873,6 @@ export class FormControl extends AbstractControl {
                            this.enable({onlySelf: true, emitEvent: false});
     } else {
       this._value = this._pendingValue = formState;
-    }
-  }
-
-  private _setUpdateStrategy(opts?: ValidatorFn|ValidatorFn[]|AbstractControlOptions|null): void {
-    if (isOptionsObj(opts) && (opts as AbstractControlOptions).updateOn != null) {
-      this._updateOn = (opts as AbstractControlOptions).updateOn !;
     }
   }
 }
@@ -903,6 +935,17 @@ export class FormControl extends AbstractControl {
  * }, {validators: passwordMatchValidator, asyncValidators: otherValidator});
  * ```
  *
+ * The options object can also be used to set a default value for each child
+ * control's `updateOn` property. If you set `updateOn` to `'blur'` at the
+ * group level, all child controls will default to 'blur', unless the child
+ * has explicitly specified a different `updateOn` value.
+ *
+ * ```ts
+ * const c = new FormGroup({
+ *    one: new FormControl()
+ * }, {updateOn: 'blur'});
+ * ```
+ *
  * * **npm package**: `@angular/forms`
  *
  * @stable
@@ -916,6 +959,7 @@ export class FormGroup extends AbstractControl {
         coerceToValidator(validatorOrOpts),
         coerceToAsyncValidator(asyncValidator, validatorOrOpts));
     this._initObservables();
+    this._setUpdateStrategy(validatorOrOpts);
     this._setUpControls();
     this.updateValueAndValidity({onlySelf: true, emitEvent: false});
   }
@@ -1093,6 +1137,15 @@ export class FormGroup extends AbstractControl {
   }
 
   /** @internal */
+  _syncPendingControls(): boolean {
+    let subtreeUpdated = this._reduceChildren(false, (updated: boolean, child: AbstractControl) => {
+      return child._syncPendingControls() ? true : updated;
+    });
+    if (subtreeUpdated) this.updateValueAndValidity({onlySelf: true});
+    return subtreeUpdated;
+  }
+
+  /** @internal */
   _throwIfControlMissing(name: string): void {
     if (!Object.keys(this.controls).length) {
       throw new Error(`
@@ -1211,6 +1264,17 @@ export class FormGroup extends AbstractControl {
  * ], {validators: myValidator, asyncValidators: myAsyncValidator});
  * ```
  *
+ * The options object can also be used to set a default value for each child
+ * control's `updateOn` property. If you set `updateOn` to `'blur'` at the
+ * array level, all child controls will default to 'blur', unless the child
+ * has explicitly specified a different `updateOn` value.
+ *
+ * ```ts
+ * const c = new FormArray([
+ *    new FormControl()
+ * ], {updateOn: 'blur'});
+ * ```
+ *
  * ### Adding or removing controls
  *
  * To change the controls in the array, use the `push`, `insert`, or `removeAt` methods
@@ -1232,6 +1296,7 @@ export class FormArray extends AbstractControl {
         coerceToValidator(validatorOrOpts),
         coerceToAsyncValidator(asyncValidator, validatorOrOpts));
     this._initObservables();
+    this._setUpdateStrategy(validatorOrOpts);
     this._setUpControls();
     this.updateValueAndValidity({onlySelf: true, emitEvent: false});
   }
@@ -1402,6 +1467,15 @@ export class FormArray extends AbstractControl {
     return this.controls.map((control: AbstractControl) => {
       return control instanceof FormControl ? control.value : (<any>control).getRawValue();
     });
+  }
+
+  /** @internal */
+  _syncPendingControls(): boolean {
+    let subtreeUpdated = this.controls.reduce((updated: boolean, child: AbstractControl) => {
+      return child._syncPendingControls() ? true : updated;
+    }, false);
+    if (subtreeUpdated) this.updateValueAndValidity({onlySelf: true});
+    return subtreeUpdated;
   }
 
   /** @internal */

@@ -76,10 +76,7 @@ interface Options extends ts.CompilerOptions {
   // Print extra information while running the compiler
   trace?: boolean;
 
-  /** @deprecated since v4 this option has no effect anymore. */
-  debug?: boolean;
-
-  // Whether to enable support for <template> and the template attribute (true by default)
+  // Whether to enable support for <template> and the template attribute (false by default)
   enableLegacyTemplate?: boolean;
 
   // Whether to generate .ngsummary.ts files that allow to use AOTed artifacts
@@ -90,6 +87,10 @@ interface Options extends ts.CompilerOptions {
   // matched by the `files` / `includes` in the `tsconfig.json`.
   // This is off by default.
   alwaysCompileGeneratedCode?: boolean;
+
+  // Whether to remove blank text nodes from compiled templates. It is `true` by default
+  // in Angular 5 and will be re-visited in Angular 6.
+  preserveWhitespaces?: boolean;
 }
 
 export default Options;

@@ -63,7 +63,7 @@ describe('TypeScriptNodeEmitter', () => {
     expect(emitStmt(someVar.set(o.literal(1)).toDeclStmt(null, [o.StmtModifier.Final])))
         .toEqual(`var someVar = 1;`);
     expect(emitStmt(someVar.set(o.literal(1)).toDeclStmt(null, [o.StmtModifier.Exported])))
-        .toEqual(`exports.someVar = 1;`);
+        .toEqual(`var someVar = 1; exports.someVar = someVar;`);
   });
 
   describe('declare variables with ExternExpressions as values', () => {
@@ -71,7 +71,7 @@ describe('TypeScriptNodeEmitter', () => {
       // identifier is in the same module -> no reexport
       expect(emitStmt(someVar.set(o.importExpr(sameModuleIdentifier)).toDeclStmt(null, [
         o.StmtModifier.Exported
-      ]))).toEqual('exports.someVar = someLocalId;');
+      ]))).toEqual('var someVar = someLocalId; exports.someVar = someVar;');
     });
 
     it('should create no reexport if the variable is not exported', () => {
@@ -84,7 +84,7 @@ describe('TypeScriptNodeEmitter', () => {
       expect(emitStmt(someVar.set(o.importExpr(externalModuleIdentifier))
                           .toDeclStmt(o.DYNAMIC_TYPE, [o.StmtModifier.Exported])))
           .toEqual(
-              `const i0 = require("/somePackage/someOtherPath"); exports.someVar = i0.someExternalId;`);
+              `const i0 = require("/somePackage/someOtherPath"); var someVar = i0.someExternalId; exports.someVar = someVar;`);
     });
 
     it('should create a reexport', () => {
@@ -169,10 +169,11 @@ describe('TypeScriptNodeEmitter', () => {
     expect(emitStmt(o.literalMap([
                        {key: 'someKey', value: o.literal(1), quoted: false},
                        {key: 'a', value: o.literal('a'), quoted: false},
-                       {key: '*', value: o.literal('star'), quoted: true},
+                       {key: 'b', value: o.literal('b'), quoted: true},
+                       {key: '*', value: o.literal('star'), quoted: false},
                      ]).toStmt())
                .replace(/\s+/gm, ''))
-        .toEqual(`({someKey:1,a:"a","*":"star"});`);
+        .toEqual(`({someKey:1,a:"a","b":"b","*":"star"});`);
   });
 
   it('should support blank literals', () => {

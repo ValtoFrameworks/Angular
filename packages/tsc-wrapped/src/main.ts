@@ -11,59 +11,14 @@ import * as path from 'path';
 import * as tsickle from 'tsickle';
 import * as ts from 'typescript';
 
-import {CompilerHostAdapter, MetadataBundler} from './bundler';
 import {CliOptions} from './cli_options';
-import {MetadataWriterHost, SyntheticIndexHost} from './compiler_host';
-import {privateEntriesToIndex} from './index_writer';
-import NgOptions from './options';
+import {MetadataWriterHost} from './compiler_host';
+
+import {CodegenExtension, createBundleIndexHost} from './main_no_tsickle';
 import {check, tsc} from './tsc';
-import {isVinylFile, VinylFile} from './vinyl_file';
+import {VinylFile, isVinylFile} from './vinyl_file';
 
-export {UserError} from './tsc';
-
-const DTS = /\.d\.ts$/;
-const JS_EXT = /(\.js|)$/;
 const TS_EXT = /\.ts$/;
-
-export interface CodegenExtension {
-  /**
-   * Returns the generated file names.
-   */
-  (ngOptions: NgOptions, cliOptions: CliOptions, program: ts.Program,
-   host: ts.CompilerHost): Promise<string[]>;
-}
-
-export function createBundleIndexHost(
-    ngOptions: NgOptions, rootFiles: string[],
-    host: ts.CompilerHost): {host: ts.CompilerHost, indexName?: string, errors?: ts.Diagnostic[]} {
-  const files = rootFiles.filter(f => !DTS.test(f));
-  if (files.length != 1) {
-    return {
-      host,
-      errors: [{
-        file: null as any as ts.SourceFile,
-        start: null as any as number,
-        length: null as any as number,
-        messageText:
-            'Angular compiler option "flatModuleIndex" requires one and only one .ts file in the "files" field.',
-        category: ts.DiagnosticCategory.Error,
-        code: 0
-      }]
-    };
-  }
-  const file = files[0];
-  const indexModule = file.replace(/\.ts$/, '');
-  const bundler =
-      new MetadataBundler(indexModule, ngOptions.flatModuleId, new CompilerHostAdapter(host));
-  const metadataBundle = bundler.getMetadataBundle();
-  const metadata = JSON.stringify(metadataBundle.metadata);
-  const name =
-      path.join(path.dirname(indexModule), ngOptions.flatModuleOutFile !.replace(JS_EXT, '.ts'));
-  const libraryIndex = `./${path.basename(indexModule)}`;
-  const content = privateEntriesToIndex(libraryIndex, metadataBundle.privates);
-  host = new SyntheticIndexHost(host, {name, content, metadata});
-  return {host, indexName: name};
-}
 
 export function main(
     project: string | VinylFile, cliOptions: CliOptions, codegen?: CodegenExtension,
@@ -99,6 +54,9 @@ export function main(
     if (diagnostics) (ts as any).performance.enable();
 
     let host = ts.createCompilerHost(parsed.options, true);
+    // Make sure we do not `host.realpath()` from TS as we do not want to resolve symlinks.
+    // https://github.com/Microsoft/TypeScript/issues/9552
+    host.realpath = (fileName: string) => fileName;
 
     // If the compilation is a flat module index then produce the flat module index
     // metadata and the synthetic flat module index.
@@ -110,20 +68,19 @@ export function main(
       host = bundleHost;
     }
 
-    const tsickleCompilerHostOptions:
-        tsickle.Options = {googmodule: false, untyped: true, convertIndexImportShorthand: true};
-
     const tsickleHost: tsickle.TsickleHost = {
       shouldSkipTsickleProcessing: (fileName) => /\.d\.ts$/.test(fileName),
       pathToModuleName: (context, importPath) => '',
       shouldIgnoreWarningsForPath: (filePath) => false,
       fileNameToModuleId: (fileName) => fileName,
+      googmodule: false,
+      untyped: true,
+      convertIndexImportShorthand: false,
+      transformDecorators: ngOptions.annotationsAs !== 'decorators',
+      transformTypesToClosure: ngOptions.annotateForClosureCompiler,
     };
 
-    const tsickleCompilerHost =
-        new tsickle.TsickleCompilerHost(host, ngOptions, tsickleCompilerHostOptions, tsickleHost);
-
-    const program = createProgram(tsickleCompilerHost);
+    const program = createProgram(host);
 
     const errors = program.getOptionsDiagnostics();
     check(errors);
@@ -140,48 +97,19 @@ export function main(
       if (ngOptions.alwaysCompileGeneratedCode) {
         genFiles.forEach(genFileName => addGeneratedFileName(genFileName));
       }
-      let definitionsHost: ts.CompilerHost = tsickleCompilerHost;
       if (!ngOptions.skipMetadataEmit) {
-        // if tsickle is not not used for emitting, but we do use the MetadataWriterHost,
-        // it also needs to emit the js files.
-        const emitJsFiles =
-            ngOptions.annotationsAs === 'decorators' && !ngOptions.annotateForClosureCompiler;
-        definitionsHost = new MetadataWriterHost(tsickleCompilerHost, ngOptions, emitJsFiles);
+        host = new MetadataWriterHost(host, ngOptions, true);
       }
 
       // Create a new program since codegen files were created after making the old program
-      let programWithCodegen = createProgram(definitionsHost, program);
+      let programWithCodegen = createProgram(host, program);
       tsc.typeCheck(host, programWithCodegen);
 
-      let programForJsEmit = programWithCodegen;
-
-      if (ngOptions.annotationsAs !== 'decorators') {
-        if (diagnostics) console.time('NG downlevel');
-        tsickleCompilerHost.reconfigureForRun(programForJsEmit, tsickle.Pass.DECORATOR_DOWNLEVEL);
-        // A program can be re-used only once; save the programWithCodegen to be reused by
-        // metadataWriter
-        programForJsEmit = createProgram(tsickleCompilerHost);
-        check(tsickleCompilerHost.diagnostics);
-        if (diagnostics) console.timeEnd('NG downlevel');
-      }
-
-      if (ngOptions.annotateForClosureCompiler) {
-        if (diagnostics) console.time('NG JSDoc');
-        tsickleCompilerHost.reconfigureForRun(programForJsEmit, tsickle.Pass.CLOSURIZE);
-        programForJsEmit = createProgram(tsickleCompilerHost);
-        check(tsickleCompilerHost.diagnostics);
-        if (diagnostics) console.timeEnd('NG JSDoc');
-      }
-
-      // Emit *.js and *.js.map
-      tsc.emit(programForJsEmit);
-
-      // Emit *.d.ts and maybe *.metadata.json
-      // Not in the same emit pass with above, because tsickle erases
-      // decorators which we want to read or document.
-      // Do this emit second since TypeScript will create missing directories for us
-      // in the standard emit.
-      tsc.emit(programWithCodegen);
+      if (diagnostics) console.time('Emit');
+      const {diagnostics: emitDiags} =
+          tsickle.emitWithTsickle(programWithCodegen, tsickleHost, host, ngOptions);
+      if (diagnostics) console.timeEnd('Emit');
+      check(emitDiags);
 
       if (diagnostics) {
         (ts as any).performance.forEachMeasure(
