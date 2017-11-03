@@ -334,11 +334,6 @@
               "tooltip": "Learn why and how to use the Ahead-of-Time (AOT) compiler."
             },
             {
-              "url": "guide/metadata",
-              "title": "Metadata and AOT",
-              "tooltip": "How Angular handles metadata with AOT."
-            },
-            {
               "url": "guide/deployment",
               "title": "Deployment",
               "tooltip": "Learn how to deploy your Angular app."
@@ -362,7 +357,11 @@
             }
           ]
         },
-
+        {
+          "url": "guide/universal",
+          "title": "Server-side Rendering",
+          "tooltip": "Render HTML server-side with Angular Universal."
+        },
         {
           "url": "guide/visual-studio-2015",
           "title": "Visual Studio 2015 QuickStart",
@@ -487,6 +486,7 @@
   ],
 
   "docVersions": [
+    { "title": "v4 (LTS)", "url": "https://v4.angular.io" },
     { "title": "v2", "url": "https://v2.angular.io" },
     { "title": "AngularDart", "url": "https://webdev.dartlang.org/angular" }
 

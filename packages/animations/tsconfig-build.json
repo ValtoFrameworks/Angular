@@ -4,7 +4,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "rootDir": ".",
-    "paths": {},
+    "paths": {
+      "@angular/core": ["../../dist/packages/core"]
+    },
     "outDir": "../../dist/packages/animations"
   },
 
@@ -16,8 +18,9 @@
 
   "angularCompilerOptions": {
     "annotateForClosureCompiler": true,
-    "strictMetadataEmit": true,
-    "flatModuleOutFile": "index.js",
+    "strictMetadataEmit": false,
+    "skipTemplateCodegen": true,
+    "flatModuleOutFile": "animations.js",
     "flatModuleId": "@angular/animations"
   }
 }

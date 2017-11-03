@@ -16,4 +16,7 @@ export interface AotCompilerOptions {
   enableLegacyTemplate?: boolean;
   enableSummariesForJit?: boolean;
   preserveWhitespaces?: boolean;
+  fullTemplateTypeCheck?: boolean;
+  allowEmptyCodegenFiles?: boolean;
+  strictInjectionParameters?: boolean;
 }

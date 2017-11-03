@@ -13,25 +13,28 @@ import * as ts from 'typescript';
 
 import * as api from './transformers/api';
 import * as ng from './transformers/entry_points';
+import {createMessageDiagnostic} from './transformers/util';
 
 const TS_EXT = /\.ts$/;
 
 export type Diagnostics = Array<ts.Diagnostic|api.Diagnostic>;
 
-function isTsDiagnostic(diagnostic: any): diagnostic is ts.Diagnostic {
-  return diagnostic && diagnostic.source != 'angular';
+export function filterErrorsAndWarnings(diagnostics: Diagnostics): Diagnostics {
+  return diagnostics.filter(d => d.category !== ts.DiagnosticCategory.Message);
 }
 
-export function formatDiagnostics(options: api.CompilerOptions, diags: Diagnostics): string {
+const defaultFormatHost: ts.FormatDiagnosticsHost = {
+  getCurrentDirectory: () => ts.sys.getCurrentDirectory(),
+  getCanonicalFileName: fileName => fileName,
+  getNewLine: () => ts.sys.newLine
+};
+
+export function formatDiagnostics(
+    diags: Diagnostics, tsFormatHost: ts.FormatDiagnosticsHost = defaultFormatHost): string {
   if (diags && diags.length) {
-    const tsFormatHost: ts.FormatDiagnosticsHost = {
-      getCurrentDirectory: () => options.basePath || process.cwd(),
-      getCanonicalFileName: fileName => fileName,
-      getNewLine: () => ts.sys.newLine
-    };
     return diags
         .map(d => {
-          if (isTsDiagnostic(d)) {
+          if (api.isTsDiagnostic(d)) {
             return ts.formatDiagnostics([d], tsFormatHost);
           } else {
             let res = ts.DiagnosticCategory[d.category];
@@ -47,7 +50,7 @@ export function formatDiagnostics(options: api.CompilerOptions, diags: Diagnosti
             return res;
           }
         })
-        .join();
+        .join('');
   } else
     return '';
 }
@@ -105,6 +108,9 @@ export function readConfiguration(
     if (!(options.skipMetadataEmit || options.flatModuleOutFile)) {
       emitFlags |= api.EmitFlags.Metadata;
     }
+    if (options.skipTemplateCodegen) {
+      emitFlags = emitFlags & ~api.EmitFlags.Codegen;
+    }
     return {project: projectFile, rootNames, options, errors: parsed.errors, emitFlags};
   } catch (e) {
     const errors: Diagnostics = [{
@@ -124,7 +130,7 @@ export interface PerformCompilationResult {
 }
 
 export function exitCodeFromResult(diags: Diagnostics | undefined): number {
-  if (!diags || diags.length === 0) {
+  if (!diags || filterErrorsAndWarnings(diags).length === 0) {
     // If we have a result and didn't get any errors, we succeeded.
     return 0;
   }
@@ -145,12 +151,6 @@ export function performCompilation({rootNames, options, host, oldProgram, emitCa
   customTransformers?: api.CustomTransformers,
   emitFlags?: api.EmitFlags
 }): PerformCompilationResult {
-  const [major, minor] = ts.version.split('.');
-
-  if (Number(major) < 2 || (Number(major) === 2 && Number(minor) < 4)) {
-    throw new Error('The Angular Compiler requires TypeScript >= 2.4.');
-  }
-
   let program: api.Program|undefined;
   let emitResult: ts.EmitResult|undefined;
   let allDiagnostics: Diagnostics = [];
@@ -161,7 +161,13 @@ export function performCompilation({rootNames, options, host, oldProgram, emitCa
 
     program = ng.createProgram({rootNames, host, options, oldProgram});
 
+    const beforeDiags = Date.now();
     allDiagnostics.push(...gatherDiagnostics(program !));
+    if (options.diagnostics) {
+      const afterDiags = Date.now();
+      allDiagnostics.push(
+          createMessageDiagnostic(`Time for diagnostics: ${afterDiags - beforeDiags}ms.`));
+    }
 
     if (!hasErrors(allDiagnostics)) {
       emitResult = program !.emit({emitCallback, customTransformers, emitFlags});
@@ -187,7 +193,6 @@ export function performCompilation({rootNames, options, host, oldProgram, emitCa
     return {diagnostics: allDiagnostics, program};
   }
 }
-
 function defaultGatherDiagnostics(program: api.Program): Diagnostics {
   const allDiagnostics: Diagnostics = [];
 

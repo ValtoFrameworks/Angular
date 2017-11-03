@@ -44,7 +44,8 @@ export class StaticReflector implements CompileReflector {
   private methodCache = new Map<StaticSymbol, {[key: string]: boolean}>();
   private conversionMap = new Map<StaticSymbol, (context: StaticSymbol, args: any[]) => any>();
   private injectionToken: StaticSymbol;
-  private ROUTES: StaticSymbol;
+  private opaqueToken: StaticSymbol;
+  ROUTES: StaticSymbol;
   private ANALYZE_FOR_ENTRY_COMPONENTS: StaticSymbol;
   private annotationForParentClassWithSummaryKind =
       new Map<CompileSummaryKind, MetadataFactory<any>[]>();
@@ -75,11 +76,14 @@ export class StaticReflector implements CompileReflector {
     return this.symbolResolver.getResourcePath(staticSymbol);
   }
 
-  resolveExternalReference(ref: o.ExternalReference): StaticSymbol {
-    const refSymbol = this.symbolResolver.getSymbolByModule(ref.moduleName !, ref.name !);
+  resolveExternalReference(ref: o.ExternalReference, containingFile?: string): StaticSymbol {
+    const refSymbol =
+        this.symbolResolver.getSymbolByModule(ref.moduleName !, ref.name !, containingFile);
     const declarationSymbol = this.findSymbolDeclaration(refSymbol);
-    this.symbolResolver.recordModuleNameForFileName(refSymbol.filePath, ref.moduleName !);
-    this.symbolResolver.recordImportAs(declarationSymbol, refSymbol);
+    if (!containingFile) {
+      this.symbolResolver.recordModuleNameForFileName(refSymbol.filePath, ref.moduleName !);
+      this.symbolResolver.recordImportAs(declarationSymbol, refSymbol);
+    }
     return declarationSymbol;
   }
 
@@ -270,6 +274,7 @@ export class StaticReflector implements CompileReflector {
 
   private initializeConversionMap(): void {
     this.injectionToken = this.findDeclaration(ANGULAR_CORE, 'InjectionToken');
+    this.opaqueToken = this.findDeclaration(ANGULAR_CORE, 'OpaqueToken');
     this.ROUTES = this.tryFindDeclaration(ANGULAR_ROUTER, 'ROUTES');
     this.ANALYZE_FOR_ENTRY_COMPONENTS =
         this.findDeclaration(ANGULAR_CORE, 'ANALYZE_FOR_ENTRY_COMPONENTS');
@@ -415,7 +420,9 @@ export class StaticReflector implements CompileReflector {
           for (const item of (<any>expression)) {
             // Check for a spread expression
             if (item && item.__symbolic === 'spread') {
-              const spreadArray = simplify(item.expression);
+              // We call with references as 0 because we require the actual value and cannot
+              // tolerate a reference here.
+              const spreadArray = simplifyInContext(context, item.expression, depth, 0);
               if (Array.isArray(spreadArray)) {
                 for (const spreadItem of spreadArray) {
                   result.push(spreadItem);
@@ -432,14 +439,15 @@ export class StaticReflector implements CompileReflector {
           return result;
         }
         if (expression instanceof StaticSymbol) {
-          // Stop simplification at builtin symbols or if we are in a reference context
+          // Stop simplification at builtin symbols or if we are in a reference context and
+          // the symbol doesn't have members.
           if (expression === self.injectionToken || self.conversionMap.has(expression) ||
-              references > 0) {
+              (references > 0 && !expression.members.length)) {
             return expression;
           } else {
             const staticSymbol = expression;
             const declarationValue = resolveReferenceValue(staticSymbol);
-            if (declarationValue) {
+            if (declarationValue != null) {
               return simplifyInContext(staticSymbol, declarationValue, depth + 1, references);
             } else {
               return staticSymbol;
@@ -517,8 +525,8 @@ export class StaticReflector implements CompileReflector {
                 }
                 return null;
               case 'index':
-                let indexTarget = simplify(expression['expression']);
-                let index = simplify(expression['index']);
+                let indexTarget = simplifyInContext(context, expression['expression'], depth, 0);
+                let index = simplifyInContext(context, expression['index'], depth, 0);
                 if (indexTarget && isPrimitive(index)) return indexTarget[index];
                 return null;
               case 'select':
@@ -530,7 +538,7 @@ export class StaticReflector implements CompileReflector {
                   selectContext =
                       self.getStaticSymbol(selectTarget.filePath, selectTarget.name, members);
                   const declarationValue = resolveReferenceValue(selectContext);
-                  if (declarationValue) {
+                  if (declarationValue != null) {
                     return simplifyInContext(
                         selectContext, declarationValue, depth + 1, references);
                   } else {
@@ -561,9 +569,12 @@ export class StaticReflector implements CompileReflector {
                 staticSymbol = simplifyInContext(
                     context, expression['expression'], depth + 1, /* references */ 0);
                 if (staticSymbol instanceof StaticSymbol) {
-                  if (staticSymbol === self.injectionToken) {
+                  if (staticSymbol === self.injectionToken || staticSymbol === self.opaqueToken) {
                     // if somebody calls new InjectionToken, don't create an InjectionToken,
                     // but rather return the symbol to which the InjectionToken is assigned to.
+
+                    // OpaqueToken is supported too as it is required by the language service to
+                    // support v4 and prior versions of Angular.
                     return context;
                   }
                   const argExpressions: any[] = expression['arguments'] || [];
@@ -741,7 +752,7 @@ class PopulatedScope extends BindingScope {
 }
 
 function positionalError(message: string, fileName: string, line: number, column: number): Error {
-  const result = new Error(message);
+  const result = syntaxError(message);
   (result as any).fileName = fileName;
   (result as any).line = line;
   (result as any).column = column;

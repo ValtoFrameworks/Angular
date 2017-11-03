@@ -25,8 +25,9 @@
 
   "angularCompilerOptions": {
     "annotateForClosureCompiler": true,
-    "strictMetadataEmit": true,
-    "flatModuleOutFile": "index.js",
+    "strictMetadataEmit": false,
+    "skipTemplateCodegen": true,
+    "flatModuleOutFile": "platform-browser-dynamic.js",
     "flatModuleId": "@angular/platform-browser-dynamic"
   }
 }

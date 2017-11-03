@@ -7,7 +7,9 @@
  */
 
 import {AotCompilerHost, AotCompilerOptions, GeneratedFile, createAotCompiler, toTypeScript} from '@angular/compiler';
-import {MetadataBundlerHost, MetadataCollector, ModuleMetadata} from '@angular/tsc-wrapped';
+import {MetadataBundlerHost} from '@angular/compiler-cli/src/metadata/bundler';
+import {MetadataCollector} from '@angular/compiler-cli/src/metadata/collector';
+import {ModuleMetadata} from '@angular/compiler-cli/src/metadata/index';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as ts from 'typescript';
@@ -408,7 +410,7 @@ export class MockAotCompilerHost implements AotCompilerHost {
   fromSummaryFileName(filePath: string): string { return filePath; }
 
   // AotCompilerHost
-  fileNameToModuleName(importedFile: string, containingFile: string): string|null {
+  fileNameToModuleName(importedFile: string, containingFile: string): string {
     return importedFile.replace(EXT, '');
   }
 
@@ -631,7 +633,6 @@ export function compile(
       useSummaries?: boolean,
       preCompile?: (program: ts.Program) => void,
       postCompile?: (program: ts.Program) => void,
-      stubsOnly?: boolean,
     }& AotCompilerOptions = {},
     tsOptions: ts.CompilerOptions = {}): {genFiles: GeneratedFile[], outDir: MockDirectory} {
   // when using summaries, always emit so the next step can use the results.
@@ -651,11 +652,10 @@ export function compile(
   const tsSettings = {...settings, ...tsOptions};
   const program = ts.createProgram(host.scriptNames.slice(0), tsSettings, host);
   preCompile(program);
-  const {compiler, reflector} = createAotCompiler(aotHost, options);
+  const {compiler, reflector} = createAotCompiler(aotHost, options, (err) => { throw err; });
   const analyzedModules =
       compiler.analyzeModulesSync(program.getSourceFiles().map(sf => sf.fileName));
-  const genFiles = options.stubsOnly ? compiler.emitAllStubs(analyzedModules) :
-                                       compiler.emitAllImpls(analyzedModules);
+  const genFiles = compiler.emitAllImpls(analyzedModules);
   genFiles.forEach((file) => {
     const source = file.source || toTypeScript(file);
     if (isSource(file.genFileUrl)) {

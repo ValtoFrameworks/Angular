@@ -12,6 +12,7 @@ import {ComponentFixture, TestBed, fakeAsync, inject, tick} from '@angular/core/
 import {By} from '@angular/platform-browser/src/dom/debug/by';
 import {expect} from '@angular/platform-browser/testing/src/matchers';
 import {ActivatedRoute, ActivatedRouteSnapshot, ActivationEnd, ActivationStart, CanActivate, CanDeactivate, ChildActivationEnd, ChildActivationStart, DetachedRouteHandle, Event, GuardsCheckEnd, GuardsCheckStart, NavigationCancel, NavigationEnd, NavigationError, NavigationStart, PRIMARY_OUTLET, ParamMap, Params, PreloadAllModules, PreloadingStrategy, Resolve, ResolveEnd, ResolveStart, RouteConfigLoadEnd, RouteConfigLoadStart, RouteReuseStrategy, Router, RouterEvent, RouterModule, RouterPreloader, RouterStateSnapshot, RoutesRecognized, RunGuardsAndResolvers, UrlHandlingStrategy, UrlSegmentGroup, UrlTree} from '@angular/router';
+import {SpyLocation} from 'common/testing';
 import {Observable} from 'rxjs/Observable';
 import {Observer} from 'rxjs/Observer';
 import {of } from 'rxjs/observable/of';
@@ -49,6 +50,89 @@ describe('Integration', () => {
        expect(location.path()).toEqual('/one');
        expect(fixture.nativeElement).toHaveText('route');
      })));
+
+  describe('navigation', function() {
+    it('should navigate to the current URL', fakeAsync(inject([Router], (router: Router) => {
+         router.onSameUrlNavigation = 'reload';
+         router.resetConfig([
+           {path: '', component: SimpleCmp},
+           {path: 'simple', component: SimpleCmp},
+         ]);
+
+         const fixture = createRoot(router, RootCmp);
+         const events: Event[] = [];
+         router.events.subscribe(e => onlyNavigationStartAndEnd(e) && events.push(e));
+
+         router.navigateByUrl('/simple');
+         tick();
+
+         router.navigateByUrl('/simple');
+         tick();
+
+         expectEvents(events, [
+           [NavigationStart, '/simple'], [NavigationEnd, '/simple'], [NavigationStart, '/simple'],
+           [NavigationEnd, '/simple']
+         ]);
+       })));
+
+    it('should not pollute browser history when replaceUrl is set to true',
+       fakeAsync(inject([Router, Location], (router: Router, location: SpyLocation) => {
+         router.resetConfig([
+           {path: '', component: SimpleCmp}, {path: 'a', component: SimpleCmp},
+           {path: 'b', component: SimpleCmp}
+         ]);
+
+         const fixture = createRoot(router, RootCmp);
+
+         router.navigateByUrl('/a', {replaceUrl: true});
+         router.navigateByUrl('/b', {replaceUrl: true});
+         tick();
+
+         expect(location.urlChanges).toEqual(['replace: /', 'replace: /b']);
+       })));
+
+    it('should skip navigation if another navigation is already scheduled',
+       fakeAsync(inject([Router, Location], (router: Router, location: SpyLocation) => {
+         router.resetConfig([
+           {path: '', component: SimpleCmp}, {path: 'a', component: SimpleCmp},
+           {path: 'b', component: SimpleCmp}
+         ]);
+
+         const fixture = createRoot(router, RootCmp);
+
+         router.navigate(
+             ['/a'], {queryParams: {a: true}, queryParamsHandling: 'merge', replaceUrl: true});
+         router.navigate(
+             ['/b'], {queryParams: {b: true}, queryParamsHandling: 'merge', replaceUrl: true});
+         tick();
+
+         /**
+          * Why do we have '/b?b=true' and not '/b?a=true&b=true'?
+          *
+          * This is because the router has the right to stop a navigation mid-flight if another
+          * navigation has been already scheduled. This is why we can use a top-level guard
+          * to perform redirects. Calling `navigate` in such a guard will stop the navigation, and
+          * the components won't be instantiated.
+          *
+          * This is a fundamental property of the router: it only cares about its latest state.
+          *
+          * This means that components should only map params to something else, not reduce them.
+          * In other words, the following component is asking for trouble:
+          *
+          * ```
+          * class MyComponent {
+          *  constructor(a: ActivatedRoute) {
+          *    a.params.scan(...)
+          *  }
+          * }
+          * ```
+          *
+          * This also means "queryParamsHandling: 'merge'" should only be used to merge with
+          * long-living query parameters (e.g., debug).
+          */
+         expect(router.url).toEqual('/b?b=true');
+       })));
+  });
 
   describe('should execute navigations serially', () => {
     let log: any[] = [];
@@ -428,7 +512,7 @@ describe('Integration', () => {
        }]);
 
        const recordedEvents: any[] = [];
-       router.events.forEach(e => e instanceof RouterEvent && recordedEvents.push(e));
+       router.events.forEach(e => onlyNavigationStartAndEnd(e) && recordedEvents.push(e));
 
        router.navigateByUrl('/team/22/user/victor');
        advance(fixture);
@@ -442,15 +526,8 @@ describe('Integration', () => {
        expect(fixture.nativeElement).toHaveText('team 22 [ user fedor, right:  ]');
 
        expectEvents(recordedEvents, [
-         [NavigationStart, '/team/22/user/victor'], [RoutesRecognized, '/team/22/user/victor'],
-         [GuardsCheckStart, '/team/22/user/victor'], [GuardsCheckEnd, '/team/22/user/victor'],
-         [ResolveStart, '/team/22/user/victor'], [ResolveEnd, '/team/22/user/victor'],
-         [NavigationEnd, '/team/22/user/victor'],
-
-         [NavigationStart, '/team/22/user/fedor'], [RoutesRecognized, '/team/22/user/fedor'],
-         [GuardsCheckStart, '/team/22/user/fedor'], [GuardsCheckEnd, '/team/22/user/fedor'],
-         [ResolveStart, '/team/22/user/fedor'], [ResolveEnd, '/team/22/user/fedor'],
-         [NavigationEnd, '/team/22/user/fedor']
+         [NavigationStart, '/team/22/user/victor'], [NavigationEnd, '/team/22/user/victor'],
+         [NavigationStart, '/team/22/user/fedor'], [NavigationEnd, '/team/22/user/fedor']
        ]);
      })));
 
@@ -953,6 +1030,7 @@ describe('Integration', () => {
           {provide: 'resolveFour', useValue: (a: any, b: any) => 4},
           {provide: 'resolveSix', useClass: ResolveSix},
           {provide: 'resolveError', useValue: (a: any, b: any) => Promise.reject('error')},
+          {provide: 'resolveNullError', useValue: (a: any, b: any) => Promise.reject(null)},
           {provide: 'numberOfUrlSegments', useValue: (a: any, b: any) => a.url.length},
         ]
       });
@@ -1018,6 +1096,22 @@ describe('Integration', () => {
          ]);
 
          expect(e).toEqual('error');
+       })));
+
+    it('should handle empty errors', fakeAsync(inject([Router], (router: Router) => {
+         const fixture = createRoot(router, RootCmp);
+
+         router.resetConfig(
+             [{path: 'simple', component: SimpleCmp, resolve: {error: 'resolveNullError'}}]);
+
+         const recordedEvents: any[] = [];
+         router.events.subscribe(e => e instanceof RouterEvent && recordedEvents.push(e));
+
+         let e: any = 'some value';
+         router.navigateByUrl('/simple').catch(error => e = error);
+         advance(fixture);
+
+         expect(e).toEqual(null);
        })));
 
     it('should preserve resolved data', fakeAsync(inject([Router], (router: Router) => {
@@ -2638,6 +2732,7 @@ describe('Integration', () => {
 
          router.navigateByUrl('/team/22/link;exact=true');
          advance(fixture);
+         advance(fixture);
          expect(location.path()).toEqual('/team/22/link;exact=true');
 
          const nativeLink = fixture.nativeElement.querySelector('a');
@@ -2694,6 +2789,7 @@ describe('Integration', () => {
 
          router.navigateByUrl('/team/22/link;exact=true');
          advance(fixture);
+         advance(fixture);
          expect(location.path()).toEqual('/team/22/link;exact=true');
 
          const native = fixture.nativeElement.querySelector('#link-parent');
@@ -2721,6 +2817,7 @@ describe('Integration', () => {
          }]);
 
          router.navigateByUrl('/team/22/link');
+         advance(fixture);
          advance(fixture);
          expect(location.path()).toEqual('/team/22/link');
 
@@ -3616,6 +3713,10 @@ function expectEvents(events: Event[], pairs: any[]) {
     expect((<any>events[i].constructor).name).toBe(pairs[i][0].name);
     expect((<any>events[i]).url).toBe(pairs[i][1]);
   }
+}
+
+function onlyNavigationStartAndEnd(e: Event): boolean {
+  return e instanceof NavigationStart || e instanceof NavigationEnd;
 }
 
 @Component(

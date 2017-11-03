@@ -83,7 +83,7 @@ export abstract class ReflectiveInjector implements Injector {
    * });
    * ```
    *
-   * See {@link ReflectiveInjector#fromResolvedProviders} for more info.
+   * See {@link ReflectiveInjector#fromResolvedProviders fromResolvedProviders} for more info.
    */
   static resolve(providers: Provider[]): ResolvedReflectiveProvider[] {
     return resolveReflectiveProviders(providers);
@@ -113,7 +113,8 @@ export abstract class ReflectiveInjector implements Injector {
    *
    * This function is slower than the corresponding `fromResolvedProviders`
    * because it needs to resolve the passed-in providers first.
-   * See {@link ReflectiveInjector#resolve} and {@link ReflectiveInjector#fromResolvedProviders}.
+   * See {@link ReflectiveInjector#resolve resolve} and
+   * {@link ReflectiveInjector#fromResolvedProviders fromResolvedProviders}.
    */
   static resolveAndCreate(providers: Provider[], parent?: Injector): ReflectiveInjector {
     const ResolvedReflectiveProviders = ReflectiveInjector.resolve(providers);
@@ -190,7 +191,8 @@ export abstract class ReflectiveInjector implements Injector {
    *
    * This function is slower than the corresponding `createChildFromResolved`
    * because it needs to resolve the passed-in providers first.
-   * See {@link ReflectiveInjector#resolve} and {@link ReflectiveInjector#createChildFromResolved}.
+   * See {@link ReflectiveInjector#resolve resolve} and
+   * {@link ReflectiveInjector#createChildFromResolved createChildFromResolved}.
    */
   abstract resolveAndCreateChild(providers: Provider[]): ReflectiveInjector;
 
@@ -282,8 +284,7 @@ export class ReflectiveInjector_ implements ReflectiveInjector {
   _constructionCounter: number = 0;
   /** @internal */
   public _providers: ResolvedReflectiveProvider[];
-  /** @internal */
-  public _parent: Injector|null;
+  public readonly parent: Injector|null;
 
   keyIds: number[];
   objs: any[];
@@ -292,7 +293,7 @@ export class ReflectiveInjector_ implements ReflectiveInjector {
    */
   constructor(_providers: ResolvedReflectiveProvider[], _parent?: Injector) {
     this._providers = _providers;
-    this._parent = _parent || null;
+    this.parent = _parent || null;
 
     const len = _providers.length;
 
@@ -309,8 +310,6 @@ export class ReflectiveInjector_ implements ReflectiveInjector {
     return this._getByKey(ReflectiveKey.get(token), null, notFoundValue);
   }
 
-  get parent(): Injector|null { return this._parent; }
-
   resolveAndCreateChild(providers: Provider[]): ReflectiveInjector {
     const ResolvedReflectiveProviders = ReflectiveInjector.resolve(providers);
     return this.createChildFromResolved(ResolvedReflectiveProviders);
@@ -318,7 +317,7 @@ export class ReflectiveInjector_ implements ReflectiveInjector {
 
   createChildFromResolved(providers: ResolvedReflectiveProvider[]): ReflectiveInjector {
     const inj = new ReflectiveInjector_(providers);
-    inj._parent = this;
+    (inj as{parent: Injector | null}).parent = this;
     return inj;
   }
 
@@ -436,7 +435,7 @@ export class ReflectiveInjector_ implements ReflectiveInjector {
     let inj: Injector|null;
 
     if (visibility instanceof SkipSelf) {
-      inj = this._parent;
+      inj = this.parent;
     } else {
       inj = this;
     }
@@ -445,7 +444,7 @@ export class ReflectiveInjector_ implements ReflectiveInjector {
       const inj_ = <ReflectiveInjector_>inj;
       const obj = inj_._getObjByKeyId(key.id);
       if (obj !== UNDEFINED) return obj;
-      inj = inj_._parent;
+      inj = inj_.parent;
     }
     if (inj !== null) {
       return inj.get(key.token, notFoundValue);

@@ -85,25 +85,25 @@ export function main() {
       let element: angular.IAugmentedJQuery;
 
       class mockScope implements angular.IScope {
-        $new() { return this; };
+        $new() { return this; }
         $watch(exp: angular.Ng1Expression, fn?: (a1?: any, a2?: any) => void) {
           return () => {};
-        };
+        }
         $on(event: string, fn?: (event?: any, ...args: any[]) => void) {
           return () => {};
-        };
+        }
         $destroy() {
           return () => {};
-        };
+        }
         $apply(exp?: angular.Ng1Expression) {
           return () => {};
-        };
+        }
         $digest() {
           return () => {};
-        };
+        }
         $evalAsync(exp: angular.Ng1Expression, locals?: any) {
           return () => {};
-        };
+        }
         $$childTail: angular.IScope;
         $$childHead: angular.IScope;
         $$nextSibling: angular.IScope;
@@ -122,7 +122,7 @@ export function main() {
         let $compile = undefined as any;
         let $parse = undefined as any;
         let componentFactory: ComponentFactory<any>;  // testbed
-        let wrapCallback = undefined as any;
+        let wrapCallback = (cb: any) => cb;
 
         content = `
           <h1> new component </h1>
@@ -155,7 +155,7 @@ export function main() {
         return new DowngradeComponentAdapter(
             element, attrs, scope, ngModel, parentInjector, $injector, $compile, $parse,
             componentFactory, wrapCallback);
-      };
+      }
 
       beforeEach((inject([Compiler], (inject_compiler: Compiler) => {
         compiler = inject_compiler;
@@ -183,11 +183,11 @@ export function main() {
         expect(registry.getAllTestabilities().length).toEqual(0);
         adapter.createComponent([]);
         expect(registry.getAllTestabilities().length).toEqual(1);
-        adapter.registerCleanup(true);
+        adapter.registerCleanup();
         element.remove !();
         expect(registry.getAllTestabilities().length).toEqual(0);
       });
     });
 
   });
-};
+}

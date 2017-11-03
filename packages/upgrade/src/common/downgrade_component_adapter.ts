@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {ApplicationRef, ChangeDetectorRef, ComponentFactory, ComponentRef, EventEmitter, Injector, OnChanges, SimpleChange, SimpleChanges, Testability, TestabilityRegistry, Type} from '@angular/core';
+import {ApplicationRef, ChangeDetectorRef, ComponentFactory, ComponentRef, EventEmitter, Injector, OnChanges, SimpleChange, SimpleChanges, StaticProvider, Testability, TestabilityRegistry, Type} from '@angular/core';
 
 import * as angular from './angular1';
 import {PropertyBinding} from './component_info';
@@ -25,7 +25,6 @@ export class DowngradeComponentAdapter {
   private componentRef: ComponentRef<any>;
   private component: any;
   private changeDetector: ChangeDetectorRef;
-  private appRef: ApplicationRef;
 
   constructor(
       private element: angular.IAugmentedJQuery, private attrs: angular.IAttributes,
@@ -35,7 +34,6 @@ export class DowngradeComponentAdapter {
       private componentFactory: ComponentFactory<any>,
       private wrapCallback: <T>(cb: () => T) => () => T) {
     this.componentScope = scope.$new();
-    this.appRef = parentInjector.get(ApplicationRef);
   }
 
   compileContents(): Node[][] {
@@ -56,8 +54,9 @@ export class DowngradeComponentAdapter {
   }
 
   createComponent(projectableNodes: Node[][]) {
-    const childInjector =
-        Injector.create([{provide: $SCOPE, useValue: this.componentScope}], this.parentInjector);
+    const providers: StaticProvider[] = [{provide: $SCOPE, useValue: this.componentScope}];
+    const childInjector = Injector.create(
+        {providers: providers, parent: this.parentInjector, name: 'DowngradeComponentAdapter'});
 
     this.componentRef =
         this.componentFactory.create(childInjector, projectableNodes, this.element[0]);
@@ -101,7 +100,7 @@ export class DowngradeComponentAdapter {
         })(input.prop);
         attrs.$observe(input.attr, observeFn);
 
-        // Use `$watch()` (in addition to `$observe()`) in order to initialize the input  in time
+        // Use `$watch()` (in addition to `$observe()`) in order to initialize the input in time
         // for `ngOnChanges()`. This is necessary if we are already in a `$digest`, which means that
         // `ngOnChanges()` (which is called by a watcher) will run before the `$observe()` callback.
         let unwatch: Function|null = this.componentScope.$watch(() => {
@@ -140,8 +139,7 @@ export class DowngradeComponentAdapter {
         (<OnChanges>this.component).ngOnChanges(inputChanges !);
       }
 
-      // If opted out of propagating digests, invoke change detection
-      // when inputs change
+      // If opted out of propagating digests, invoke change detection when inputs change.
       if (!propagateDigest) {
         detectChanges();
       }
@@ -152,9 +150,16 @@ export class DowngradeComponentAdapter {
       this.componentScope.$watch(this.wrapCallback(detectChanges));
     }
 
-    // Attach the view so that it will be dirty-checked.
-    if (needsNgZone) {
-      this.appRef.attachView(this.componentRef.hostView);
+    // If necessary, attach the view so that it will be dirty-checked.
+    // (Allow time for the initial input values to be set and `ngOnChanges()` to be called.)
+    if (needsNgZone || !propagateDigest) {
+      let unwatch: Function|null = this.componentScope.$watch(() => {
+        unwatch !();
+        unwatch = null;
+
+        const appRef = this.parentInjector.get<ApplicationRef>(ApplicationRef);
+        appRef.attachView(this.componentRef.hostView);
+      });
     }
   }
 
@@ -202,15 +207,14 @@ export class DowngradeComponentAdapter {
     }
   }
 
-  registerCleanup(needsNgZone: boolean) {
+  registerCleanup() {
+    const destroyComponentRef = this.wrapCallback(() => this.componentRef.destroy());
+
     this.element.on !('$destroy', () => {
       this.componentScope.$destroy();
       this.componentRef.injector.get(TestabilityRegistry)
           .unregisterApplication(this.componentRef.location.nativeElement);
-      this.componentRef.destroy();
-      if (needsNgZone) {
-        this.appRef.detachView(this.componentRef.hostView);
-      }
+      destroyComponentRef();
     });
   }
 

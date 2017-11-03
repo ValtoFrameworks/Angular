@@ -26,8 +26,9 @@
 
   "angularCompilerOptions": {
     "annotateForClosureCompiler": true,
-    "strictMetadataEmit": true,
-    "flatModuleOutFile": "index.js",
+    "strictMetadataEmit": false,
+    "skipTemplateCodegen": true,
+    "flatModuleOutFile": "testing.js",
     "flatModuleId": "@angular/platform-browser-dynamic/testing"
   }
 }

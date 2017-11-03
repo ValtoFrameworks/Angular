@@ -6,7 +6,9 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
+import {ParseLocation, ParseSourceFile, ParseSourceSpan} from '@angular/compiler';
 import * as o from '@angular/compiler/src/output/output_ast';
+import {MappingItem, RawSourceMap, SourceMapConsumer} from 'source-map';
 import * as ts from 'typescript';
 
 import {TypeScriptNodeEmitter} from '../../src/transformers/node_emitter';
@@ -179,7 +181,7 @@ describe('TypeScriptNodeEmitter', () => {
   it('should support blank literals', () => {
     expect(emitStmt(o.literal(null).toStmt())).toEqual('null;');
     expect(emitStmt(o.literal(undefined).toStmt())).toEqual('undefined;');
-    expect(emitStmt(o.variable('a', null).isBlank().toStmt())).toEqual('a == null;');
+    expect(emitStmt(o.variable('a', null).isBlank().toStmt())).toEqual('(a == null);');
   });
 
   it('should support external identifiers', () => {
@@ -195,23 +197,28 @@ describe('TypeScriptNodeEmitter', () => {
     expect(emitStmt(o.not(someVar).toStmt())).toEqual('!someVar;');
     expect(emitStmt(o.assertNotNull(someVar).toStmt())).toEqual('someVar;');
     expect(emitStmt(someVar.conditional(o.variable('trueCase'), o.variable('falseCase')).toStmt()))
-        .toEqual('someVar ? trueCase : falseCase;');
+        .toEqual('(someVar ? trueCase : falseCase);');
+    expect(emitStmt(someVar.conditional(o.variable('trueCase'), o.variable('falseCase'))
+                        .conditional(o.variable('trueCase'), o.variable('falseCase'))
+                        .toStmt()))
+        .toEqual('((someVar ? trueCase : falseCase) ? trueCase : falseCase);');
 
-    expect(emitStmt(lhs.equals(rhs).toStmt())).toEqual('lhs == rhs;');
-    expect(emitStmt(lhs.notEquals(rhs).toStmt())).toEqual('lhs != rhs;');
-    expect(emitStmt(lhs.identical(rhs).toStmt())).toEqual('lhs === rhs;');
-    expect(emitStmt(lhs.notIdentical(rhs).toStmt())).toEqual('lhs !== rhs;');
-    expect(emitStmt(lhs.minus(rhs).toStmt())).toEqual('lhs - rhs;');
-    expect(emitStmt(lhs.plus(rhs).toStmt())).toEqual('lhs + rhs;');
-    expect(emitStmt(lhs.divide(rhs).toStmt())).toEqual('lhs / rhs;');
-    expect(emitStmt(lhs.multiply(rhs).toStmt())).toEqual('lhs * rhs;');
-    expect(emitStmt(lhs.modulo(rhs).toStmt())).toEqual('lhs % rhs;');
-    expect(emitStmt(lhs.and(rhs).toStmt())).toEqual('lhs && rhs;');
-    expect(emitStmt(lhs.or(rhs).toStmt())).toEqual('lhs || rhs;');
-    expect(emitStmt(lhs.lower(rhs).toStmt())).toEqual('lhs < rhs;');
-    expect(emitStmt(lhs.lowerEquals(rhs).toStmt())).toEqual('lhs <= rhs;');
-    expect(emitStmt(lhs.bigger(rhs).toStmt())).toEqual('lhs > rhs;');
-    expect(emitStmt(lhs.biggerEquals(rhs).toStmt())).toEqual('lhs >= rhs;');
+    expect(emitStmt(lhs.equals(rhs).toStmt())).toEqual('(lhs == rhs);');
+    expect(emitStmt(lhs.notEquals(rhs).toStmt())).toEqual('(lhs != rhs);');
+    expect(emitStmt(lhs.identical(rhs).toStmt())).toEqual('(lhs === rhs);');
+    expect(emitStmt(lhs.notIdentical(rhs).toStmt())).toEqual('(lhs !== rhs);');
+    expect(emitStmt(lhs.minus(rhs).toStmt())).toEqual('(lhs - rhs);');
+    expect(emitStmt(lhs.plus(rhs).toStmt())).toEqual('(lhs + rhs);');
+    expect(emitStmt(lhs.divide(rhs).toStmt())).toEqual('(lhs / rhs);');
+    expect(emitStmt(lhs.multiply(rhs).toStmt())).toEqual('(lhs * rhs);');
+    expect(emitStmt(lhs.plus(rhs).multiply(rhs).toStmt())).toEqual('((lhs + rhs) * rhs);');
+    expect(emitStmt(lhs.modulo(rhs).toStmt())).toEqual('(lhs % rhs);');
+    expect(emitStmt(lhs.and(rhs).toStmt())).toEqual('(lhs && rhs);');
+    expect(emitStmt(lhs.or(rhs).toStmt())).toEqual('(lhs || rhs);');
+    expect(emitStmt(lhs.lower(rhs).toStmt())).toEqual('(lhs < rhs);');
+    expect(emitStmt(lhs.lowerEquals(rhs).toStmt())).toEqual('(lhs <= rhs);');
+    expect(emitStmt(lhs.bigger(rhs).toStmt())).toEqual('(lhs > rhs);');
+    expect(emitStmt(lhs.biggerEquals(rhs).toStmt())).toEqual('(lhs >= rhs);');
   });
 
   it('should support function expressions', () => {
@@ -379,7 +386,122 @@ describe('TypeScriptNodeEmitter', () => {
   it('should support a preamble', () => {
     expect(emitStmt(o.variable('a').toStmt(), '/* SomePreamble */')).toBe('/* SomePreamble */ a;');
   });
+
+  describe('source maps', () => {
+    function emitStmt(stmt: o.Statement | o.Statement[], preamble?: string): string {
+      const stmts = Array.isArray(stmt) ? stmt : [stmt];
+
+      const program = ts.createProgram(
+          [someGenFileName], {
+            module: ts.ModuleKind.CommonJS,
+            target: ts.ScriptTarget.ES2017,
+            sourceMap: true,
+            inlineSourceMap: true,
+            inlineSources: true,
+          },
+          host);
+      const moduleSourceFile = program.getSourceFile(someGenFileName);
+      const transformers: ts.CustomTransformers = {
+        before: [context => {
+          return sourceFile => {
+            const [newSourceFile] = emitter.updateSourceFile(sourceFile, stmts, preamble);
+            return newSourceFile;
+          };
+        }]
+      };
+      let result: string = '';
+      const emitResult = program.emit(
+          moduleSourceFile, (fileName, data, writeByteOrderMark, onError, sourceFiles) => {
+            if (fileName.startsWith(someGenFilePath)) {
+              result = data;
+            }
+          }, undefined, undefined, transformers);
+      return result;
+    }
+
+    function mappingItemsOf(text: string): MappingItem[] {
+      // find the source map:
+      const sourceMapMatch = /sourceMappingURL\=data\:application\/json;base64,(.*)$/.exec(text);
+      const sourceMapBase64 = sourceMapMatch ![1];
+      const sourceMapBuffer = Buffer.from(sourceMapBase64, 'base64');
+      const sourceMapText = sourceMapBuffer.toString('utf8');
+      const sourceMap: RawSourceMap = JSON.parse(sourceMapText);
+      const consumer = new SourceMapConsumer(sourceMap);
+      const mappings: MappingItem[] = [];
+      consumer.eachMapping(mapping => { mappings.push(mapping); });
+      return mappings;
+    }
+
+    it('should produce a source map that maps back to the source', () => {
+      const statement = someVar.set(o.literal(1)).toDeclStmt();
+      const text = '<my-comp> a = 1 </my-comp>';
+      const sourceName = '/some/file.html';
+      const sourceUrl = '../some/file.html';
+      const file = new ParseSourceFile(text, sourceName);
+      const start = new ParseLocation(file, 0, 0, 0);
+      const end = new ParseLocation(file, text.length, 0, text.length);
+      statement.sourceSpan = new ParseSourceSpan(start, end);
+
+      const result = emitStmt(statement);
+      const mappings = mappingItemsOf(result);
+
+      expect(mappings).toEqual([
+        {
+          source: sourceUrl,
+          generatedLine: 3,
+          generatedColumn: 0,
+          originalLine: 1,
+          originalColumn: 0,
+          name: null
+        },
+        {
+          source: sourceUrl,
+          generatedLine: 3,
+          generatedColumn: 16,
+          originalLine: 1,
+          originalColumn: 26,
+          name: null
+        }
+      ]);
+    });
+
+    it('should produce a mapping per range instead of a mapping per node', () => {
+      const text = '<my-comp> a = 1 </my-comp>';
+      const sourceName = '/some/file.html';
+      const sourceUrl = '../some/file.html';
+      const file = new ParseSourceFile(text, sourceName);
+      const start = new ParseLocation(file, 0, 0, 0);
+      const end = new ParseLocation(file, text.length, 0, text.length);
+      const stmt = (loc: number) => {
+        const start = new ParseLocation(file, loc, 0, loc);
+        const end = new ParseLocation(file, loc + 1, 0, loc + 1);
+        const span = new ParseSourceSpan(start, end);
+        return someVar
+            .set(new o.BinaryOperatorExpr(
+                o.BinaryOperator.Plus, o.literal(loc, null, span), o.literal(loc, null, span), null,
+                span))
+            .toDeclStmt();
+      };
+      const stmts = [1, 2, 3, 4, 5, 6].map(stmt);
+      const result = emitStmt(stmts);
+      const mappings = mappingItemsOf(result);
+
+      // The span is used in three different nodes but should only be emitted at most twice
+      // (once for the start and once for the end of a span).
+      const maxDup = Math.max(
+          ...Array.from(countsOfDuplicatesMap(mappings.map(m => m.originalColumn)).values()));
+      expect(maxDup <= 2).toBeTruthy('A redundant range was emitted');
+    });
+  });
 });
+
+function countsOfDuplicatesMap<T>(a: T[]): Map<T, number> {
+  const result = new Map<T, number>();
+  for (const item of a) {
+    result.set(item, (result.get(item) || 0) + 1);
+  }
+  return result;
+}
 
 const FILES: Directory = {
   somePackage: {'someGenFile.ts': `export var a: number;`}

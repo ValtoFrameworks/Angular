@@ -6,10 +6,11 @@
   "license": "MIT",
   "peerDependencies": {
     "@angular/compiler-cli": "0.0.0-PLACEHOLDER",
-    "typescript": "^2.4.2"
+    "typescript": ">=2.4.2 <2.5"
   },
   "dependencies": {
-    "@bazel/typescript": "0.1.x"
+    "@bazel/typescript": "0.2.x",
+    "@types/node": "6.0.84"
   },
   "repository": {
     "type": "git",

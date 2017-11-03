@@ -6,9 +6,9 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {ModuleMetadata} from '@angular/tsc-wrapped';
 import * as ts from 'typescript';
 
+import {ModuleMetadata} from '../../src/metadata/index';
 import {LowerMetadataCache, LoweringRequest, RequestLocationMap, getExpressionLoweringTransformFactory} from '../../src/transformers/lower_expressions';
 import {Directory, MockAotContext, MockCompilerHost} from '../mocks';
 
@@ -54,6 +54,20 @@ describe('Expression lowering', () => {
           .toBeTruthy('did not find the useValue');
     });
 
+    it('should not request a lowering for useValue with a reference to a static property', () => {
+      const collected = collect(`
+        import {Component} from '@angular/core';
+
+        @Component({
+          provider: [{provide: 'someToken', useValue:◊value: MyClass.someMethod◊}]
+        })
+        export class MyClass {
+          static someMethod() {}
+        }
+      `);
+      expect(collected.requests.size).toBe(0);
+    });
+
     it('should request a lowering for useFactory', () => {
       const collected = collect(`
         import {Component} from '@angular/core';
@@ -83,6 +97,38 @@ describe('Expression lowering', () => {
       `);
       expect(collected.requests.has(collected.annotations[0].start))
           .toBeTruthy('did not find the data field');
+    });
+
+    it('should throw a validation execption for invalid files', () => {
+      const cache = new LowerMetadataCache({}, /* strict */ true);
+      const sourceFile = ts.createSourceFile(
+          'foo.ts', `
+        import {Injectable} from '@angular/core';
+
+        class SomeLocalClass {}
+        @Injectable()
+        export class SomeClass {
+          constructor(a: SomeLocalClass) {}
+        }
+      `,
+          ts.ScriptTarget.Latest, true);
+      expect(() => cache.getMetadata(sourceFile)).toThrow();
+    });
+
+    it('should not report validation errors on a .d.ts file', () => {
+      const cache = new LowerMetadataCache({}, /* strict */ true);
+      const dtsFile = ts.createSourceFile(
+          'foo.d.ts', `
+        import {Injectable} from '@angular/core';
+
+        class SomeLocalClass {}
+        @Injectable()
+        export class SomeClass {
+          constructor(a: SomeLocalClass) {}
+        }
+      `,
+          ts.ScriptTarget.Latest, true);
+      expect(() => cache.getMetadata(dtsFile)).not.toThrow();
     });
   });
 });
@@ -135,13 +181,15 @@ function convert(annotatedSource: string) {
       [fileName], {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2017}, host);
   const moduleSourceFile = program.getSourceFile(fileName);
   const transformers: ts.CustomTransformers = {
-    before: [getExpressionLoweringTransformFactory({
-      getRequests(sourceFile: ts.SourceFile): RequestLocationMap{
-        if (sourceFile.fileName == moduleSourceFile.fileName) {
-          return requests;
-        } else {return new Map();}
-      }
-    })]
+    before: [getExpressionLoweringTransformFactory(
+        {
+          getRequests(sourceFile: ts.SourceFile): RequestLocationMap{
+            if (sourceFile.fileName == moduleSourceFile.fileName) {
+              return requests;
+            } else {return new Map();}
+          }
+        },
+        program)]
   };
   let result: string = '';
   const emitResult = program.emit(
@@ -151,7 +199,7 @@ function convert(annotatedSource: string) {
         }
       }, undefined, undefined, transformers);
   return normalizeResult(result);
-};
+}
 
 function findNode(node: ts.Node, start: number, length: number): ts.Node|undefined {
   function find(node: ts.Node): ts.Node|undefined {

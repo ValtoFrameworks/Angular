@@ -139,6 +139,10 @@ null if the control value is valid _or_ a validation error object.
 The validation error object typically has a property whose name is the validation key, `'forbiddenName'`,
 and whose value is an arbitrary dictionary of values that you could insert into an error message, `{name}`.
 
+Custom async validators are similar to sync validators, but they must instead return a Promise or Observable
+that later emits null or a validation error object. In the case of an Observable, the Observable must complete,
+at which point the form uses the last value emitted for validation.
+
 ### Adding to reactive forms
 
 In reactive forms, custom validators are fairly simple to add. All you have to do is pass the function directly 
@@ -200,7 +204,7 @@ Like in AngularJS, Angular automatically mirrors many control properties onto th
 The hero form uses the `.ng-valid` and `.ng-invalid` classes to 
 set the color of each form control's border.
 
-<code-example path="form-validation/src/forms.css" title="forms.css (status classes)">
+<code-example path="form-validation/src/assets/forms.css" title="forms.css (status classes)">
 
 </code-example>
 

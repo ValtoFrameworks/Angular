@@ -43,7 +43,6 @@ export interface NgModuleDefinition extends Definition<NgModuleDefinitionFactory
 }
 
 export interface NgModuleDefinitionFactory extends DefinitionFactory<NgModuleDefinition> {}
-;
 
 export interface ViewDefinition extends Definition<ViewDefinitionFactory> {
   flags: ViewFlags;
@@ -104,11 +103,15 @@ export const enum ViewFlags {
  */
 export interface NodeDef {
   flags: NodeFlags;
-  index: number;
+  // Index of the node in view data and view definition (those are the same)
+  nodeIndex: number;
+  // Index of the node in the check functions
+  // Differ from nodeIndex when nodes are added or removed at runtime (ie after compilation)
+  checkIndex: number;
   parent: NodeDef|null;
   renderParent: NodeDef|null;
   /** this is checked against NgContentDef.index to find matched nodes */
-  ngContentIndex: number;
+  ngContentIndex: number|null;
   /** number of transitive children */
   childCount: number;
   /** aggregated NodeFlags for all transitive children (does not include self) **/
@@ -233,6 +236,7 @@ export const enum QueryValueType {
 }
 
 export interface ElementDef {
+  // set to null for `<ng-container>`
   name: string|null;
   ns: string|null;
   /** ns, name, value */
@@ -502,6 +506,7 @@ export interface ProviderOverride {
   flags: NodeFlags;
   value: any;
   deps: ([DepFlags, any]|any)[];
+  deprecatedBehavior: boolean;
 }
 
 export interface Services {

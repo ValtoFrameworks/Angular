@@ -39,16 +39,9 @@ export interface StaticSymbolResolverHost {
    * `path/to/containingFile.ts` containing `import {...} from 'module-name'`.
    */
   moduleNameToFileName(moduleName: string, containingFile?: string): string|null;
-  /**
-   * Converts a file path to a module name that can be used as an `import.
-   * I.e. `path/to/importedFile.ts` should be imported by `path/to/containingFile.ts`.
-   *
-   * See ImportResolver.
-   */
-  fileNameToModuleName(importedFilePath: string, containingFilePath: string): string|null;
 }
 
-const SUPPORTED_SCHEMA_VERSION = 3;
+const SUPPORTED_SCHEMA_VERSION = 4;
 
 /**
  * This class is responsible for loading metadata per symbol,
@@ -160,12 +153,8 @@ export class StaticSymbolResolver {
     return (resolvedSymbol && resolvedSymbol.metadata && resolvedSymbol.metadata.arity) || null;
   }
 
-  /**
-   * Converts a file path to a module name that can be used as an `import`.
-   */
-  fileNameToModuleName(importedFilePath: string, containingFilePath: string): string|null {
-    return this.knownFileNameToModuleNames.get(importedFilePath) ||
-        this.host.fileNameToModuleName(importedFilePath, containingFilePath);
+  getKnownModuleName(filePath: string): string|null {
+    return this.knownFileNameToModuleNames.get(filePath) || null;
   }
 
   recordImportAs(sourceSymbol: StaticSymbol, targetSymbol: StaticSymbol) {
@@ -252,7 +241,7 @@ export class StaticSymbolResolver {
 
   /**
    * hasDecorators checks a file's metadata for the presense of decorators without evalutating the
-   * metada.
+   * metadata.
    *
    * @param filePath the absolute path to examine for decorators.
    * @returns true if any class in the file has a decorator.
@@ -297,35 +286,6 @@ export class StaticSymbolResolver {
       // in the bundle.
       this.knownFileNameToModuleNames.set(filePath, metadata['importAs']);
     }
-    if (metadata['metadata']) {
-      // handle direct declarations of the symbol
-      const topLevelSymbolNames =
-          new Set<string>(Object.keys(metadata['metadata']).map(unescapeIdentifier));
-      const origins: {[index: string]: string} = metadata['origins'] || {};
-      Object.keys(metadata['metadata']).forEach((metadataKey) => {
-        const symbolMeta = metadata['metadata'][metadataKey];
-        const name = unescapeIdentifier(metadataKey);
-
-        const symbol = this.getStaticSymbol(filePath, name);
-
-        const origin = origins.hasOwnProperty(metadataKey) && origins[metadataKey];
-        if (origin) {
-          // If the symbol is from a bundled index, use the declaration location of the
-          // symbol so relative references (such as './my.html') will be calculated
-          // correctly.
-          const originFilePath = this.resolveModule(origin, filePath);
-          if (!originFilePath) {
-            this.reportError(
-                new Error(`Couldn't resolve original symbol for ${origin} from ${filePath}`));
-          } else {
-            this.symbolResourcePaths.set(symbol, originFilePath);
-          }
-        }
-        resolvedSymbols.push(
-            this.createResolvedSymbol(symbol, filePath, topLevelSymbolNames, symbolMeta));
-      });
-    }
-
     // handle the symbols in one of the re-export location
     if (metadata['exports']) {
       for (const moduleExport of metadata['exports']) {
@@ -362,6 +322,38 @@ export class StaticSymbolResolver {
           }
         }
       }
+    }
+
+    // handle the actual metadata. Has to be after the exports
+    // as there migth be collisions in the names, and we want the symbols
+    // of the current module to win ofter reexports.
+    if (metadata['metadata']) {
+      // handle direct declarations of the symbol
+      const topLevelSymbolNames =
+          new Set<string>(Object.keys(metadata['metadata']).map(unescapeIdentifier));
+      const origins: {[index: string]: string} = metadata['origins'] || {};
+      Object.keys(metadata['metadata']).forEach((metadataKey) => {
+        const symbolMeta = metadata['metadata'][metadataKey];
+        const name = unescapeIdentifier(metadataKey);
+
+        const symbol = this.getStaticSymbol(filePath, name);
+
+        const origin = origins.hasOwnProperty(metadataKey) && origins[metadataKey];
+        if (origin) {
+          // If the symbol is from a bundled index, use the declaration location of the
+          // symbol so relative references (such as './my.html') will be calculated
+          // correctly.
+          const originFilePath = this.resolveModule(origin, filePath);
+          if (!originFilePath) {
+            this.reportError(
+                new Error(`Couldn't resolve original symbol for ${origin} from ${filePath}`));
+          } else {
+            this.symbolResourcePaths.set(symbol, originFilePath);
+          }
+        }
+        resolvedSymbols.push(
+            this.createResolvedSymbol(symbol, filePath, topLevelSymbolNames, symbolMeta));
+      });
     }
     resolvedSymbols.forEach(
         (resolvedSymbol) => this.resolvedSymbols.set(resolvedSymbol.symbol, resolvedSymbol));
@@ -435,7 +427,8 @@ export class StaticSymbolResolver {
       ResolvedStaticSymbol {
     sourceSymbol.assertNoMembers();
     targetSymbol.assertNoMembers();
-    if (this.summaryResolver.isLibraryFile(sourceSymbol.filePath)) {
+    if (this.summaryResolver.isLibraryFile(sourceSymbol.filePath) &&
+        this.summaryResolver.isLibraryFile(targetSymbol.filePath)) {
       // This case is for an ng library importing symbols from a plain ts library
       // transitively.
       // Note: We rely on the fact that we discover symbols in the direction
@@ -489,9 +482,8 @@ export class StaticSymbolResolver {
     const filePath = this.resolveModule(module, containingFile);
     if (!filePath) {
       this.reportError(
-          new Error(`Could not resolve module ${module}${containingFile ? ` relative to $ {
-            containingFile
-          } `: ''}`));
+          new Error(`Could not resolve module ${module}${containingFile ? ' relative to ' +
+            containingFile : ''}`));
       return this.getStaticSymbol(`ERROR:${module}`, symbolName);
     }
     return this.getStaticSymbol(filePath, symbolName);

@@ -11,66 +11,55 @@
 import 'reflect-metadata';
 
 import * as ts from 'typescript';
-import * as tsc from '@angular/tsc-wrapped';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as tsickle from 'tsickle';
 import * as api from './transformers/api';
 import * as ngc from './transformers/entry_points';
+import {GENERATED_FILES} from './transformers/util';
 
-import {exitCodeFromResult, performCompilation, readConfiguration, formatDiagnostics, Diagnostics, ParsedConfiguration, PerformCompilationResult} from './perform_compile';
+import {exitCodeFromResult, performCompilation, readConfiguration, formatDiagnostics, Diagnostics, ParsedConfiguration, PerformCompilationResult, filterErrorsAndWarnings} from './perform_compile';
 import {performWatchCompilation, createPerformWatchHost} from './perform_watch';
 import {isSyntaxError} from '@angular/compiler';
-import {CodeGenerator} from './codegen';
 
-// TODO(tbosch): remove this old entrypoint once we drop `disableTransformerPipeline`.
 export function main(
-    args: string[], consoleError: (s: string) => void = console.error): Promise<number> {
-  let {project, rootNames, options, errors: configErrors, watch} =
-      readNgcCommandLineAndConfiguration(args);
-  if (configErrors.length) {
-    return Promise.resolve(reportErrorsAndExit(options, configErrors, consoleError));
-  }
-  if (watch) {
-    const result = watchMode(project, options, consoleError);
-    return Promise.resolve(reportErrorsAndExit({}, result.firstCompileResult, consoleError));
-  }
-  if (options.disableTransformerPipeline) {
-    return disabledTransformerPipelineNgcMain(args, consoleError);
-  }
-  const {diagnostics: compileDiags} =
-      performCompilation({rootNames, options, emitCallback: createEmitCallback(options)});
-  return Promise.resolve(reportErrorsAndExit(options, compileDiags, consoleError));
-}
-
-export function mainSync(
     args: string[], consoleError: (s: string) => void = console.error,
     config?: NgcParsedConfiguration): number {
   let {project, rootNames, options, errors: configErrors, watch, emitFlags} =
       config || readNgcCommandLineAndConfiguration(args);
   if (configErrors.length) {
-    return reportErrorsAndExit(options, configErrors, consoleError);
+    return reportErrorsAndExit(configErrors, /*options*/ undefined, consoleError);
   }
   if (watch) {
     const result = watchMode(project, options, consoleError);
-    return reportErrorsAndExit({}, result.firstCompileResult, consoleError);
+    return reportErrorsAndExit(result.firstCompileResult, options, consoleError);
   }
   const {diagnostics: compileDiags} = performCompilation(
       {rootNames, options, emitFlags, emitCallback: createEmitCallback(options)});
-  return reportErrorsAndExit(options, compileDiags, consoleError);
+  return reportErrorsAndExit(compileDiags, options, consoleError);
 }
 
-function createEmitCallback(options: api.CompilerOptions): api.TsEmitCallback {
+function createEmitCallback(options: api.CompilerOptions): api.TsEmitCallback|undefined {
+  const transformDecorators = options.annotationsAs !== 'decorators';
+  const transformTypesToClosure = options.annotateForClosureCompiler;
+  if (!transformDecorators && !transformTypesToClosure) {
+    return undefined;
+  }
+  if (transformDecorators) {
+    // This is needed as a workaround for https://github.com/angular/tsickle/issues/635
+    // Otherwise tsickle might emit references to non imported values
+    // as TypeScript elided the import.
+    options.emitDecoratorMetadata = true;
+  }
   const tsickleHost: tsickle.TsickleHost = {
-    shouldSkipTsickleProcessing: (fileName) => /\.d\.ts$/.test(fileName),
+    shouldSkipTsickleProcessing: (fileName) =>
+                                     /\.d\.ts$/.test(fileName) || GENERATED_FILES.test(fileName),
     pathToModuleName: (context, importPath) => '',
     shouldIgnoreWarningsForPath: (filePath) => false,
     fileNameToModuleId: (fileName) => fileName,
     googmodule: false,
     untyped: true,
-    convertIndexImportShorthand: true,
-    transformDecorators: options.annotationsAs !== 'decorators',
-    transformTypesToClosure: options.annotateForClosureCompiler,
+    convertIndexImportShorthand: false, transformDecorators, transformTypesToClosure,
   };
 
   return ({
@@ -145,10 +134,17 @@ export function readCommandLineAndConfiguration(
 }
 
 function reportErrorsAndExit(
-    options: api.CompilerOptions, allDiagnostics: Diagnostics,
+    allDiagnostics: Diagnostics, options?: api.CompilerOptions,
     consoleError: (s: string) => void = console.error): number {
-  if (allDiagnostics.length) {
-    consoleError(formatDiagnostics(options, allDiagnostics));
+  const errorsAndWarnings = filterErrorsAndWarnings(allDiagnostics);
+  if (errorsAndWarnings.length) {
+    let currentDir = options ? options.basePath : undefined;
+    const formatHost: ts.FormatDiagnosticsHost = {
+      getCurrentDirectory: () => currentDir || ts.sys.getCurrentDirectory(),
+      getCanonicalFileName: fileName => fileName,
+      getNewLine: () => ts.sys.newLine
+    };
+    consoleError(formatDiagnostics(errorsAndWarnings, formatHost));
   }
   return exitCodeFromResult(allDiagnostics);
 }
@@ -156,39 +152,12 @@ function reportErrorsAndExit(
 export function watchMode(
     project: string, options: api.CompilerOptions, consoleError: (s: string) => void) {
   return performWatchCompilation(createPerformWatchHost(project, diagnostics => {
-    consoleError(formatDiagnostics(options, diagnostics));
+    consoleError(formatDiagnostics(diagnostics));
   }, options, options => createEmitCallback(options)));
-}
-
-function disabledTransformerPipelineNgcMain(
-    args: string[], consoleError: (s: string) => void = console.error): Promise<number> {
-  const parsedArgs = require('minimist')(args);
-  const cliOptions = new tsc.NgcCliOptions(parsedArgs);
-  const project = parsedArgs.p || parsedArgs.project || '.';
-  return tsc.main(project, cliOptions, disabledTransformerPipelineCodegen)
-      .then(() => 0)
-      .catch(e => {
-        if (e instanceof tsc.UserError || isSyntaxError(e)) {
-          consoleError(e.message);
-        } else {
-          consoleError(e.stack);
-        }
-        return Promise.resolve(1);
-      });
-}
-
-function disabledTransformerPipelineCodegen(
-    ngOptions: api.CompilerOptions, cliOptions: tsc.NgcCliOptions, program: ts.Program,
-    host: ts.CompilerHost) {
-  if (ngOptions.enableSummariesForJit === undefined) {
-    // default to false
-    ngOptions.enableSummariesForJit = false;
-  }
-  return CodeGenerator.create(ngOptions, cliOptions, program, host).codegen();
 }
 
 // CLI entry point
 if (require.main === module) {
   const args = process.argv.slice(2);
-  process.exitCode = mainSync(args);
+  process.exitCode = main(args);
 }

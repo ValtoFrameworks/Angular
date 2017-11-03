@@ -211,6 +211,7 @@ The following is the list of supported scopes:
 * **compiler**
 * **compiler-cli**
 * **core**
+* **elements**
 * **forms**
 * **http**
 * **language-service**
@@ -220,8 +221,8 @@ The following is the list of supported scopes:
 * **platform-webworker**
 * **platform-webworker-dynamic**
 * **router**
+* **service-worker**
 * **upgrade**
-* **tsc-wrapped**
 
 There are currently a few exceptions to the "use package name" rule:
 
