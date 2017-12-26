@@ -38,15 +38,6 @@ module.exports = function(config) {
       'test-events.js',
       'shims_for_IE.js',
       'node_modules/systemjs/dist/system.src.js',
-
-      // Serve polyfills necessary for testing the `elements` package.
-      {
-        pattern: 'node_modules/@webcomponents/custom-elements/**/*.js',
-        included: false,
-        watched: false
-      },
-      {pattern: 'node_modules/mutation-observer/index.js', included: false, watched: false},
-
       {pattern: 'node_modules/rxjs/**', included: false, watched: false, served: true},
       'node_modules/reflect-metadata/Reflect.js',
       'tools/build/file2modulename.js',
@@ -62,10 +53,12 @@ module.exports = function(config) {
     ],
 
     exclude: [
+      'dist/all/@angular/_testing_init/**',
       'dist/all/@angular/**/e2e_test/**',
       'dist/all/@angular/**/*node_only_spec.js',
       'dist/all/@angular/benchpress/**',
       'dist/all/@angular/compiler-cli/**',
+      'dist/all/@angular/core/test/render3/**',
       'dist/all/@angular/compiler/test/aot/**',
       'dist/all/@angular/examples/**/e2e_test/*',
       'dist/all/@angular/language-service/**',

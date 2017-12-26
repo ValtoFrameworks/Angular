@@ -278,6 +278,16 @@ export interface ExtraOptions {
    * current URL. Default is 'ignore'.
    */
   onSameUrlNavigation?: 'reload'|'ignore';
+
+  /**
+   * Defines how the router merges params, data and resolved data from parent to child
+   * routes. Available options are:
+   *
+   * - `'emptyOnly'`, the default, only inherits parent params for path-less or component-less
+   *   routes.
+   * - `'always'`, enables unconditional inheritance of parent params.
+   */
+  paramsInheritanceStrategy?: 'emptyOnly'|'always';
 }
 
 export function setupRouter(
@@ -312,6 +322,10 @@ export function setupRouter(
 
   if (opts.onSameUrlNavigation) {
     router.onSameUrlNavigation = opts.onSameUrlNavigation;
+  }
+
+  if (opts.paramsInheritanceStrategy) {
+    router.paramsInheritanceStrategy = opts.paramsInheritanceStrategy;
   }
 
   return router;
@@ -381,7 +395,7 @@ export class RouterInitializer {
     const opts = this.injector.get(ROUTER_CONFIGURATION);
     const preloader = this.injector.get(RouterPreloader);
     const router = this.injector.get(Router);
-    const ref = this.injector.get(ApplicationRef);
+    const ref = this.injector.get<ApplicationRef>(ApplicationRef);
 
     if (bootstrappedComponentRef !== ref.components[0]) {
       return;

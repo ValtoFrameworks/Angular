@@ -119,7 +119,7 @@ describe('perform watch', () => {
     const errorFileContent = `
       import {NgModule} from '@angular/core';
 
-      @NgModule(() => (1===1 ? null as any : null as any))
+      @NgModule((() => (1===1 ? null as any : null as any)) as any)
       export class MyModule {}
     `;
     const indexTsPath = path.resolve(testSupport.basePath, 'src', 'index.ts');
@@ -143,7 +143,7 @@ describe('perform watch', () => {
 
       const errDiags = host.diagnostics.filter(d => d.category === ts.DiagnosticCategory.Error);
       expect(errDiags.length).toBe(1);
-      expect(errDiags[0].messageText).toContain('Function calls are not supported.');
+      expect(errDiags[0].messageText).toContain('Function expressions are not supported');
     }
   });
 });
@@ -166,10 +166,10 @@ class MockWatchHost {
   nextTimeoutListenerId = 1;
   timeoutListeners: {[id: string]: (() => void)} = {};
   fileChangeListeners: Array<((event: FileChangeEvent, fileName: string) => void)|null> = [];
-  diagnostics: ng.Diagnostics = [];
+  diagnostics: ng.Diagnostic[] = [];
   constructor(public config: ng.ParsedConfiguration) {}
 
-  reportDiagnostics(diags: ng.Diagnostics) { this.diagnostics.push(...diags); }
+  reportDiagnostics(diags: ng.Diagnostics) { this.diagnostics.push(...(diags as ng.Diagnostic[])); }
   readConfiguration() { return this.config; }
   createCompilerHost(options: ng.CompilerOptions) { return ng.createCompilerHost({options}); }
   createEmitCallback() { return undefined; }

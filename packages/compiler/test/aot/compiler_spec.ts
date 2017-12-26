@@ -9,10 +9,9 @@
 import {AotSummaryResolver, GeneratedFile, StaticSymbolCache, StaticSymbolResolver, toTypeScript} from '@angular/compiler';
 import {MetadataBundler} from '@angular/compiler-cli/src/metadata/bundler';
 import {privateEntriesToIndex} from '@angular/compiler-cli/src/metadata/index_writer';
+import {extractSourceMap, originalPositionFor} from '@angular/compiler/testing/src/output/source_map_util';
 import {NodeFlags} from '@angular/core/src/view/index';
 import * as ts from 'typescript';
-
-import {extractSourceMap, originalPositionFor} from '../output/source_map_util';
 
 import {EmittingCompilerHost, MockAotCompilerHost, MockCompilerHost, MockDirectory, MockMetadataBundlerHost, arrayToMockDir, compile, expectNoDiagnostics, settings, setup, toMockFileArray} from './test_util';
 
@@ -768,9 +767,9 @@ describe('compiler (unbundled Angular)', () => {
                  childClassDecorator: '',
                  childModuleDecorator: '@NgModule({providers: [Extends]})',
                }))
-            .toThrowError(
-                'Class Extends in /app/main.ts extends from a Injectable in another compilation unit without duplicating the decorator. ' +
-                'Please add a Injectable or Pipe or Directive or Component or NgModule decorator to the class.');
+            .toThrowError(`Error during template compile of 'Extends'
+  Class Extends in /app/main.ts extends from a Injectable in another compilation unit without duplicating the decorator
+    Please add a Injectable or Pipe or Directive or Component or NgModule decorator to the class.`);
       });
     });
 
@@ -792,9 +791,9 @@ describe('compiler (unbundled Angular)', () => {
                  childClassDecorator: '',
                  childModuleDecorator: '@NgModule({declarations: [Extends]})',
                }))
-            .toThrowError(
-                'Class Extends in /app/main.ts extends from a Directive in another compilation unit without duplicating the decorator. ' +
-                'Please add a Directive or Component decorator to the class.');
+            .toThrowError(`Error during template compile of 'Extends'
+  Class Extends in /app/main.ts extends from a Directive in another compilation unit without duplicating the decorator
+    Please add a Directive or Component decorator to the class.`);
       });
     });
 
@@ -816,9 +815,9 @@ describe('compiler (unbundled Angular)', () => {
                  childClassDecorator: '',
                  childModuleDecorator: '@NgModule({declarations: [Extends]})',
                }))
-            .toThrowError(
-                'Class Extends in /app/main.ts extends from a Directive in another compilation unit without duplicating the decorator. ' +
-                'Please add a Directive or Component decorator to the class.');
+            .toThrowError(`Error during template compile of 'Extends'
+  Class Extends in /app/main.ts extends from a Directive in another compilation unit without duplicating the decorator
+    Please add a Directive or Component decorator to the class.`);
       });
     });
 
@@ -840,9 +839,9 @@ describe('compiler (unbundled Angular)', () => {
                  childClassDecorator: '',
                  childModuleDecorator: '@NgModule({declarations: [Extends]})',
                }))
-            .toThrowError(
-                'Class Extends in /app/main.ts extends from a Pipe in another compilation unit without duplicating the decorator. ' +
-                'Please add a Pipe decorator to the class.');
+            .toThrowError(`Error during template compile of 'Extends'
+  Class Extends in /app/main.ts extends from a Pipe in another compilation unit without duplicating the decorator
+    Please add a Pipe decorator to the class.`);
       });
     });
 
@@ -864,9 +863,9 @@ describe('compiler (unbundled Angular)', () => {
                  childClassDecorator: '',
                  childModuleDecorator: '',
                }))
-            .toThrowError(
-                'Class Extends in /app/main.ts extends from a NgModule in another compilation unit without duplicating the decorator. ' +
-                'Please add a NgModule decorator to the class.');
+            .toThrowError(`Error during template compile of 'Extends'
+  Class Extends in /app/main.ts extends from a NgModule in another compilation unit without duplicating the decorator
+    Please add a NgModule decorator to the class.`);
       });
     });
   }
@@ -902,6 +901,14 @@ describe('compiler (bundled Angular)', () => {
   describe('Quickstart', () => {
     it('should compile', () => {
       const {genFiles} = compile([QUICKSTART, angularFiles]);
+      expect(genFiles.find(f => /app\.component\.ngfactory\.ts/.test(f.genFileUrl))).toBeDefined();
+      expect(genFiles.find(f => /app\.module\.ngfactory\.ts/.test(f.genFileUrl))).toBeDefined();
+    });
+
+    it('should support tsx', () => {
+      const tsOptions = {jsx: ts.JsxEmit.React};
+      const {genFiles} =
+          compile([QUICKSTART_TSX, angularFiles], /* options */ undefined, tsOptions);
       expect(genFiles.find(f => /app\.component\.ngfactory\.ts/.test(f.genFileUrl))).toBeDefined();
       expect(genFiles.find(f => /app\.module\.ngfactory\.ts/.test(f.genFileUrl))).toBeDefined();
     });
@@ -973,6 +980,34 @@ const QUICKSTART: MockDirectory = {
         export function toString(value: any): string {
           return  '';
         }
+      `
+    }
+  }
+};
+
+const QUICKSTART_TSX: MockDirectory = {
+  quickstart: {
+    app: {
+      // #20555
+      'app.component.tsx': `
+        import {Component} from '@angular/core';
+
+        @Component({
+          template: '<h1>Hello {{name}}</h1>'
+        })
+        export class AppComponent {
+          name = 'Angular';
+        }
+      `,
+      'app.module.ts': `
+        import { NgModule }      from '@angular/core';
+        import { AppComponent }  from './app.component';
+
+        @NgModule({
+          declarations: [ AppComponent ],
+          bootstrap:    [ AppComponent ]
+        })
+        export class AppModule { }
       `
     }
   }

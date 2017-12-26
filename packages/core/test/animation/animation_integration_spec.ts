@@ -18,7 +18,7 @@ import {TestBed, fakeAsync, flushMicrotasks} from '../../testing';
 const DEFAULT_NAMESPACE_ID = 'id';
 const DEFAULT_COMPONENT_ID = '1';
 
-export function main() {
+(function() {
   // these tests are only mean't to be run within the DOM (for now)
   if (typeof Element == 'undefined') return;
 
@@ -79,6 +79,38 @@ export function main() {
            expect(cmp.status).toEqual('');
            flushMicrotasks();
            expect(cmp.status).toEqual('done');
+         }));
+
+      it('should always run .start callbacks before .done callbacks even for noop animations',
+         fakeAsync(() => {
+           @Component({
+             selector: 'cmp',
+             template: `
+                <div [@myAnimation]="exp" (@myAnimation.start)="cb('start')" (@myAnimation.done)="cb('done')"></div>
+          `,
+             animations: [
+               trigger(
+                   'myAnimation',
+                   [
+                     transition('* => go', []),
+                   ]),
+             ]
+           })
+           class Cmp {
+             exp: any = false;
+             log: string[] = [];
+             cb(status: string) { this.log.push(status); }
+           }
+
+           TestBed.configureTestingModule({declarations: [Cmp]});
+           const fixture = TestBed.createComponent(Cmp);
+           const cmp = fixture.componentInstance;
+           cmp.exp = 'go';
+           fixture.detectChanges();
+           expect(cmp.log).toEqual([]);
+
+           flushMicrotasks();
+           expect(cmp.log).toEqual(['start', 'done']);
          }));
     });
 
@@ -221,6 +253,45 @@ export function main() {
         expect(getLog().pop() !.keyframes).toEqual([
           {offset: 0, opacity: '0'}, {offset: 1, opacity: '1'}
         ]);
+      });
+
+      it('should allow a transition to use a function to determine what method to run', () => {
+        let valueToMatch = '';
+        const transitionFn =
+            (fromState: string, toState: string) => { return toState == valueToMatch; };
+
+        @Component({
+          selector: 'if-cmp',
+          template: '<div [@myAnimation]="exp"></div>',
+          animations: [
+            trigger('myAnimation', [transition(
+                                       transitionFn,
+                                       [style({opacity: 0}), animate(1234, style({opacity: 1}))])]),
+          ]
+        })
+        class Cmp {
+          exp: any = '';
+        }
+
+        TestBed.configureTestingModule({declarations: [Cmp]});
+
+        const fixture = TestBed.createComponent(Cmp);
+        const cmp = fixture.componentInstance;
+        valueToMatch = cmp.exp = 'something';
+        fixture.detectChanges();
+
+        let players = getLog();
+        expect(players.length).toEqual(1);
+        let [p1] = players;
+        expect(p1.totalTime).toEqual(1234);
+        resetLog();
+
+        valueToMatch = 'something-else';
+        cmp.exp = 'this-wont-match';
+        fixture.detectChanges();
+
+        players = getLog();
+        expect(players.length).toEqual(0);
       });
 
       it('should allow a state value to be `0`', () => {
@@ -2278,6 +2349,66 @@ export function main() {
            expect(cmp.event2.triggerName).toBeTruthy('ani2');
          }));
 
+      it('should handle a leave animation for multiple triggers even if not all triggers have their own leave transition specified',
+         fakeAsync(() => {
+           @Component({
+             selector: 'if-cmp',
+             template: `
+               <div *ngIf="exp" @foo @bar>123</div>
+             `,
+             animations: [
+               trigger(
+                   'foo',
+                   [
+                     transition(
+                         ':enter',
+                         [
+                           style({opacity: 0}),
+                           animate(1000, style({opacity: 1})),
+                         ]),
+                   ]),
+               trigger(
+                   'bar',
+                   [
+                     transition(
+                         ':leave',
+                         [
+                           animate(1000, style({opacity: 0})),
+                         ]),
+                   ])
+             ],
+           })
+           class Cmp {
+             exp: boolean = false;
+           }
+
+           TestBed.configureTestingModule({declarations: [Cmp]});
+           const fixture = TestBed.createComponent(Cmp);
+           const elm = fixture.elementRef.nativeElement;
+           const cmp = fixture.componentInstance;
+
+           cmp.exp = true;
+           fixture.detectChanges();
+
+           let players = getLog();
+           expect(players.length).toEqual(1);
+           let [p1] = players;
+           p1.finish();
+           flushMicrotasks();
+           expect(elm.innerText.trim()).toEqual('123');
+
+           resetLog();
+           cmp.exp = false;
+           fixture.detectChanges();
+
+           players = getLog();
+           expect(players.length).toEqual(1);
+           [p1] = players;
+           p1.finish();
+           flushMicrotasks();
+           expect(elm.innerText.trim()).toEqual('');
+         }));
+
       it('should trigger a state change listener for when the animation changes state from void => state on the host element',
          fakeAsync(() => {
            @Component({
@@ -2616,6 +2747,57 @@ export function main() {
           players = getLog();
           expect(players.length).toEqual(1);
           expect(players[0].totalTime).toEqual(1234);
+        });
+
+        it('should ensure state() values are applied when an animation is disabled', () => {
+          @Component({
+            selector: 'if-cmp',
+            template: `
+              <div [@.disabled]="disableExp">
+                <div [@myAnimation]="exp" #elm></div>
+              </div>
+            `,
+            animations: [
+              trigger(
+                  'myAnimation',
+                  [
+                    state('1', style({height: '100px'})), state('2', style({height: '200px'})),
+                    state('3', style({height: '300px'})), transition('* => *', animate(500))
+                  ]),
+            ]
+          })
+          class Cmp {
+            exp: any = false;
+            disableExp = false;
+
+            @ViewChild('elm') public element: any;
+          }
+
+          TestBed.configureTestingModule({declarations: [Cmp]});
+
+          const fixture = TestBed.createComponent(Cmp);
+          const engine = TestBed.get(ɵAnimationEngine);
+
+          function assertHeight(element: any, height: string) {
+            expect(element.style['height']).toEqual(height);
+          }
+
+          const cmp = fixture.componentInstance;
+          const element = cmp.element.nativeElement;
+          fixture.detectChanges();
+
+          cmp.disableExp = true;
+          cmp.exp = '1';
+          fixture.detectChanges();
+          assertHeight(element, '100px');
+
+          cmp.exp = '2';
+          fixture.detectChanges();
+          assertHeight(element, '200px');
+
+          cmp.exp = '3';
+          fixture.detectChanges();
+          assertHeight(element, '300px');
         });
 
         it('should disable animations for the element that they are disabled on', () => {
@@ -3166,6 +3348,52 @@ export function main() {
       expect(() => { TestBed.createComponent(Cmp); }).not.toThrowError();
     });
 
+    it('should continue to clean up DOM-related animation artificats even if a compiler-level error is thrown midway',
+       () => {
+         @Component({
+           selector: 'if-cmp',
+           animations: [
+             trigger(
+                 'foo',
+                 [
+                   transition('* => something', []),
+                 ]),
+           ],
+           template: `
+          value = {{ foo[bar] }}
+          <div #contents>
+            <div *ngIf="exp">1</div>
+            <div *ngIf="exp" @foo>2</div>
+            <div *ngIf="exp" [@foo]="'123'">3</div>
+          </div>
+        `,
+         })
+         class Cmp {
+           exp: any = false;
+
+           @ViewChild('contents') public contents: any;
+         }
+
+         TestBed.configureTestingModule({declarations: [Cmp]});
+
+         const engine = TestBed.get(ɵAnimationEngine);
+         const fixture = TestBed.createComponent(Cmp);
+
+         const runCD = () => fixture.detectChanges();
+         const cmp = fixture.componentInstance;
+
+         cmp.exp = true;
+         expect(runCD).toThrow();
+
+         const contents = cmp.contents.nativeElement;
+         expect(contents.innerText.replace(/\s+/gm, '')).toEqual('123');
+
+         cmp.exp = false;
+         expect(runCD).toThrow();
+
+         expect(contents.innerText.trim()).toEqual('');
+       });
+
     describe('errors for not using the animation module', () => {
       beforeEach(() => {
         TestBed.configureTestingModule({
@@ -3200,7 +3428,7 @@ export function main() {
       });
     });
   });
-}
+});
 
 function assertHasParent(element: any, yes: boolean) {
   const parent = getDOM().parentElement(element);

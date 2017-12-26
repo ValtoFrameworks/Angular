@@ -15,18 +15,15 @@
 # hansl - Hans Larsen
 # IgorMinar - Igor Minar
 # jasonaden - Jason Aden
-# juleskremer - Jules Kremer
 # kara - Kara Erickson
 # matsko - Matias Niemelä
 # mhevery - Misko Hevery
 # petebacondarwin - Pete Bacon Darwin
 # pkozlowski-opensource - Pawel Kozlowski
 # robwormald - Rob Wormald
-# tbosch - Tobias Bosch
 # tinayuangao - Tina Gao
 # vicb - Victor Berchet
 # vikerman - Vikram Subramanian
-# wardbell - Ward Bell
 
 
 version: 2
@@ -37,14 +34,33 @@ group_defaults:
     enabled: true
   approve_by_comment:
     enabled: false
+  # see http://docs.pullapprove.com/groups/author_approval/
+  author_approval:
+    # If the author is a reviewer on the PR, they will automatically have an "approved" status.
+    auto: true
 
 groups:
+  # Require all PRs to have at least one approval from *someone*
+  all:
+    users: all
+    required: 1
+    # In this group, your self-approval does not count
+    author_approval:
+      auto: false
+      ignored: true
+    files:
+      include:
+        - "*"
+
   root:
     conditions:
       files:
         include:
           - "*"
         exclude:
+          - "WORKSPACE"
+          - "BUILD.bazel"
+          - ".circleci/*"
           - "aio/*"
           - "integration/*"
           - "modules/*"
@@ -71,9 +87,11 @@ groups:
           - "*.bazel"
           - "*.bzl"
           - "packages/bazel/*"
+          - "tools/bazel.rc"
     users:
       - alexeagle #primary
       - chuckjaz
+      - IgorMinar
       - vikerman #fallback
 
   build-and-ci:
@@ -85,6 +103,7 @@ groups:
           - "*.lock"
           - "tools/*"
         exclude:
+          - "tools/bazel.rc"
           - "tools/public_api_guard/*"
           - "aio/*"
     users:
@@ -100,7 +119,6 @@ groups:
     users:
       - alexeagle
       - mhevery
-      - tbosch
       - vicb
       - IgorMinar #fallback
 
@@ -109,8 +127,7 @@ groups:
       files:
         - "packages/core/*"
     users:
-      - tbosch #primary
-      - chuckjaz
+      - chuckjaz #primary
       - mhevery
       - vicb
       - IgorMinar #fallback
@@ -132,7 +149,7 @@ groups:
         - "packages/compiler/src/i18n/*"
     users:
       - vicb #primary
-      - tbosch
+      - chuckjaz
       - IgorMinar #fallback
       - mhevery #fallback
 
@@ -141,9 +158,8 @@ groups:
       files:
         - "packages/compiler/*"
     users:
-      - tbosch #primary
+      - chuckjaz #primary
       - vicb
-      - chuckjaz
       - mhevery
       - IgorMinar #fallback
 
@@ -163,12 +179,11 @@ groups:
           - "packages/compiler-cli/*"
           - "packages/bazel/*"
         exclude:
-          - "packages/compiler-cli/src/ngtools*"   
+          - "packages/compiler-cli/src/ngtools*"
     users:
       - alexeagle
       - chuckjaz
       - vicb
-      - tbosch
       - IgorMinar #fallback
       - mhevery #fallback
 
@@ -212,7 +227,7 @@ groups:
         - "packages/language-service/*"
     users:
       - chuckjaz #primary
-      - tbosch #secondary
+      # needs secondary
       - vicb
       - IgorMinar #fallback
       - mhevery #fallback
@@ -242,8 +257,8 @@ groups:
       files:
         - "packages/platform-browser/*"
     users:
-      - tbosch #primary
-      - vicb #secondary
+      - vicb #primary
+      # needs secondary
       - IgorMinar #fallback
       - mhevery #fallback
 
@@ -253,9 +268,9 @@ groups:
         - "packages/platform-server/*"
     users:
       - vikerman #primary
+      # needs secondary
       - alxhub
       - vicb
-      - tbosch
       - IgorMinar #fallback
       - mhevery #fallback
 
@@ -265,7 +280,7 @@ groups:
         - "packages/platform-webworker/*"
     users:
       - vicb #primary
-      - tbosch #secondary
+      # needs secondary
       - IgorMinar #fallback
       - mhevery #fallback
 
@@ -279,20 +294,12 @@ groups:
       - IgorMinar #fallback
       - mhevery #fallback
 
-  elements:
-    conditions:
-      files:
-        - "packages/elements/*"
-    users:
-      - mhevery #primary
-      - IgorMinar #fallback
-
   benchpress:
     conditions:
       files:
         - "packages/benchpress/*"
     users:
-      - tbosch #primary
+      - alxhub # primary
       # needs secondary
       - IgorMinar #fallback
       - mhevery #fallback
@@ -320,10 +327,8 @@ groups:
           - "aio/content/navigation.json"
           - "aio/content/license.md"
     users:
-      - juleskremer #primary
-      - Foxandxss
       - stephenfluin
-      - wardbell
+      - Foxandxss
       - petebacondarwin
       - gkalpak
       - IgorMinar #fallback
@@ -337,7 +342,6 @@ groups:
           - "aio/content/navigation.json"
           - "aio/content/license.md"
     users:
-      - juleskremer #primary
       - stephenfluin
       - petebacondarwin
       - gkalpak

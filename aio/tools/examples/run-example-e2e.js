@@ -16,7 +16,6 @@ const SJS_SPEC_FILENAME = 'e2e-spec.ts';
 const CLI_SPEC_FILENAME = 'e2e/app.e2e-spec.ts';
 const EXAMPLE_CONFIG_FILENAME = 'example-config.json';
 const IGNORED_EXAMPLES = [ // temporary ignores
-  'toh-',
   'quickstart',
   'http',
   'setup',
@@ -201,8 +200,10 @@ function runProtractorAoT(appDir, outputFile) {
 // All protractor output is appended to the outputFile.
 // CLI version
 function runE2eTestsCLI(appDir, outputFile) {
-  // --preserve-symlinks is needed due the symlinked node_modules in each example
-  const e2eSpawn = spawnExt('yarn', ['e2e', '--preserve-symlinks'], { cwd: appDir });
+  // `--preserve-symlinks` is needed due the symlinked `node_modules/` in each example.
+  // `--no-webdriver-update` is needed to preserve the ChromeDriver version already installed.
+  const args = ['e2e', '--preserve-symlinks', '--no-webdriver-update'];
+  const e2eSpawn = spawnExt('yarn', args, { cwd: appDir });
   return e2eSpawn.promise.then(
     function () {
       fs.appendFileSync(outputFile, `Passed: ${appDir}\n\n`);

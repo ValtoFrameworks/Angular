@@ -41,6 +41,13 @@ export interface CodeGenerator {
   findGeneratedFileNames(fileName: string): string[];
 }
 
+function assert<T>(condition: T | null | undefined) {
+  if (!condition) {
+    // TODO(chuckjaz): do the right thing
+  }
+  return condition !;
+}
+
 /**
  * Implements the following hosts based on an api.CompilerHost:
  * - ts.CompilerHost to be consumed by a ts.Program
@@ -55,7 +62,7 @@ export class TsCompilerAotCompilerTypeCheckHostAdapter implements ts.CompilerHos
   private flatModuleIndexRedirectNames = new Set<string>();
   private rootDirs: string[];
   private moduleResolutionCache: ts.ModuleResolutionCache;
-  private originalSourceFiles = new Map<string, ts.SourceFile|undefined>();
+  private originalSourceFiles = new Map<string, ts.SourceFile|null>();
   private originalFileExistsCache = new Map<string, boolean>();
   private generatedSourceFiles = new Map<string, GenSourceFile>();
   private generatedCodeFor = new Map<string, string[]>();
@@ -69,8 +76,9 @@ export class TsCompilerAotCompilerTypeCheckHostAdapter implements ts.CompilerHos
   directoryExists?: (directoryName: string) => boolean;
 
   constructor(
-      private rootFiles: string[], private options: CompilerOptions, private context: CompilerHost,
-      private metadataProvider: MetadataProvider, private codeGenerator: CodeGenerator,
+      private rootFiles: ReadonlyArray<string>, private options: CompilerOptions,
+      private context: CompilerHost, private metadataProvider: MetadataProvider,
+      private codeGenerator: CodeGenerator,
       private librarySummaries = new Map<string, LibrarySummary>()) {
     this.moduleResolutionCache = ts.createModuleResolutionCache(
         this.context.getCurrentDirectory !(), this.context.getCanonicalFileName.bind(this.context));
@@ -113,7 +121,7 @@ export class TsCompilerAotCompilerTypeCheckHostAdapter implements ts.CompilerHos
         return sf ? this.metadataProvider.getMetadata(sf) : undefined;
       },
       fileExists: (filePath) => this.originalFileExists(filePath),
-      readFile: (filePath) => this.context.readFile(filePath),
+      readFile: (filePath) => assert(this.context.readFile(filePath)),
     };
   }
 
@@ -123,7 +131,7 @@ export class TsCompilerAotCompilerTypeCheckHostAdapter implements ts.CompilerHos
                      moduleName, containingFile.replace(/\\/g, '/'), this.options, this,
                      this.moduleResolutionCache)
                    .resolvedModule;
-    if (rm && this.isSourceFile(rm.resolvedFileName)) {
+    if (rm && this.isSourceFile(rm.resolvedFileName) && DTS.test(rm.resolvedFileName)) {
       // Case: generateCodeForLibraries = true and moduleName is
       // a .d.ts file in a node_modules folder.
       // Need to set isExternalLibraryImport to false so that generated files for that file
@@ -296,6 +304,11 @@ export class TsCompilerAotCompilerTypeCheckHostAdapter implements ts.CompilerHos
         /* emitSourceMaps */ false);
     const sf = ts.createSourceFile(
         genFile.genFileUrl, sourceText, this.options.target || ts.ScriptTarget.Latest);
+    if ((this.options.module === ts.ModuleKind.AMD || this.options.module === ts.ModuleKind.UMD) &&
+        this.context.amdModuleName) {
+      const moduleName = this.context.amdModuleName(sf);
+      if (moduleName) sf.moduleName = moduleName;
+    }
     this.generatedSourceFiles.set(genFile.genFileUrl, {
       sourceFile: sf,
       emitCtx: context, externalReferences,
@@ -314,7 +327,7 @@ export class TsCompilerAotCompilerTypeCheckHostAdapter implements ts.CompilerHos
       return {generate: false};
     }
     const [, base, genSuffix, suffix] = genMatch;
-    if (suffix !== 'ts') {
+    if (suffix !== 'ts' && suffix !== 'tsx') {
       return {generate: false};
     }
     let baseFileName: string|undefined;
@@ -325,9 +338,9 @@ export class TsCompilerAotCompilerTypeCheckHostAdapter implements ts.CompilerHos
       }
     } else {
       // Note: on-the-fly generated files always have a `.ts` suffix,
-      // but the file from which we generated it can be a `.ts`/ `.d.ts`
+      // but the file from which we generated it can be a `.ts`/ `.tsx`/ `.d.ts`
       // (see options.generateCodeForLibraries).
-      baseFileName = [`${base}.ts`, `${base}.d.ts`].find(
+      baseFileName = [`${base}.ts`, `${base}.tsx`, `${base}.d.ts`].find(
           baseFileName => this.isSourceFile(baseFileName) && this.originalFileExists(baseFileName));
       if (!baseFileName) {
         return {generate: false};
@@ -421,7 +434,7 @@ export class TsCompilerAotCompilerTypeCheckHostAdapter implements ts.CompilerHos
       return summary.text;
     }
     if (this.originalFileExists(filePath)) {
-      return this.context.readFile(filePath);
+      return assert(this.context.readFile(filePath));
     }
     return null;
   }
@@ -472,7 +485,7 @@ export class TsCompilerAotCompilerTypeCheckHostAdapter implements ts.CompilerHos
     if (!this.originalFileExists(filePath)) {
       throw syntaxError(`Error: Resource file not found: ${filePath}`);
     }
-    return this.context.readFile(filePath);
+    return assert(this.context.readFile(filePath));
   }
 
   private hasBundleIndex(filePath: string): boolean {
@@ -490,13 +503,13 @@ export class TsCompilerAotCompilerTypeCheckHostAdapter implements ts.CompilerHos
             if (this.originalFileExists(packageFile)) {
               // Once we see a package.json file, assume false until it we find the bundle index.
               result = false;
-              const packageContent: any = JSON.parse(this.context.readFile(packageFile));
+              const packageContent: any = JSON.parse(assert(this.context.readFile(packageFile)));
               if (packageContent.typings) {
                 const typings = path.normalize(path.join(directory, packageContent.typings));
                 if (DTS.test(typings)) {
                   const metadataFile = typings.replace(DTS, '.metadata.json');
                   if (this.originalFileExists(metadataFile)) {
-                    const metadata = JSON.parse(this.context.readFile(metadataFile));
+                    const metadata = JSON.parse(assert(this.context.readFile(metadataFile)));
                     if (metadata.flatModuleIndexRedirect) {
                       this.flatModuleIndexRedirectNames.add(typings);
                       // Note: don't set result = true,
@@ -553,7 +566,8 @@ function addReferencesToSourceFile(sf: ts.SourceFile, genFileNames: string[]) {
   // value for `referencedFiles` around in cache the original host is caching ts.SourceFiles.
   // Note: cloning the ts.SourceFile is expensive as the nodes in have parent pointers,
   // i.e. we would also need to clone and adjust all nodes.
-  let originalReferencedFiles: ts.FileReference[]|undefined = (sf as any).originalReferencedFiles;
+  let originalReferencedFiles: ReadonlyArray<ts.FileReference> =
+      (sf as any).originalReferencedFiles;
   if (!originalReferencedFiles) {
     originalReferencedFiles = sf.referencedFiles;
     (sf as any).originalReferencedFiles = originalReferencedFiles;

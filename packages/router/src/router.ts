@@ -27,7 +27,7 @@ import {recognize} from './recognize';
 import {DefaultRouteReuseStrategy, DetachedRouteHandleInternal, RouteReuseStrategy} from './route_reuse_strategy';
 import {RouterConfigLoader} from './router_config_loader';
 import {ChildrenOutletContexts} from './router_outlet_context';
-import {ActivatedRoute, ActivatedRouteSnapshot, RouterState, RouterStateSnapshot, advanceActivatedRoute, createEmptyState} from './router_state';
+import {ActivatedRoute, ActivatedRouteSnapshot, RouterState, RouterStateSnapshot, advanceActivatedRoute, createEmptyState, inheritedParamsDataResolve} from './router_state';
 import {Params, isNavigationCancelingError} from './shared';
 import {DefaultUrlHandlingStrategy, UrlHandlingStrategy} from './url_handling_strategy';
 import {UrlSerializer, UrlTree, containsTree, createEmptyUrlTree} from './url_tree';
@@ -250,6 +250,16 @@ export class Router {
   onSameUrlNavigation: 'reload'|'ignore' = 'ignore';
 
   /**
+   * Defines how the router merges params, data and resolved data from parent to child
+   * routes. Available options are:
+   *
+   * - `'emptyOnly'`, the default, only inherits parent params for path-less or component-less
+   *   routes.
+   * - `'always'`, enables unconditional inheritance of parent params.
+   */
+  paramsInheritanceStrategy: 'emptyOnly'|'always' = 'emptyOnly';
+
+  /**
    * Creates the router service.
    */
   // TODO: vsavkin make internal after the final is out.
@@ -408,6 +418,9 @@ export class Router {
     } else {
       q = preserveQueryParams ? this.currentUrlTree.queryParams : queryParams || null;
     }
+    if (q !== null) {
+      q = this.removeEmptyProps(q);
+    }
     return createUrlTree(a, this.currentUrlTree, commands, q !, f !);
   }
 
@@ -463,9 +476,6 @@ export class Router {
   navigate(commands: any[], extras: NavigationExtras = {skipLocationChange: false}):
       Promise<boolean> {
     validateCommands(commands);
-    if (typeof extras.queryParams === 'object' && extras.queryParams !== null) {
-      extras.queryParams = this.removeEmptyProps(extras.queryParams);
-    }
     return this.navigateByUrl(this.createUrlTree(commands, extras), extras);
   }
 
@@ -611,7 +621,8 @@ export class Router {
         urlAndSnapshot$ = mergeMap.call(redirectsApplied$, (appliedUrl: UrlTree) => {
           return map.call(
               recognize(
-                  this.rootComponentType, this.config, appliedUrl, this.serializeUrl(appliedUrl)),
+                  this.rootComponentType, this.config, appliedUrl, this.serializeUrl(appliedUrl),
+                  this.paramsInheritanceStrategy),
               (snapshot: any) => {
 
                 (this.events as Subject<Event>)
@@ -667,7 +678,7 @@ export class Router {
             if (p.shouldActivate && preActivation.isActivating()) {
               this.triggerEvent(
                   new ResolveStart(id, this.serializeUrl(url), p.appliedUrl, p.snapshot));
-              return map.call(preActivation.resolveData(), () => {
+              return map.call(preActivation.resolveData(this.paramsInheritanceStrategy), () => {
                 this.triggerEvent(
                     new ResolveEnd(id, this.serializeUrl(url), p.appliedUrl, p.snapshot));
                 return p;
@@ -745,12 +756,14 @@ export class Router {
               },
               (e: any) => {
                 if (isNavigationCancelingError(e)) {
-                  this.resetUrlToCurrentUrlTree();
                   this.navigated = true;
+                  this.resetStateAndUrl(storedState, storedUrl, rawUrl);
                   (this.events as Subject<Event>)
                       .next(new NavigationCancel(id, this.serializeUrl(url), e.message));
+
                   resolvePromise(false);
                 } else {
+                  this.resetStateAndUrl(storedState, storedUrl, rawUrl);
                   (this.events as Subject<Event>)
                       .next(new NavigationError(id, this.serializeUrl(url), e));
                   try {
@@ -759,13 +772,15 @@ export class Router {
                     rejectPromise(ee);
                   }
                 }
-
-                (this as{routerState: RouterState}).routerState = storedState;
-                this.currentUrlTree = storedUrl;
-                this.rawUrlTree = this.urlHandlingStrategy.merge(this.currentUrlTree, rawUrl);
-                this.resetUrlToCurrentUrlTree();
               });
     });
+  }
+
+  private resetStateAndUrl(storedState: RouterState, storedUrl: UrlTree, rawUrl: UrlTree): void {
+    (this as{routerState: RouterState}).routerState = storedState;
+    this.currentUrlTree = storedUrl;
+    this.rawUrlTree = this.urlHandlingStrategy.merge(this.currentUrlTree, rawUrl);
+    this.resetUrlToCurrentUrlTree();
   }
 
   private resetUrlToCurrentUrlTree(): void {
