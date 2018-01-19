@@ -1,4 +1,4 @@
-workspace(name = "angular_src")
+workspace(name = "angular")
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
@@ -10,24 +10,22 @@ git_repository(
 
 load("@build_bazel_rules_nodejs//:defs.bzl", "check_bazel_version", "node_repositories")
 
-check_bazel_version("0.8.1")
+check_bazel_version("0.9.0")
 node_repositories(package_json = ["//:package.json"])
 
 git_repository(
     name = "build_bazel_rules_typescript",
-    remote = "https://github.com/bazelbuild/rules_typescript.git",
-#    tag = "0.7.1+",
-    commit = "89d2c75066bea3d9c942f29dd1d2ea543c58d6d5"
+    # Use alexeagle's branch temporarily to allow a green build in the middle of
+    # the tsconfig refactoring.
+    # TODO(alexeagle): after the change lands in google3, push it to bazelbuild
+    # mirror and point this back to upstream.
+    remote = "https://github.com/alexeagle/rules_typescript.git",
+    commit = "5ccf967a393d94f53b5b1a97760eb1e18367faa3"
 )
 
-load("@build_bazel_rules_typescript//:setup.bzl", "ts_setup_workspace")
+load("@build_bazel_rules_typescript//:defs.bzl", "ts_setup_workspace")
 
 ts_setup_workspace()
-
-local_repository(
-    name = "angular",
-    path = "packages/bazel",
-)
 
 local_repository(
     name = "rxjs",
@@ -54,3 +52,11 @@ load("@io_bazel_rules_go//go:def.bzl", "go_rules_dependencies", "go_register_too
 go_rules_dependencies()
 
 go_register_toolchains()
+
+# Fetching the Bazel source code allows us to compile the Skylark linter
+http_archive(
+    name = "io_bazel",
+    url = "https://github.com/bazelbuild/bazel/archive/9755c72b48866ed034bd28aa033e9abd27431b1e.zip",
+    strip_prefix = "bazel-9755c72b48866ed034bd28aa033e9abd27431b1e",
+    sha256 = "5b8443fc3481b5fcd9e7f348e1dd93c1397f78b223623c39eb56494c55f41962",
+)

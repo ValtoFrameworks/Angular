@@ -8,8 +8,7 @@
 
 import {createComponentRef, detectChanges, getHostElement, markDirty, renderComponent} from './component';
 import {NgOnChangesFeature, PublicFeature, defineComponent, defineDirective} from './definition';
-import {ComponentDef, ComponentTemplate, ComponentType, DirectiveDef, DirectiveDefFlags} from './definition_interfaces';
-
+import {ComponentDef, ComponentTemplate, ComponentType, DirectiveDef, DirectiveDefFlags, DirectiveType} from './interfaces/definition';
 
 // Naming scheme:
 // - Capital letters are for creating things: T(Text), E(Element), D(Directive), V(View),
@@ -40,12 +39,9 @@ export {
 
   componentRefresh as r,
 
-  containerStart as C,
-  containerEnd as c,
+  container as C,
   containerRefreshStart as cR,
   containerRefreshEnd as cr,
-
-  directive as D,
 
   elementAttribute as a,
   elementClass as k,
@@ -78,9 +74,11 @@ export {
   ComponentType,
   DirectiveDef,
   DirectiveDefFlags,
+  DirectiveType,
   NgOnChangesFeature,
   PublicFeature,
   defineComponent,
   defineDirective,
 };
 export {createComponentRef, detectChanges, getHostElement, markDirty, renderComponent};
+export {InjectFlags} from './di';

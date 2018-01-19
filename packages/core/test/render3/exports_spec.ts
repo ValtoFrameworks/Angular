@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {C, D, E, T, V, a, b, c, cR, cr, defineComponent, defineDirective, e, k, p, t, v} from '../../src/render3/index';
+import {C, E, T, V, a, b, cR, cr, defineComponent, defineDirective, e, k, m, p, t, v} from '../../src/render3/index';
 
 import {renderToHtml} from './render_util';
 
@@ -32,23 +32,18 @@ describe('exports', () => {
     /** <comp #myComp></comp> {{ myComp.name }} */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, MyComponent.ngComponentDef);
-        { D(1, MyComponent.ngComponentDef.n(), MyComponent.ngComponentDef); }
+        E(0, MyComponent);
         e();
         T(2);
       }
-      t(2, D<MyComponent>(1).name);
+      t(2, m<MyComponent>(1).name);
     }
 
     class MyComponent {
       name = 'Nancy';
 
-      static ngComponentDef = defineComponent({
-        type: MyComponent,
-        tag: 'comp',
-        template: function() {},
-        factory: () => new MyComponent
-      });
+      static ngComponentDef =
+          defineComponent({tag: 'comp', template: function() {}, factory: () => new MyComponent});
     }
 
     expect(renderToHtml(Template, {})).toEqual('<comp></comp>Nancy');
@@ -60,32 +55,25 @@ describe('exports', () => {
     let myDir: MyDir;
     class MyComponent {
       constructor() { myComponent = this; }
-      static ngComponentDef = defineComponent({
-        type: MyComponent,
-        tag: 'comp',
-        template: function() {},
-        factory: () => new MyComponent
-      });
+      static ngComponentDef =
+          defineComponent({tag: 'comp', template: function() {}, factory: () => new MyComponent});
     }
 
     class MyDir {
       myDir: MyComponent;
       constructor() { myDir = this; }
-      static ngDirectiveDef =
-          defineDirective({type: MyDir, factory: () => new MyDir, inputs: {myDir: 'myDir'}});
+      static ngDirectiveDef = defineDirective({factory: () => new MyDir, inputs: {myDir: 'myDir'}});
     }
 
     /** <comp #myComp></comp> <div [myDir]="myComp"></div> */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, MyComponent.ngComponentDef);
-        { D(1, MyComponent.ngComponentDef.n(), MyComponent.ngComponentDef); }
+        E(0, MyComponent);
         e();
-        E(2, 'div');
-        { D(3, MyDir.ngDirectiveDef.n(), MyDir.ngDirectiveDef); }
+        E(2, 'div', null, [MyDir]);
         e();
       }
-      p(2, 'myDir', b(D<MyComponent>(1)));
+      p(2, 'myDir', b(m<MyComponent>(1)));
     }
 
     renderToHtml(Template, {});
@@ -97,18 +85,17 @@ describe('exports', () => {
     /** <div someDir #myDir="someDir"></div> {{ myDir.name }} */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, 'div');
-        D(1, SomeDirDef.n(), SomeDirDef);
+        E(0, 'div', null, [SomeDir]);
         e();
         T(2);
       }
-      t(2, D<SomeDir>(1).name);
+      t(2, m<SomeDir>(1).name);
     }
 
     class SomeDir {
       name = 'Drew';
+      static ngDirectiveDef = defineDirective({factory: () => new SomeDir});
     }
-    const SomeDirDef = defineDirective({type: SomeDir, factory: () => new SomeDir});
 
     expect(renderToHtml(Template, {})).toEqual('<div></div>Drew');
   });
@@ -176,7 +163,7 @@ describe('exports', () => {
       }
 
       expect(renderToHtml(Template, {}))
-          .toEqual('<div class="red"></div><input type="checkbox" checked="true">');
+          .toEqual('<div class="red"></div><input checked="true" type="checkbox">');
     });
 
     it('should work with component refs', () => {
@@ -188,7 +175,6 @@ describe('exports', () => {
         constructor() { myComponent = this; }
 
         static ngComponentDef = defineComponent({
-          type: MyComponent,
           tag: 'comp',
           template: function(ctx: MyComponent, cm: boolean) {},
           factory: () => new MyComponent
@@ -201,20 +187,18 @@ describe('exports', () => {
         constructor() { myDir = this; }
 
         static ngDirectiveDef =
-            defineDirective({type: MyDir, factory: () => new MyDir, inputs: {myDir: 'myDir'}});
+            defineDirective({factory: () => new MyDir, inputs: {myDir: 'myDir'}});
       }
 
       /** <div [myDir]="myComp"></div><comp #myComp></comp> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'div');
-          { D(1, MyDir.ngDirectiveDef.n(), MyDir.ngDirectiveDef); }
+          E(0, 'div', null, [MyDir]);
           e();
-          E(2, MyComponent.ngComponentDef);
-          { D(3, MyComponent.ngComponentDef.n(), MyComponent.ngComponentDef); }
+          E(2, MyComponent);
           e();
         }
-        p(0, 'myDir', b(D<MyComponent>(3)));
+        p(0, 'myDir', b(m<MyComponent>(3)));
       }
 
       renderToHtml(Template, {});
@@ -228,14 +212,13 @@ describe('exports', () => {
         if (cm) {
           T(0);
           T(1);
-          E(2, 'comp');
-          { D(3, MyComponent.ngComponentDef.n(), MyComponent.ngComponentDef); }
+          E(2, MyComponent);
           e();
           E(4, 'input', ['value', 'one']);
           e();
         }
         let myInput = E(4);
-        let myComp = D(3) as MyComponent;
+        let myComp = m(3) as MyComponent;
         t(0, b(myInput && (myInput as any).value));
         t(1, b(myComp && myComp.name));
       }
@@ -247,12 +230,8 @@ describe('exports', () => {
 
         constructor() { myComponent = this; }
 
-        static ngComponentDef = defineComponent({
-          type: MyComponent,
-          tag: 'comp',
-          template: function() {},
-          factory: () => new MyComponent
-        });
+        static ngComponentDef =
+            defineComponent({tag: 'comp', template: function() {}, factory: () => new MyComponent});
       }
       expect(renderToHtml(Template, {})).toEqual('oneNancy<comp></comp><input value="one">');
     });
@@ -261,10 +240,7 @@ describe('exports', () => {
       function Template(ctx: any, cm: boolean) {
         if (cm) {
           E(0, 'div');
-          {
-            C(1);
-            c();
-          }
+          { C(1); }
           e();
         }
         cR(1);
