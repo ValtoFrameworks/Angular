@@ -9,7 +9,9 @@
 import * as o from './output/output_ast';
 import {OutputContext, error} from './util';
 
-export const enum DefinitionKind {Injector, Directive, Component}
+const CONSTANT_PREFIX = '_c';
+
+export const enum DefinitionKind {Injector, Directive, Component, Pipe}
 
 /**
  * A node that is a place-holder that allows the node to be replaced when the actual
@@ -25,7 +27,7 @@ class FixupExpression extends o.Expression {
   shared: boolean;
 
   visitExpression(visitor: o.ExpressionVisitor, context: any): any {
-    this.resolved.visitExpression(visitor, context);
+    return this.resolved.visitExpression(visitor, context);
   }
 
   isEquivalent(e: o.Expression): boolean {
@@ -48,38 +50,45 @@ export class ConstantPool {
   private literals = new Map<string, FixupExpression>();
   private injectorDefinitions = new Map<any, FixupExpression>();
   private directiveDefinitions = new Map<any, FixupExpression>();
-  private componentDefintions = new Map<any, FixupExpression>();
+  private componentDefinitions = new Map<any, FixupExpression>();
+  private pipeDefinitions = new Map<any, FixupExpression>();
 
   private nextNameIndex = 0;
 
-  getConstLiteral(literal: o.Expression): o.Expression {
+  getConstLiteral(literal: o.Expression, forceShared?: boolean): o.Expression {
     const key = this.keyOf(literal);
     let fixup = this.literals.get(key);
+    let newValue = false;
     if (!fixup) {
       fixup = new FixupExpression(literal);
       this.literals.set(key, fixup);
-    } else if (!fixup.shared) {
+      newValue = true;
+    }
+
+    if ((!newValue && !fixup.shared) || (newValue && forceShared)) {
       // Replace the expression with a variable
       const name = this.freshName();
       this.statements.push(
           o.variable(name).set(literal).toDeclStmt(o.INFERRED_TYPE, [o.StmtModifier.Final]));
       fixup.fixup(o.variable(name));
     }
+
     return fixup;
   }
 
-  getDefinition(type: any, kind: DefinitionKind, ctx: OutputContext): o.Expression {
-    const declarations = kind == DefinitionKind.Component ?
-        this.componentDefintions :
-        kind == DefinitionKind.Directive ? this.directiveDefinitions : this.injectorDefinitions;
-    let fixup = declarations.get(type);
+  getDefinition(type: any, kind: DefinitionKind, ctx: OutputContext, forceShared: boolean = false):
+      o.Expression {
+    const definitions = this.definitionsOf(kind);
+    let fixup = definitions.get(type);
+    let newValue = false;
     if (!fixup) {
-      const property = kind == DefinitionKind.Component ?
-          'ngComponentDef' :
-          kind == DefinitionKind.Directive ? 'ngDirectiveDef' : 'ngInjectorDef';
+      const property = this.propertyNameOf(kind);
       fixup = new FixupExpression(ctx.importExpr(type).prop(property));
-      declarations.set(type, fixup);
-    } else if (!fixup.shared) {
+      definitions.set(type, fixup);
+      newValue = true;
+    }
+
+    if ((!newValue && !fixup.shared) || (newValue && forceShared)) {
       const name = this.freshName();
       this.statements.push(
           o.variable(name).set(fixup.resolved).toDeclStmt(o.INFERRED_TYPE, [o.StmtModifier.Final]));
@@ -97,7 +106,37 @@ export class ConstantPool {
    */
   uniqueName(prefix: string): string { return `${prefix}${this.nextNameIndex++}`; }
 
-  private freshName(): string { return this.uniqueName(`_$`); }
+  private definitionsOf(kind: DefinitionKind): Map<any, FixupExpression> {
+    switch (kind) {
+      case DefinitionKind.Component:
+        return this.componentDefinitions;
+      case DefinitionKind.Directive:
+        return this.directiveDefinitions;
+      case DefinitionKind.Injector:
+        return this.injectorDefinitions;
+      case DefinitionKind.Pipe:
+        return this.pipeDefinitions;
+    }
+    error(`Unknown definition kind ${kind}`);
+    return this.componentDefinitions;
+  }
+
+  public propertyNameOf(kind: DefinitionKind): string {
+    switch (kind) {
+      case DefinitionKind.Component:
+        return 'ngComponentDef';
+      case DefinitionKind.Directive:
+        return 'ngDirectiveDef';
+      case DefinitionKind.Injector:
+        return 'ngInjectorDef';
+      case DefinitionKind.Pipe:
+        return 'ngPipeDef';
+    }
+    error(`Unknown definition kind ${kind}`);
+    return '<unknown>';
+  }
+
+  private freshName(): string { return this.uniqueName(CONSTANT_PREFIX); }
 
   private keyOf(expression: o.Expression) {
     return expression.visitExpression(new KeyVisitor(), null);
@@ -105,15 +144,22 @@ export class ConstantPool {
 }
 
 class KeyVisitor implements o.ExpressionVisitor {
-  visitLiteralExpr(ast: o.LiteralExpr): string { return `${ast.value}`; }
+  visitLiteralExpr(ast: o.LiteralExpr): string {
+    return `${typeof ast.value === 'string' ? '"' + ast.value + '"' : ast.value}`;
+  }
   visitLiteralArrayExpr(ast: o.LiteralArrayExpr): string {
-    return ast.entries.map(entry => entry.visitExpression(this, null)).join(',');
+    return `[${ast.entries.map(entry => entry.visitExpression(this, null)).join(',')}]`;
   }
 
   visitLiteralMapExpr(ast: o.LiteralMapExpr): string {
-    const entries =
-        ast.entries.map(entry => `${entry.key}:${entry.value.visitExpression(this, null)}`);
-    return `{${entries.join(',')}`;
+    const mapEntry = (entry: o.LiteralMapEntry) =>
+        `${entry.key}:${entry.value.visitExpression(this, null)}`;
+    return `{${ast.entries.map(mapEntry).join(',')}`;
+  }
+
+  visitExternalExpr(ast: o.ExternalExpr): string {
+    return ast.value.moduleName ? `EX:${ast.value.moduleName}:${ast.value.name}` :
+                                  `EX:${ast.value.runtime.name}`;
   }
 
   visitReadVarExpr = invalid;
@@ -123,7 +169,6 @@ class KeyVisitor implements o.ExpressionVisitor {
   visitInvokeMethodExpr = invalid;
   visitInvokeFunctionExpr = invalid;
   visitInstantiateExpr = invalid;
-  visitExternalExpr = invalid;
   visitConditionalExpr = invalid;
   visitNotExpr = invalid;
   visitAssertNotNullExpr = invalid;

@@ -61,8 +61,11 @@ export function renderToHtml(
 beforeEach(resetDOM);
 
 export function renderComponent<T>(type: ComponentType<T>, rendererFactory?: RendererFactory3): T {
-  return _renderComponent(
-      type, {rendererFactory: rendererFactory || testRendererFactory, host: containerEl});
+  return _renderComponent(type, {
+    rendererFactory: rendererFactory || testRendererFactory,
+    host: containerEl,
+    scheduler: requestAnimationFrame,
+  });
 }
 
 export function toHtml<T>(componentOrElement: T | RElement): string {
@@ -82,14 +85,20 @@ export function createComponent(
     name: string, template: ComponentTemplate<any>): ComponentType<any> {
   return class Component {
     value: any;
-    static ngComponentDef = defineComponent(
-        {tag: name, factory: () => new Component, template: template, features: [PublicFeature]});
+    static ngComponentDef = defineComponent({
+      type: Component,
+      tag: name,
+      factory: () => new Component,
+      template: template,
+      features: [PublicFeature]
+    });
   };
 }
 
 export function createDirective({exportAs}: {exportAs?: string} = {}): DirectiveType<any> {
   return class Directive {
     static ngDirectiveDef = defineDirective({
+      type: Directive,
       factory: () => new Directive(),
       features: [PublicFeature],
       exportAs: exportAs,

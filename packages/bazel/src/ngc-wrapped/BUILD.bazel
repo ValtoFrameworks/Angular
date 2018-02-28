@@ -12,8 +12,8 @@ ts_library(
     visibility = ["//packages/bazel/test/ngc-wrapped:__subpackages__"],
     deps = [
         # BEGIN-INTERNAL
-        # Only needed when compiling Angular from sources.
-        # Users with an npm depnedency will get this dependency from node_modules.
+        # Only needed when compiling within the Angular repo.
+        # Users will get this dependency from node_modules.
         "//packages/compiler-cli",
         # END-INTERNAL
         "@build_bazel_rules_typescript//internal/tsc_wrapped",
@@ -27,7 +27,7 @@ nodejs_binary(
         "@build_bazel_rules_typescript//internal:worker_protocol.proto",
     ],
     entry_point = "angular/packages/bazel/src/ngc-wrapped/index.js",
-    node_modules = "@build_bazel_rules_typescript_deps//:node_modules",
+    node_modules = "@build_bazel_rules_typescript_tsc_wrapped_deps//:node_modules",
     visibility = ["//visibility:public"],
 )
 

@@ -1,39 +1,33 @@
-import commonjs from 'rollup-plugin-commonjs';
+import optimizer from '@angular-devkit/build-optimizer/src/build-optimizer/rollup-plugin'
 import nodeResolve from 'rollup-plugin-node-resolve';
-import replace from 'rollup-plugin-replace';
-import typescript2 from 'rollup-plugin-typescript2';
+import paths from 'rollup-plugin-paths';
+import pathMapping from 'rxjs/_esm5/path-mapping';
 import uglify from 'rollup-plugin-uglify';
 
 export default {
-  input: `src/index.ts`,
+  input: `built/index.js`,
   output: {
     name: 'hw',
     file: `dist/bundle.js`,
     format: 'iife',
-    sourcemap: false
+    sourcemap: true
   },
   plugins: [
-    typescript2({
-      typescript: require('typescript'),
-      "experimentalDecorators": true,
-      "emitDecoratorMetadata": true
-    }),
-    replace({
-      delimiters: ['', ''],
-      values: {
-        '/** @class */': '/** @__PURE__ */'
-      }
-    }),
+    paths(pathMapping()),
     nodeResolve({jsnext: true, module: true}),
-    commonjs({
-      include: 'node_modules/rxjs/**',
+    optimizer({
+      sideEffectFreeModules: ['@angular/core/esm5/core.js']
     }),
     uglify({
       mangle: true,
       compress: {
         global_defs: {
           'ngDevMode': false,
-        }
+        },
+        keep_fargs: false,
+        passes: 3,
+        pure_getters: true,
+        unsafe: true,
       }
     })
   ],

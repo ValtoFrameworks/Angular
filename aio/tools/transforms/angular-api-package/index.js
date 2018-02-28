@@ -14,6 +14,8 @@ const { API_SOURCE_PATH, API_TEMPLATES_PATH, requireFolder } = require('../confi
 module.exports = new Package('angular-api', [basePackage, typeScriptPackage])
 
   // Register the processors
+  .processor(require('./processors/migrateLegacyJSDocTags'))
+  .processor(require('./processors/splitDescription'))
   .processor(require('./processors/convertPrivateClassesToInterfaces'))
   .processor(require('./processors/generateApiListDoc'))
   .processor(require('./processors/addNotYetDocumentedProperty'))
@@ -21,7 +23,9 @@ module.exports = new Package('angular-api', [basePackage, typeScriptPackage])
   .processor(require('./processors/extractDecoratedClasses'))
   .processor(require('./processors/matchUpDirectiveDecorators'))
   .processor(require('./processors/addMetadataAliases'))
+  .processor(require('./processors/computeApiBreadCrumbs'))
   .processor(require('./processors/filterContainedDocs'))
+  .processor(require('./processors/processClassLikeMembers'))
   .processor(require('./processors/markBarredODocsAsPrivate'))
   .processor(require('./processors/filterPrivateDocs'))
   .processor(require('./processors/computeSearchTitle'))
@@ -86,17 +90,12 @@ module.exports = new Package('angular-api', [basePackage, typeScriptPackage])
     // Load up all the tag definitions in the tag-defs folder
     parseTagsProcessor.tagDefinitions =
         parseTagsProcessor.tagDefinitions.concat(getInjectables(requireFolder(__dirname, './tag-defs')));
-
-    // We actually don't want to parse param docs in this package as we are getting the data out using TS
-    // TODO: rewire the param docs to the params extracted from TS
-    parseTagsProcessor.tagDefinitions.forEach(function(tagDef) {
-      if (tagDef.name === 'param') {
-        tagDef.docProperty = 'paramData';
-        tagDef.transforms = [];
-      }
-    });
   })
 
+  .config(function(splitDescription, EXPORT_DOC_TYPES) {
+    // Only split the description on the API docs
+    splitDescription.docTypes = EXPORT_DOC_TYPES;
+  })
 
   .config(function(computePathsProcessor, EXPORT_DOC_TYPES, generateApiListDoc) {
 

@@ -6,15 +6,8 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {AotCompilerHost, AotCompilerOptions, AotSummaryResolver, CompileMetadataResolver, CompilerConfig, DirectiveNormalizer, DirectiveResolver, DomElementSchemaRegistry, HtmlParser, I18NHtmlParser, Lexer, NgModuleResolver, Parser, PipeResolver, StaticReflector, StaticSymbol, StaticSymbolCache, StaticSymbolResolver, TemplateParser, TypeScriptEmitter, analyzeNgModules, createAotUrlResolver} from '@angular/compiler';
-import {ViewEncapsulation} from '@angular/core';
-import * as ts from 'typescript';
-
-import {ConstantPool} from '../../src/constant_pool';
-import * as o from '../../src/output/output_ast';
-import {compileComponent} from '../../src/render3/r3_view_compiler';
-import {OutputContext} from '../../src/util';
-import {MockAotCompilerHost, MockCompilerHost, MockData, MockDirectory, arrayToMockDir, settings, setup, toMockFileArray} from '../aot/test_util';
+import {MockDirectory, setup} from '../aot/test_util';
+import {compile, expectEmit} from './mock_compile';
 
 describe('r3_view_compiler', () => {
   const angularFiles = setup({
@@ -99,114 +92,34 @@ describe('r3_view_compiler', () => {
     const result = compile(files, angularFiles);
     expect(result.source).toContain('@angular/core');
   });
-});
 
-function compile(
-    data: MockDirectory, angularFiles: MockData, options: AotCompilerOptions = {},
-    errorCollector: (error: any, fileName?: string) => void = error => { throw error; }) {
-  const testFiles = toMockFileArray(data);
-  const scripts = testFiles.map(entry => entry.fileName);
-  const angularFilesArray = toMockFileArray(angularFiles);
-  const files = arrayToMockDir([...testFiles, ...angularFilesArray]);
-  const mockCompilerHost = new MockCompilerHost(scripts, files);
-  const compilerHost = new MockAotCompilerHost(mockCompilerHost);
+  describe('interpolations', () => {
+    // Regression #21927
+    it('should generate a correct call to bV with more than 8 interpolations', () => {
+      const files: MockDirectory = {
+        app: {
+          'example.ts': `
+          import {Component, NgModule} from '@angular/core';
 
-  const program = ts.createProgram(scripts, {...settings}, mockCompilerHost);
+          @Component({
+            selector: 'my-app',
+            template: ' {{list[0]}} {{list[1]}} {{list[2]}} {{list[3]}} {{list[4]}} {{list[5]}} {{list[6]}} {{list[7]}} {{list[8]}} '
+          })
+          export class MyApp {
+            list: any[] = [];
+          }
 
-  // TODO(chuckj): Replace with a variant of createAotCompiler() when the r3_view_compiler is
-  // integrated
-  const translations = options.translations || '';
-
-  const urlResolver = createAotUrlResolver(compilerHost);
-  const symbolCache = new StaticSymbolCache();
-  const summaryResolver = new AotSummaryResolver(compilerHost, symbolCache);
-  const symbolResolver = new StaticSymbolResolver(compilerHost, symbolCache, summaryResolver);
-  const staticReflector =
-      new StaticReflector(summaryResolver, symbolResolver, [], [], errorCollector);
-  const htmlParser = new I18NHtmlParser(
-      new HtmlParser(), translations, options.i18nFormat, options.missingTranslation, console);
-  const config = new CompilerConfig({
-    defaultEncapsulation: ViewEncapsulation.Emulated,
-    useJit: false,
-    enableLegacyTemplate: options.enableLegacyTemplate === true,
-    missingTranslation: options.missingTranslation,
-    preserveWhitespaces: options.preserveWhitespaces,
-    strictInjectionParameters: options.strictInjectionParameters,
-  });
-  const normalizer = new DirectiveNormalizer(
-      {get: (url: string) => compilerHost.loadResource(url)}, urlResolver, htmlParser, config);
-  const expressionParser = new Parser(new Lexer());
-  const elementSchemaRegistry = new DomElementSchemaRegistry();
-  const templateParser = new TemplateParser(
-      config, staticReflector, expressionParser, elementSchemaRegistry, htmlParser, console, []);
-  const resolver = new CompileMetadataResolver(
-      config, htmlParser, new NgModuleResolver(staticReflector),
-      new DirectiveResolver(staticReflector), new PipeResolver(staticReflector), summaryResolver,
-      elementSchemaRegistry, normalizer, console, symbolCache, staticReflector, errorCollector);
-
-
-
-  // Create the TypeScript program
-  const sourceFiles = program.getSourceFiles().map(sf => sf.fileName);
-
-  // Analyze the modules
-  // TODO(chuckj): Eventually this should not be necessary as the ts.SourceFile should be sufficient
-  // to generate a template definition.
-  const analyzedModules = analyzeNgModules(sourceFiles, compilerHost, symbolResolver, resolver);
-
-  const directives = Array.from(analyzedModules.ngModuleByPipeOrDirective.keys());
-
-  const fakeOuputContext: OutputContext = {
-    genFilePath: 'fakeFactory.ts',
-    statements: [],
-    importExpr(symbol: StaticSymbol, typeParams: o.Type[]) {
-      if (!(symbol instanceof StaticSymbol)) {
-        if (!symbol) {
-          throw new Error('Invalid: undefined passed to as a symbol');
+          @NgModule({declarations: [MyApp]})
+          export class MyModule {}`
         }
-        throw new Error(`Invalid: ${(symbol as any).constructor.name} is not a symbol`);
-      }
-      return (symbol.members || [])
-          .reduce(
-              (expr, member) => expr.prop(member),
-              <o.Expression>o.importExpr(new o.ExternalReference(symbol.filePath, symbol.name)));
-    },
-    constantPool: new ConstantPool()
-  };
+      };
 
-  // Load All directives
-  for (const directive of directives) {
-    const module = analyzedModules.ngModuleByPipeOrDirective.get(directive) !;
-    resolver.loadNgModuleDirectiveAndPipeMetadata(module.type.reference, true);
-  }
+      const bV_call = `$r3$.ɵiV([' ',ctx.list[0],' ',ctx.list[1],' ',ctx.list[2],' ',ctx.list[3],
+        ' ',ctx.list[4],' ',ctx.list[5],' ',ctx.list[6],' ',ctx.list[7],' ',ctx.list[8],
+        ' '])`;
+      const result = compile(files, angularFiles);
+      expectEmit(result.source, bV_call, 'Incorrect bV call');
+    });
+  });
 
-  // Compile the directives.
-  for (const directive of directives) {
-    const module = analyzedModules.ngModuleByPipeOrDirective.get(directive) !;
-    if (resolver.isDirective(directive)) {
-      const metadata = resolver.getDirectiveMetadata(directive);
-      if (metadata.isComponent) {
-        const fakeUrl = 'ng://fake-template-url.html';
-        const htmlAst = htmlParser.parse(metadata.template !.template !, fakeUrl);
-
-        const directives = module.transitiveModule.directives.map(
-            dir => resolver.getDirectiveSummary(dir.reference));
-        const pipes =
-            module.transitiveModule.pipes.map(pipe => resolver.getPipeSummary(pipe.reference));
-        const parsedTemplate = templateParser.parse(
-            metadata, htmlAst, directives, pipes, module.schemas, fakeUrl, false);
-
-        compileComponent(fakeOuputContext, metadata, parsedTemplate.template, staticReflector);
-      }
-    }
-  }
-
-  fakeOuputContext.statements.unshift(...fakeOuputContext.constantPool.statements);
-
-  const emitter = new TypeScriptEmitter();
-
-  const result = emitter.emitStatementsAndContext(
-      fakeOuputContext.genFilePath, fakeOuputContext.statements, '', false);
-
-  return {source: result.sourceText, outputContext: fakeOuputContext};
-}
+});

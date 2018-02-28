@@ -8,7 +8,8 @@
 
 import {EventEmitter} from '@angular/core';
 
-import {C, E, L, LifecycleHook, T, V, b, cR, cr, defineComponent, defineDirective, e, l, p, v} from '../../src/render3/index';
+import {defineComponent, defineDirective} from '../../src/render3/index';
+import {bind, container, containerRefreshEnd, containerRefreshStart, directiveRefresh, elementEnd, elementProperty, elementStart, embeddedViewEnd, embeddedViewStart, listener, text} from '../../src/render3/instructions';
 
 import {containerEl, renderToHtml} from './render_util';
 
@@ -20,6 +21,7 @@ describe('outputs', () => {
     resetStream = new EventEmitter();
 
     static ngComponentDef = defineComponent({
+      type: ButtonToggle,
       tag: 'button-toggle',
       template: function(ctx: any, cm: boolean) {},
       factory: () => buttonToggle = new ButtonToggle(),
@@ -32,20 +34,25 @@ describe('outputs', () => {
   class OtherDir {
     changeStream = new EventEmitter();
 
-    static ngDirectiveDef = defineDirective(
-        {factory: () => otherDir = new OtherDir, outputs: {changeStream: 'change'}});
+    static ngDirectiveDef = defineDirective({
+      type: OtherDir,
+      factory: () => otherDir = new OtherDir,
+      outputs: {changeStream: 'change'}
+    });
   }
 
   it('should call component output function when event is emitted', () => {
     /** <button-toggle (change)="onChange()"></button-toggle> */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, ButtonToggle);
-        { L('change', ctx.onChange.bind(ctx)); }
-        e();
+        elementStart(0, ButtonToggle);
+        {
+          listener('change', function() { ctx.onChange(); });
+        }
+        elementEnd();
       }
       ButtonToggle.ngComponentDef.h(1, 0);
-      ButtonToggle.ngComponentDef.r(1, 0);
+      directiveRefresh(1, 0);
     }
 
     let counter = 0;
@@ -63,15 +70,15 @@ describe('outputs', () => {
     /** <button-toggle (change)="onChange()" (reset)="onReset()"></button-toggle> */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, ButtonToggle);
+        elementStart(0, ButtonToggle);
         {
-          L('change', ctx.onChange.bind(ctx));
-          L('reset', ctx.onReset.bind(ctx));
+          listener('change', function() { ctx.onChange(); });
+          listener('reset', function() { ctx.onReset(); });
         }
-        e();
+        elementEnd();
       }
       ButtonToggle.ngComponentDef.h(1, 0);
-      ButtonToggle.ngComponentDef.r(1, 0);
+      directiveRefresh(1, 0);
     }
 
     let counter = 0;
@@ -90,12 +97,14 @@ describe('outputs', () => {
     /** <button-toggle (change)="counter++"></button-toggle> */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, ButtonToggle);
-        { L('change', () => ctx.counter++); }
-        e();
+        elementStart(0, ButtonToggle);
+        {
+          listener('change', function() { ctx.counter++; });
+        }
+        elementEnd();
       }
       ButtonToggle.ngComponentDef.h(1, 0);
-      ButtonToggle.ngComponentDef.r(1, 0);
+      directiveRefresh(1, 0);
     }
 
     const ctx = {counter: 0};
@@ -118,22 +127,24 @@ describe('outputs', () => {
 
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        C(0);
+        container(0);
       }
-      cR(0);
+      containerRefreshStart(0);
       {
         if (ctx.condition) {
-          if (V(0)) {
-            E(0, ButtonToggle);
-            { L('change', ctx.onChange.bind(ctx)); }
-            e();
+          if (embeddedViewStart(0)) {
+            elementStart(0, ButtonToggle);
+            {
+              listener('change', function() { ctx.onChange(); });
+            }
+            elementEnd();
           }
           ButtonToggle.ngComponentDef.h(1, 0);
-          ButtonToggle.ngComponentDef.r(1, 0);
-          v();
+          directiveRefresh(1, 0);
+          embeddedViewEnd();
         }
       }
-      cr();
+      containerRefreshEnd();
     }
 
     let counter = 0;
@@ -162,32 +173,34 @@ describe('outputs', () => {
 
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        C(0);
+        container(0);
       }
-      cR(0);
+      containerRefreshStart(0);
       {
         if (ctx.condition) {
-          if (V(0)) {
-            C(0);
+          if (embeddedViewStart(0)) {
+            container(0);
           }
-          cR(0);
+          containerRefreshStart(0);
           {
             if (ctx.condition2) {
-              if (V(0)) {
-                E(0, ButtonToggle);
-                { L('change', ctx.onChange.bind(ctx)); }
-                e();
+              if (embeddedViewStart(0)) {
+                elementStart(0, ButtonToggle);
+                {
+                  listener('change', function() { ctx.onChange(); });
+                }
+                elementEnd();
               }
               ButtonToggle.ngComponentDef.h(1, 0);
-              ButtonToggle.ngComponentDef.r(1, 0);
-              v();
+              directiveRefresh(1, 0);
+              embeddedViewEnd();
             }
           }
-          cr();
-          v();
+          containerRefreshEnd();
+          embeddedViewEnd();
         }
       }
-      cr();
+      containerRefreshEnd();
     }
 
     let counter = 0;
@@ -212,13 +225,10 @@ describe('outputs', () => {
       ngOnDestroy() { this.events.push('destroy'); }
 
       static ngComponentDef = defineComponent({
+        type: DestroyComp,
         tag: 'destroy-comp',
         template: function(ctx: any, cm: boolean) {},
-        factory: () => {
-          destroyComp = new DestroyComp();
-          l(LifecycleHook.ON_DESTROY, destroyComp, destroyComp.ngOnDestroy);
-          return destroyComp;
-        }
+        factory: () => destroyComp = new DestroyComp()
       });
     }
 
@@ -231,32 +241,34 @@ describe('outputs', () => {
      */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        C(0);
+        container(0);
       }
-      cR(0);
+      containerRefreshStart(0);
       {
         if (ctx.condition) {
-          if (V(0)) {
-            E(0, 'button');
+          if (embeddedViewStart(0)) {
+            elementStart(0, 'button');
             {
-              L('click', ctx.onClick.bind(ctx));
-              T(1, 'Click me');
+              listener('click', function() { ctx.onClick(); });
+              text(1, 'Click me');
             }
-            e();
-            E(2, ButtonToggle);
-            { L('change', ctx.onChange.bind(ctx)); }
-            e();
-            E(4, DestroyComp);
-            e();
+            elementEnd();
+            elementStart(2, ButtonToggle);
+            {
+              listener('change', function() { ctx.onChange(); });
+            }
+            elementEnd();
+            elementStart(4, DestroyComp);
+            elementEnd();
           }
           ButtonToggle.ngComponentDef.h(3, 2);
           DestroyComp.ngComponentDef.h(5, 4);
-          ButtonToggle.ngComponentDef.r(3, 2);
-          DestroyComp.ngComponentDef.r(5, 4);
-          v();
+          directiveRefresh(3, 2);
+          directiveRefresh(5, 4);
+          embeddedViewEnd();
         }
       }
-      cr();
+      containerRefreshEnd();
     }
 
     let clickCounter = 0;
@@ -291,15 +303,17 @@ describe('outputs', () => {
     class MyButton {
       click = new EventEmitter();
 
-      static ngDirectiveDef =
-          defineDirective({factory: () => buttonDir = new MyButton, outputs: {click: 'click'}});
+      static ngDirectiveDef = defineDirective(
+          {type: MyButton, factory: () => buttonDir = new MyButton, outputs: {click: 'click'}});
     }
 
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, 'button', null, [MyButton]);
-        { L('click', ctx.onClick.bind(ctx)); }
-        e();
+        elementStart(0, 'button', null, [MyButton]);
+        {
+          listener('click', function() { ctx.onClick(); });
+        }
+        elementEnd();
       }
     }
 
@@ -320,12 +334,14 @@ describe('outputs', () => {
     /** <button-toggle (change)="onChange()" otherDir></button-toggle> */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, ButtonToggle, null, [OtherDir]);
-        { L('change', ctx.onChange.bind(ctx)); }
-        e();
+        elementStart(0, ButtonToggle, null, [OtherDir]);
+        {
+          listener('change', function() { ctx.onChange(); });
+        }
+        elementEnd();
       }
       ButtonToggle.ngComponentDef.h(1, 0);
-      ButtonToggle.ngComponentDef.r(1, 0);
+      directiveRefresh(1, 0);
     }
 
     let counter = 0;
@@ -344,20 +360,22 @@ describe('outputs', () => {
     class OtherDir {
       change: boolean;
 
-      static ngDirectiveDef =
-          defineDirective({factory: () => otherDir = new OtherDir, inputs: {change: 'change'}});
+      static ngDirectiveDef = defineDirective(
+          {type: OtherDir, factory: () => otherDir = new OtherDir, inputs: {change: 'change'}});
     }
 
     /** <button-toggle (change)="onChange()" otherDir [change]="change"></button-toggle> */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, ButtonToggle, null, [OtherDir]);
-        { L('change', ctx.onChange.bind(ctx)); }
-        e();
+        elementStart(0, ButtonToggle, null, [OtherDir]);
+        {
+          listener('change', function() { ctx.onChange(); });
+        }
+        elementEnd();
       }
-      p(0, 'change', b(ctx.change));
+      elementProperty(0, 'change', bind(ctx.change));
       ButtonToggle.ngComponentDef.h(1, 0);
-      ButtonToggle.ngComponentDef.r(1, 0);
+      directiveRefresh(1, 0);
     }
 
     let counter = 0;
@@ -383,35 +401,39 @@ describe('outputs', () => {
      */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, 'button');
+        elementStart(0, 'button');
         {
-          L('click', ctx.onClick.bind(ctx));
-          T(1, 'Click me');
+          listener('click', function() { ctx.onClick(); });
+          text(1, 'Click me');
         }
-        e();
-        C(2);
+        elementEnd();
+        container(2);
       }
-      cR(2);
+      containerRefreshStart(2);
       {
         if (ctx.condition) {
-          if (V(0)) {
-            E(0, ButtonToggle);
-            { L('change', ctx.onChange.bind(ctx)); }
-            e();
+          if (embeddedViewStart(0)) {
+            elementStart(0, ButtonToggle);
+            {
+              listener('change', function() { ctx.onChange(); });
+            }
+            elementEnd();
           }
           ButtonToggle.ngComponentDef.h(1, 0);
-          ButtonToggle.ngComponentDef.r(1, 0);
-          v();
+          directiveRefresh(1, 0);
+          embeddedViewEnd();
         } else {
-          if (V(1)) {
-            E(0, 'div', null, [OtherDir]);
-            { L('change', ctx.onChange.bind(ctx)); }
-            e();
+          if (embeddedViewStart(1)) {
+            elementStart(0, 'div', null, [OtherDir]);
+            {
+              listener('change', function() { ctx.onChange(); });
+            }
+            elementEnd();
           }
-          v();
+          embeddedViewEnd();
         }
       }
-      cr();
+      containerRefreshEnd();
     }
 
     let counter = 0;

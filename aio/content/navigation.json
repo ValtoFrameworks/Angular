@@ -74,7 +74,6 @@
     },
 
     {
-      "url": "tutorial",
       "title": "Tutorial",
       "tooltip": "The Tour of Heroes tutorial takes you through the steps of creating an Angular application in TypeScript.",
       "children": [
@@ -122,7 +121,6 @@
     },
 
     {
-      "url": "guide/architecture",
       "title": "Fundamentals",
       "tooltip": "The fundamentals of Angular",
       "children": [
@@ -171,6 +169,11 @@
               "tooltip": "Attribute directives attach behavior to elements."
             },
             {
+              "url": "guide/structural-directives",
+              "title": "Structural Directives",
+              "tooltip": "Structural directives manipulate the layout of the page."
+            }, 
+            {
               "url": "guide/pipes",
               "title": "Pipes",
               "tooltip": "Pipes transform displayed values within a template."
@@ -213,6 +216,38 @@
             }
           ]
         },
+        {
+          "title": "Observables & RxJS",
+          "tooltip": "Observables & RxJS",
+          "children": [
+            {
+              "url": "guide/observables",
+              "title": "Observables",
+              "tooltip": ""
+            },
+            {
+              "url": "guide/rx-library",
+              "title": "The RxJS Library",
+              "tooltip": ""
+            },
+            {
+              "url": "guide/observables-in-angular",
+              "title": "Observables in Angular",
+              "tooltip": ""
+            },
+            {
+              "url": "guide/practical-observable-usage",
+              "title": "Practical Usage",
+              "tooltip": ""
+            },
+            {
+              "url": "guide/comparing-observables",
+              "title": "Compare to Other Techniques",
+              "tooltip": ""
+            }
+          ]
+        },
+
         {
           "url": "guide/bootstrapping",
           "title": "Bootstrapping",

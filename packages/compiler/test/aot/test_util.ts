@@ -531,6 +531,7 @@ const minCoreIndex = `
   export * from './src/change_detection';
   export * from './src/metadata';
   export * from './src/di/metadata';
+  export * from './src/di/injectable';
   export * from './src/di/injector';
   export * from './src/di/injection_token';
   export * from './src/linker';
@@ -618,7 +619,11 @@ export function expectNoDiagnostics(program: ts.Program) {
     if (diagnostics && diagnostics.length) {
       throw new Error(
           'Errors from TypeScript:\n' +
-          diagnostics.map(d => `${fileInfo(d)}${d.messageText}${lineInfo(d)}`).join(' \n'));
+          diagnostics
+              .map(
+                  d =>
+                      `${fileInfo(d)}${ts.flattenDiagnosticMessageText(d.messageText, '\n')}${lineInfo(d)}`)
+              .join(' \n'));
     }
   }
   expectNoDiagnostics(program.getOptionsDiagnostics());

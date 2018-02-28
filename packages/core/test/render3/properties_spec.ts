@@ -8,8 +8,8 @@
 
 import {EventEmitter} from '@angular/core';
 
-import {C, E, L, T, V, b, b1, cR, cr, defineComponent, defineDirective, e, m, p, t, v} from '../../src/render3/index';
-import {NO_CHANGE} from '../../src/render3/instructions';
+import {defineComponent, defineDirective} from '../../src/render3/index';
+import {NO_CHANGE, bind, container, containerRefreshEnd, containerRefreshStart, directiveRefresh, elementEnd, elementProperty, elementStart, embeddedViewEnd, embeddedViewStart, interpolation1, listener, load, text, textBinding} from '../../src/render3/instructions';
 
 import {renderToHtml} from './render_util';
 
@@ -18,10 +18,10 @@ describe('elementProperty', () => {
   it('should support bindings to properties', () => {
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, 'span');
-        e();
+        elementStart(0, 'span');
+        elementEnd();
       }
-      p(0, 'id', b(ctx));
+      elementProperty(0, 'id', bind(ctx));
     }
 
     expect(renderToHtml(Template, 'testId')).toEqual('<span id="testId"></span>');
@@ -39,10 +39,10 @@ describe('elementProperty', () => {
 
     function Template(ctx: string, cm: boolean) {
       if (cm) {
-        E(0, 'span');
-        e();
+        elementStart(0, 'span');
+        elementEnd();
       }
-      p(0, 'id', cm ? expensive(ctx) : NO_CHANGE);
+      elementProperty(0, 'id', cm ? expensive(ctx) : NO_CHANGE);
     }
 
     expect(renderToHtml(Template, 'cheapId')).toEqual('<span id="cheapId"></span>');
@@ -52,10 +52,10 @@ describe('elementProperty', () => {
   it('should support interpolation for properties', () => {
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        E(0, 'span');
-        e();
+        elementStart(0, 'span');
+        elementEnd();
       }
-      p(0, 'id', b1('_', ctx, '_'));
+      elementProperty(0, 'id', interpolation1('_', ctx, '_'));
     }
 
     expect(renderToHtml(Template, 'testId')).toEqual('<span id="_testId_"></span>');
@@ -69,8 +69,8 @@ describe('elementProperty', () => {
     class MyButton {
       disabled: boolean;
 
-      static ngDirectiveDef =
-          defineDirective({factory: () => button = new MyButton(), inputs: {disabled: 'disabled'}});
+      static ngDirectiveDef = defineDirective(
+          {type: MyButton, factory: () => button = new MyButton(), inputs: {disabled: 'disabled'}});
     }
 
     class OtherDir {
@@ -78,6 +78,7 @@ describe('elementProperty', () => {
       clickStream = new EventEmitter();
 
       static ngDirectiveDef = defineDirective({
+        type: OtherDir,
         factory: () => otherDir = new OtherDir(),
         inputs: {id: 'id'},
         outputs: {clickStream: 'click'}
@@ -89,13 +90,13 @@ describe('elementProperty', () => {
       /** <button myButton [id]="id" [disabled]="isDisabled">Click me</button> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'button', null, [MyButton, OtherDir]);
-          { T(3, 'Click me'); }
-          e();
+          elementStart(0, 'button', null, [MyButton, OtherDir]);
+          { text(3, 'Click me'); }
+          elementEnd();
         }
 
-        p(0, 'disabled', b(ctx.isDisabled));
-        p(0, 'id', b(ctx.id));
+        elementProperty(0, 'disabled', bind(ctx.isDisabled));
+        elementProperty(0, 'id', bind(ctx.id));
       }
 
       const ctx: any = {isDisabled: true, id: 0};
@@ -115,13 +116,13 @@ describe('elementProperty', () => {
       /** <button myButton [id]="id" [disabled]="isDisabled">Click me</button> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'button', null, [MyButton]);
-          { T(2, 'Click me'); }
-          e();
+          elementStart(0, 'button', null, [MyButton]);
+          { text(2, 'Click me'); }
+          elementEnd();
         }
 
-        p(0, 'disabled', b(ctx.isDisabled));
-        p(0, 'id', b(ctx.id));
+        elementProperty(0, 'disabled', bind(ctx.isDisabled));
+        elementProperty(0, 'id', bind(ctx.id));
       }
 
       const ctx: any = {isDisabled: true, id: 0};
@@ -140,6 +141,7 @@ describe('elementProperty', () => {
         id: number;
 
         static ngComponentDef = defineComponent({
+          type: Comp,
           tag: 'comp',
           template: function(ctx: any, cm: boolean) {},
           factory: () => comp = new Comp(),
@@ -150,12 +152,12 @@ describe('elementProperty', () => {
       /** <comp [id]="id"></comp> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, Comp);
-          e();
+          elementStart(0, Comp);
+          elementEnd();
         }
-        p(0, 'id', b(ctx.id));
+        elementProperty(0, 'id', bind(ctx.id));
         Comp.ngComponentDef.h(1, 0);
-        Comp.ngComponentDef.r(1, 0);
+        directiveRefresh(1, 0);
       }
 
       expect(renderToHtml(Template, {id: 1})).toEqual(`<comp></comp>`);
@@ -172,6 +174,7 @@ describe('elementProperty', () => {
         disabled: boolean;
 
         static ngDirectiveDef = defineDirective({
+          type: OtherDisabledDir,
           factory: () => otherDisabledDir = new OtherDisabledDir(),
           inputs: {disabled: 'disabled'}
         });
@@ -180,11 +183,11 @@ describe('elementProperty', () => {
       /** <button myButton otherDisabledDir [disabled]="isDisabled">Click me</button> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'button', null, [MyButton, OtherDisabledDir]);
-          { T(3, 'Click me'); }
-          e();
+          elementStart(0, 'button', null, [MyButton, OtherDisabledDir]);
+          { text(3, 'Click me'); }
+          elementEnd();
         }
-        p(0, 'disabled', b(ctx.isDisabled));
+        elementProperty(0, 'disabled', bind(ctx.isDisabled));
       }
 
       const ctx: any = {isDisabled: true};
@@ -202,14 +205,14 @@ describe('elementProperty', () => {
       /** <button otherDir [id]="id" (click)="onClick()">Click me</button> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'button', null, [OtherDir]);
+          elementStart(0, 'button', null, [OtherDir]);
           {
-            L('click', ctx.onClick.bind(ctx));
-            T(2, 'Click me');
+            listener('click', ctx.onClick.bind(ctx));
+            text(2, 'Click me');
           }
-          e();
+          elementEnd();
         }
-        p(0, 'id', b(ctx.id));
+        elementProperty(0, 'id', bind(ctx.id));
       }
 
       let counter = 0;
@@ -231,8 +234,8 @@ describe('elementProperty', () => {
       class IdDir {
         idNumber: number;
 
-        static ngDirectiveDef =
-            defineDirective({factory: () => idDir = new IdDir(), inputs: {idNumber: 'id'}});
+        static ngDirectiveDef = defineDirective(
+            {type: IdDir, factory: () => idDir = new IdDir(), inputs: {idNumber: 'id'}});
       }
 
       /**
@@ -245,33 +248,33 @@ describe('elementProperty', () => {
        */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'button', null, [IdDir]);
-          { T(2, 'Click me'); }
-          e();
-          C(3);
+          elementStart(0, 'button', null, [IdDir]);
+          { text(2, 'Click me'); }
+          elementEnd();
+          container(3);
         }
-        p(0, 'id', b(ctx.id1));
-        cR(3);
+        elementProperty(0, 'id', bind(ctx.id1));
+        containerRefreshStart(3);
         {
           if (ctx.condition) {
-            if (V(0)) {
-              E(0, 'button');
-              { T(1, 'Click me too'); }
-              e();
+            if (embeddedViewStart(0)) {
+              elementStart(0, 'button');
+              { text(1, 'Click me too'); }
+              elementEnd();
             }
-            p(0, 'id', b(ctx.id2));
-            v();
+            elementProperty(0, 'id', bind(ctx.id2));
+            embeddedViewEnd();
           } else {
-            if (V(1)) {
-              E(0, 'button', null, [OtherDir]);
-              { T(2, 'Click me too'); }
-              e();
+            if (embeddedViewStart(1)) {
+              elementStart(0, 'button', null, [OtherDir]);
+              { text(2, 'Click me too'); }
+              elementEnd();
             }
-            p(0, 'id', b(ctx.id3));
-            v();
+            elementProperty(0, 'id', bind(ctx.id3));
+            embeddedViewEnd();
           }
         }
-        cr();
+        containerRefreshEnd();
       }
 
       expect(renderToHtml(Template, {condition: true, id1: 'one', id2: 'two', id3: 'three'}))
@@ -294,6 +297,7 @@ describe('elementProperty', () => {
       changeStream = new EventEmitter();
 
       static ngDirectiveDef = defineDirective({
+        type: MyDir,
         factory: () => myDir = new MyDir(),
         inputs: {role: 'role', direction: 'dir'},
         outputs: {changeStream: 'change'}
@@ -304,8 +308,8 @@ describe('elementProperty', () => {
     class MyDirB {
       roleB: string;
 
-      static ngDirectiveDef =
-          defineDirective({factory: () => dirB = new MyDirB(), inputs: {roleB: 'role'}});
+      static ngDirectiveDef = defineDirective(
+          {type: MyDirB, factory: () => dirB = new MyDirB(), inputs: {roleB: 'role'}});
     }
 
     it('should set input property based on attribute if existing', () => {
@@ -313,8 +317,8 @@ describe('elementProperty', () => {
       /** <div role="button" myDir></div> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'div', ['role', 'button'], [MyDir]);
-          e();
+          elementStart(0, 'div', ['role', 'button'], [MyDir]);
+          elementEnd();
         }
       }
 
@@ -327,10 +331,10 @@ describe('elementProperty', () => {
       /** <div role="button" [role]="role" myDir></div> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'div', ['role', 'button'], [MyDir]);
-          e();
+          elementStart(0, 'div', ['role', 'button'], [MyDir]);
+          elementEnd();
         }
-        p(0, 'role', b(ctx.role));
+        elementProperty(0, 'role', bind(ctx.role));
       }
 
       expect(renderToHtml(Template, {role: 'listbox'})).toEqual(`<div role="button"></div>`);
@@ -345,8 +349,8 @@ describe('elementProperty', () => {
       /** <div role="button" myDir myDirB></div> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'div', ['role', 'button'], [MyDir, MyDirB]);
-          e();
+          elementStart(0, 'div', ['role', 'button'], [MyDir, MyDirB]);
+          elementEnd();
         }
       }
 
@@ -360,8 +364,8 @@ describe('elementProperty', () => {
       /** <div role="button" dir="rtl" myDir></div> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'div', ['role', 'button', 'dir', 'rtl'], [MyDir]);
-          e();
+          elementStart(0, 'div', ['role', 'button', 'dir', 'rtl'], [MyDir]);
+          elementEnd();
         }
       }
 
@@ -375,9 +379,9 @@ describe('elementProperty', () => {
       /** <div role="button" (change)="onChange()" myDir></div> */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'div', ['role', 'button'], [MyDir]);
-          { L('change', ctx.onChange.bind(ctx)); }
-          e();
+          elementStart(0, 'div', ['role', 'button'], [MyDir]);
+          { listener('change', ctx.onChange.bind(ctx)); }
+          elementEnd();
         }
       }
 
@@ -400,10 +404,10 @@ describe('elementProperty', () => {
        */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'div', ['role', 'button', 'dir', 'rtl'], [MyDir]);
-          e();
-          E(2, 'div', ['role', 'listbox'], [MyDirB]);
-          e();
+          elementStart(0, 'div', ['role', 'button', 'dir', 'rtl'], [MyDir]);
+          elementEnd();
+          elementStart(2, 'div', ['role', 'listbox'], [MyDirB]);
+          elementEnd();
         }
       }
 
@@ -426,28 +430,28 @@ describe('elementProperty', () => {
        */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          E(0, 'div', ['role', 'listbox'], [MyDir]);
-          e();
-          C(2);
+          elementStart(0, 'div', ['role', 'listbox'], [MyDir]);
+          elementEnd();
+          container(2);
         }
-        cR(2);
+        containerRefreshStart(2);
         {
           if (ctx.condition) {
-            if (V(0)) {
-              E(0, 'div', ['role', 'button'], [MyDirB]);
-              e();
+            if (embeddedViewStart(0)) {
+              elementStart(0, 'div', ['role', 'button'], [MyDirB]);
+              elementEnd();
             }
-            v();
+            embeddedViewEnd();
           } else {
-            if (V(1)) {
-              E(0, 'div', ['role', 'menu']);
+            if (embeddedViewStart(1)) {
+              elementStart(0, 'div', ['role', 'menu']);
               {}
-              e();
+              elementEnd();
             }
-            v();
+            embeddedViewEnd();
           }
         }
-        cr();
+        containerRefreshEnd();
       }
 
       expect(renderToHtml(Template, {
@@ -467,14 +471,15 @@ describe('elementProperty', () => {
 
       class Comp {
         static ngComponentDef = defineComponent({
+          type: Comp,
           tag: 'comp',
           template: function(ctx: any, cm: boolean) {
             if (cm) {
-              E(0, 'div', ['role', 'button'], [MyDir]);
-              e();
-              T(2);
+              elementStart(0, 'div', ['role', 'button'], [MyDir]);
+              elementEnd();
+              text(2);
             }
-            t(2, b(m<MyDir>(1).role));
+            textBinding(2, bind(load<MyDir>(1).role));
           },
           factory: () => new Comp()
         });
@@ -487,21 +492,21 @@ describe('elementProperty', () => {
        */
       function Template(ctx: any, cm: boolean) {
         if (cm) {
-          C(0);
+          container(0);
         }
-        cR(0);
+        containerRefreshStart(0);
         {
           for (let i = 0; i < 2; i++) {
-            if (V(0)) {
-              E(0, Comp);
-              e();
+            if (embeddedViewStart(0)) {
+              elementStart(0, Comp);
+              elementEnd();
             }
             Comp.ngComponentDef.h(1, 0);
-            Comp.ngComponentDef.r(1, 0);
-            v();
+            directiveRefresh(1, 0);
+            embeddedViewEnd();
           }
         }
-        cr();
+        containerRefreshEnd();
       }
 
       expect(renderToHtml(Template, {}))

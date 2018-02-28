@@ -1,47 +1,40 @@
 {
   "cli-hello-world": {
     "master": {
-      "gzip7": {
-        "inline": 847,
-        "main": 42144,
-        "polyfills": 19838
-      },
-      "gzip9": {
-        "inline": 847,
-        "main": 42083,
-        "polyfills": 19839
-      },
       "uncompressed": {
         "inline": 1447,
-        "main": 151639,
+        "main": 155112,
         "polyfills": 59179
       }
     }
   },
   "hello_world__closure": {
     "master": {
-      "gzip7": {
-        "bundle": 32793
-      },
-      "gzip9": {
-        "bundle": 32758
-      },
       "uncompressed": {
-        "bundle": 100661
+        "bundle": 105779
       }
     }
   },
   "hello_world__render3__closure": {
     "master": {
       "uncompressed": {
-        "bundle": 6671
+        "bundle": 8153
       }
     }
   },
   "hello_world__render3__rollup": {
     "master": {
       "uncompressed": {
-        "bundle": 56550
+        "bundle": 10129
+      }
+    }
+  },
+  "hello_world__render3__cli": {
+    "master": {
+      "uncompressed": {
+        "inline": 1447,
+        "main": 40513,
+        "polyfills": 61085
       }
     }
   }

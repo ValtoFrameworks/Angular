@@ -16,7 +16,7 @@ In fact, you might like to apply them in your HTML templates as you do styles.
 
 Introducing Angular pipes, a way to write display-value transformations that you can declare in your HTML.
 
-You can run the <live-example></live-example> in Plunker and download the code from there.
+You can run the <live-example></live-example> in Stackblitz and download the code from there.
 
 
 ## Using pipes
@@ -496,7 +496,7 @@ Remember that impure pipes are called every few milliseconds.
 If you're not careful, this pipe will punish the server with requests.
 
 In the following code, the pipe only calls the server when the request URL changes and it caches the server response.
-The code uses the [Angular http](guide/http) client to retrieve data</span>:
+The code uses the [Angular http](guide/http) client to retrieve data:
 
 
 <code-example path="pipes/src/app/fetch-json.pipe.ts" title="src/app/fetch-json.pipe.ts">
