@@ -6,13 +6,14 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {createComponentRef, getHostElement, getRenderedText, renderComponent, whenRendered} from './component';
+import {LifecycleHooksFeature, createComponentRef, getHostElement, getRenderedText, renderComponent, whenRendered} from './component';
 import {NgOnChangesFeature, PublicFeature, defineComponent, defineDirective, definePipe} from './definition';
 import {InjectFlags} from './di';
 import {ComponentDef, ComponentTemplate, ComponentType, DirectiveDef, DirectiveDefFlags, DirectiveType} from './interfaces/definition';
 
-export {InjectFlags, QUERY_READ_CONTAINER_REF, QUERY_READ_ELEMENT_REF, QUERY_READ_FROM_NODE, QUERY_READ_TEMPLATE_REF, inject, injectChangeDetectorRef, injectElementRef, injectTemplateRef, injectViewContainerRef} from './di';
+export {InjectFlags, QUERY_READ_CONTAINER_REF, QUERY_READ_ELEMENT_REF, QUERY_READ_FROM_NODE, QUERY_READ_TEMPLATE_REF, directiveInject, injectAttribute, injectChangeDetectorRef, injectElementRef, injectTemplateRef, injectViewContainerRef} from './di';
 export {CssSelector} from './interfaces/projection';
+
 
 
 // Naming scheme:
@@ -39,18 +40,18 @@ export {
   interpolation8 as i8,
   interpolationV as iV,
 
-  directiveRefresh as r,
-
   container as C,
   containerRefreshStart as cR,
   containerRefreshEnd as cr,
 
   elementAttribute as a,
   elementClass as k,
+  elementClassNamed as kn,
   elementEnd as e,
   elementProperty as p,
   elementStart as E,
   elementStyle as s,
+  elementStyleNamed as sn,
 
   listener as L,
   store as st,
@@ -66,6 +67,7 @@ export {
   embeddedViewEnd as v,
   detectChanges,
   markDirty,
+  tick,
 } from './instructions';
 
 export {
@@ -108,6 +110,7 @@ export {
   DirectiveType,
   NgOnChangesFeature,
   PublicFeature,
+  LifecycleHooksFeature,
   defineComponent,
   defineDirective,
   definePipe,

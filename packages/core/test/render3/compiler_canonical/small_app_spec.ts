@@ -7,25 +7,12 @@
  */
 
 import {NgForOf, NgForOfContext} from '@angular/common';
-import {Component, ContentChild, Directive, EventEmitter, Injectable, Input, NgModule, OnDestroy, Optional, Output, Pipe, PipeTransform, QueryList, SimpleChanges, TemplateRef, Type, ViewChild, ViewContainerRef} from '@angular/core';
+import {Component, ContentChild, Directive, EventEmitter, Injectable, InjectableDef, InjectorDef, Input, NgModule, OnDestroy, Optional, Output, Pipe, PipeTransform, QueryList, SimpleChanges, TemplateRef, Type, ViewChild, ViewContainerRef, defineInjectable, defineInjector} from '@angular/core';
 import {withBody} from '@angular/core/testing';
 
 import * as r3 from '../../../src/render3/index';
 
-
-
-// TODO: remove once https://github.com/angular/angular/pull/22005 lands
-export class pending_pull_22005 {
-  static defineInjectable<T>({scope, factory}: {scope?: Type<any>, factory: () => T}):
-      {scope: Type<any>| null, factory: () => T} {
-    return {scope: scope || null, factory: factory};
-  }
-
-  static defineInjector<T>({factory, providers}: {factory: () => T, providers: any[]}):
-      {factory: () => T, providers: any[]} {
-    return {factory: factory, providers: providers};
-  }
-}
+/// See: `normative.md`
 
 
 
@@ -45,7 +32,7 @@ class AppState {
   ];
 
   // NORMATIVE
-  static ngInjectableDef = pending_pull_22005.defineInjectable({factory: () => new AppState()});
+  static ngInjectableDef = defineInjectable({factory: () => new AppState()});
   // /NORMATIVE
 }
 
@@ -73,7 +60,7 @@ class ToDoAppComponent {
     type: ToDoAppComponent,
     tag: 'todo-app',
     factory: function ToDoAppComponent_Factory() {
-      return new ToDoAppComponent(r3.inject(AppState));
+      return new ToDoAppComponent(r3.directiveInject(AppState));
     },
     template: function ToDoAppComponent_Template(ctx: ToDoAppComponent, cm: boolean) {
       if (cm) {
@@ -170,7 +157,7 @@ const e1_attrs = ['type', 'checkbox'];
 })
 class ToDoAppModule {
   // NORMATIVE
-  static ngInjectorDef = pending_pull_22005.defineInjector({
+  static ngInjectorDef = defineInjector({
     factory: () => new ToDoAppModule(),
     providers: [AppState],
   });

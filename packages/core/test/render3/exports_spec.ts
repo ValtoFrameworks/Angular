@@ -7,7 +7,7 @@
  */
 
 import {defineComponent, defineDirective} from '../../src/render3/index';
-import {bind, container, containerRefreshEnd, containerRefreshStart, elementAttribute, elementClass, elementEnd, elementProperty, elementStart, embeddedViewEnd, embeddedViewStart, load, text, textBinding} from '../../src/render3/instructions';
+import {bind, container, containerRefreshEnd, containerRefreshStart, elementAttribute, elementClassNamed, elementEnd, elementProperty, elementStart, embeddedViewEnd, embeddedViewStart, load, text, textBinding} from '../../src/render3/instructions';
 
 import {renderToHtml} from './render_util';
 
@@ -17,7 +17,7 @@ describe('exports', () => {
     /** <input value="one" #myInput> {{ myInput.value }} */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        elementStart(0, 'input', ['value', 'one']);
+        elementStart(0, 'input', ['value', 'one'], null, ['myInput', '']);
         elementEnd();
         text(1);
       }
@@ -33,7 +33,7 @@ describe('exports', () => {
     /** <comp #myComp></comp> {{ myComp.name }} */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        elementStart(0, MyComponent);
+        elementStart(0, MyComponent, null, null, ['myComp', '']);
         elementEnd();
         text(2);
       }
@@ -78,7 +78,7 @@ describe('exports', () => {
     /** <comp #myComp></comp> <div [myDir]="myComp"></div> */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        elementStart(0, MyComponent);
+        elementStart(0, MyComponent, null, null, ['myComp', '']);
         elementEnd();
         elementStart(2, 'div', null, [MyDir]);
         elementEnd();
@@ -95,7 +95,7 @@ describe('exports', () => {
     /** <div someDir #myDir="someDir"></div> {{ myDir.name }} */
     function Template(ctx: any, cm: boolean) {
       if (cm) {
-        elementStart(0, 'div', null, [SomeDir]);
+        elementStart(0, 'div', null, [SomeDir], ['myDir', 'someDir']);
         elementEnd();
         text(2);
       }
@@ -116,7 +116,7 @@ describe('exports', () => {
       function Template(ctx: any, cm: boolean) {
         if (cm) {
           text(0);
-          elementStart(1, 'input', ['value', 'one']);
+          elementStart(1, 'input', ['value', 'one'], null, ['myInput', '']);
           elementEnd();
         }
         let myInput = elementStart(1);
@@ -133,7 +133,7 @@ describe('exports', () => {
         if (cm) {
           elementStart(0, 'div');
           elementEnd();
-          elementStart(1, 'input', ['value', 'one']);
+          elementStart(1, 'input', ['value', 'one'], null, ['myInput', '']);
           elementEnd();
         }
         let myInput = elementStart(1);
@@ -149,7 +149,7 @@ describe('exports', () => {
         if (cm) {
           elementStart(0, 'div');
           elementEnd();
-          elementStart(1, 'input', ['value', 'one']);
+          elementStart(1, 'input', ['value', 'one'], null, ['myInput', '']);
           elementEnd();
         }
         let myInput = elementStart(1);
@@ -165,11 +165,11 @@ describe('exports', () => {
         if (cm) {
           elementStart(0, 'div');
           elementEnd();
-          elementStart(1, 'input', ['type', 'checkbox', 'checked', 'true']);
+          elementStart(1, 'input', ['type', 'checkbox', 'checked', 'true'], null, ['myInput', '']);
           elementEnd();
         }
         let myInput = elementStart(1);
-        elementClass(0, 'red', bind(myInput && (myInput as any).checked));
+        elementClassNamed(0, 'red', bind(myInput && (myInput as any).checked));
       }
 
       expect(renderToHtml(Template, {}))
@@ -206,7 +206,7 @@ describe('exports', () => {
         if (cm) {
           elementStart(0, 'div', null, [MyDir]);
           elementEnd();
-          elementStart(2, MyComponent);
+          elementStart(2, MyComponent, null, null, ['myComp', '']);
           elementEnd();
         }
         elementProperty(0, 'myDir', bind(load<MyComponent>(3)));
@@ -223,9 +223,9 @@ describe('exports', () => {
         if (cm) {
           text(0);
           text(1);
-          elementStart(2, MyComponent);
+          elementStart(2, MyComponent, null, null, ['myComp', '']);
           elementEnd();
-          elementStart(4, 'input', ['value', 'one']);
+          elementStart(4, 'input', ['value', 'one'], null, ['myInput', '']);
           elementEnd();
         }
         let myInput = elementStart(4);
@@ -265,7 +265,7 @@ describe('exports', () => {
             {
               if (cm1) {
                 text(0);
-                elementStart(1, 'input', ['value', 'one']);
+                elementStart(1, 'input', ['value', 'one'], null, ['myInput', '']);
                 elementEnd();
               }
               let myInput = elementStart(1);

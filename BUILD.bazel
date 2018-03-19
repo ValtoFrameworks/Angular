@@ -2,7 +2,15 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "tsconfig.json",
+    "LICENSE",
 ])
+
+# Developers should always run `bazel run :install`
+# This ensures that package.json in subdirectories get installed as well.
+alias(
+    name = "install",
+    actual = "@yarn//:yarn",
+)
 
 # This rule belongs in node_modules/BUILD
 # It's here as a workaround for
@@ -32,6 +40,7 @@ filegroup(
         "reflect-metadata",
         "source-map-support",
         "minimist",
+        "@webcomponents/custom-elements",
         "tslib",
     ] for ext in [
         "*.js",
@@ -49,6 +58,7 @@ filegroup(
         "//:node_modules/zone.js/dist/async-test.js",
         "//:node_modules/zone.js/dist/sync-test.js",
         "//:node_modules/zone.js/dist/fake-async-test.js",
+        "//:node_modules/zone.js/dist/task-tracking.js",
         "//:node_modules/zone.js/dist/proxy.js",
         "//:node_modules/zone.js/dist/jasmine-patch.js",
     ],

@@ -11,7 +11,7 @@ import './ng_dev_mode';
 import {assertEqual, assertLessThan, assertNotEqual, assertNotNull, assertNull, assertSame} from './assert';
 import {LContainer, TContainer} from './interfaces/container';
 import {LInjector} from './interfaces/injector';
-import {CssSelector, LProjection} from './interfaces/projection';
+import {CssSelector, LProjection, NG_PROJECT_AS_ATTR_NAME} from './interfaces/projection';
 import {LQueries} from './interfaces/query';
 import {LView, LViewFlags, LifecycleStage, RootContext, TData, TView} from './interfaces/view';
 
@@ -20,9 +20,9 @@ import {assertNodeType} from './node_assert';
 import {appendChild, insertChild, insertView, appendProjectedNode, removeView, canInsertNativeNode} from './node_manipulation';
 import {matchingSelectorIndex} from './node_selector_matcher';
 import {ComponentDef, ComponentTemplate, ComponentType, DirectiveDef, DirectiveType} from './interfaces/definition';
-import {RElement, RText, Renderer3, RendererFactory3, ProceduralRenderer3, RendererStyleFlags3, isProceduralRenderer} from './interfaces/renderer';
+import {RElement, RText, Renderer3, RendererFactory3, ProceduralRenderer3, ObjectOrientedRenderer3, RendererStyleFlags3, isProceduralRenderer} from './interfaces/renderer';
 import {isDifferent, stringify} from './util';
-import {executeHooks, executeContentHooks, queueLifecycleHooks, queueInitHooks, executeInitHooks} from './hooks';
+import {executeHooks, queueLifecycleHooks, queueInitHooks, executeInitHooks} from './hooks';
 import {ViewRef} from './view_ref';
 
 /**
@@ -37,6 +37,18 @@ export const NG_HOST_SYMBOL = '__ngHostLNode__';
  * clean.
  */
 const _CLEAN_PROMISE = Promise.resolve(null);
+
+/**
+ * Function used to sanitize the value before writing it into the renderer.
+ */
+export type Sanitizer = (value: any) => string;
+
+/**
+ * Directive and element indices for top-level directive.
+ *
+ * Saved here to avoid re-instantiating an array on every change detection run.
+ */
+const rootDirectiveIndices = [1, 0];
 
 
 /**
@@ -117,7 +129,7 @@ export function getCreationMode(): boolean {
 }
 
 /**
- * An array of nodes (text, element, container, etc), their bindings, and
+ * An array of nodes (text, element, container, etc), pipes, their bindings, and
  * any local variables that need to be stored between invocations.
  */
 let data: any[];
@@ -146,6 +158,16 @@ let bindingIndex: number;
  */
 let cleanup: any[]|null;
 
+/**
+ * In this mode, any changes in bindings will throw an ExpressionChangedAfterChecked error.
+ *
+ * Necessary to support ChangeDetectorRef.checkNoChanges().
+ */
+let checkNoChangesMode = false;
+
+/** Whether or not this is the first time the current view has been processed. */
+let firstTemplatePass = true;
+
 const enum BindingDirection {
   Input,
   Output,
@@ -169,6 +191,7 @@ export function enterView(newView: LView, host: LElementNode | LViewNode | null)
   bindingIndex = newView && newView.bindingStartIndex || 0;
   tData = newView && newView.tView.data;
   creationMode = newView && (newView.flags & LViewFlags.CreationMode) === LViewFlags.CreationMode;
+  firstTemplatePass = newView && newView.tView.firstTemplatePass;
 
   cleanup = newView && newView.cleanup;
   renderer = newView && newView.renderer;
@@ -189,14 +212,57 @@ export function enterView(newView: LView, host: LElementNode | LViewNode | null)
  * the direction of traversal (up or down the view tree) a bit clearer.
  */
 export function leaveView(newView: LView): void {
-  executeHooks(
-      currentView.data, currentView.tView.viewHooks, currentView.tView.viewCheckHooks,
-      creationMode);
+  if (!checkNoChangesMode) {
+    executeHooks(
+        currentView.data, currentView.tView.viewHooks, currentView.tView.viewCheckHooks,
+        creationMode);
+  }
   // Views should be clean and in update mode after being checked, so these bits are cleared
   currentView.flags &= ~(LViewFlags.CreationMode | LViewFlags.Dirty);
   currentView.lifecycleStage = LifecycleStage.INIT;
-  currentView.tView.firstTemplatePass = false;
   enterView(newView, null);
+}
+
+/**  Refreshes directives in this view and triggers any init/content hooks.  */
+function refreshDirectives() {
+  executeInitAndContentHooks();
+
+  const tView = currentView.tView;
+  // This needs to be set before children are processed to support recursive components
+  // so to refresh the component, refresh() needs to be called with (1, 0)
+  tView.firstTemplatePass = firstTemplatePass = false;
+
+  setHostBindings(tView.hostBindings);
+  refreshChildComponents(tView.components);
+}
+
+/** Sets the host bindings for the current view. */
+function setHostBindings(bindings: number[] | null): void {
+  if (bindings != null) {
+    for (let i = 0; i < bindings.length; i += 2) {
+      const dirIndex = bindings[i];
+      const elementIndex = bindings[i | 1];
+      const def = tData[dirIndex] as DirectiveDef<any>;
+      def.hostBindings && def.hostBindings(dirIndex, elementIndex);
+    }
+  }
+}
+
+/** Refreshes child components in the current view. */
+function refreshChildComponents(components: number[] | null): void {
+  if (components != null) {
+    for (let i = 0; i < components.length; i++) {
+      componentRefresh(components[i] + 1, components[i]);
+    }
+  }
+}
+
+function executeInitAndContentHooks(): void {
+  if (!checkNoChangesMode) {
+    const tView = currentView.tView;
+    executeInitHooks(currentView, tView, creationMode);
+    executeHooks(currentView.data, tView.contentHooks, tView.contentCheckHooks, creationMode);
+  }
 }
 
 export function createLView(
@@ -205,7 +271,7 @@ export function createLView(
   const newView = {
     parent: currentView,
     id: viewId,  // -1 for component views
-    flags: flags | LViewFlags.CreationMode,
+    flags: flags | LViewFlags.CreationMode | LViewFlags.Attached,
     node: null !,  // until we initialize it in createNode.
     data: [],
     tView: tView,
@@ -362,8 +428,9 @@ export function renderEmbeddedTemplate<T>(
     enterView(viewNode.data, viewNode);
 
     template(context, cm);
-  } finally {
     refreshDynamicChildren();
+    refreshDirectives();
+  } finally {
     leaveView(currentView !.parent !);
     isParent = _isParent;
     previousOrParentNode = _previousOrParentNode;
@@ -380,10 +447,13 @@ export function renderComponentOrTemplate<T>(
     }
     if (template) {
       template(componentOrContext !, creationMode);
+      refreshDirectives();
     } else {
+      executeInitAndContentHooks();
+
       // Element was stored at 0 and directive was stored at 1 in renderComponent
-      // so to refresh the component, refresh() needs to be called with (1, 0)
-      directiveRefresh(1, 0);
+      setHostBindings(rootDirectiveIndices);
+      componentRefresh(1, 0);
     }
   } finally {
     if (rendererFactory.end) {
@@ -424,15 +494,16 @@ export function elementStart(
     ngDevMode &&
         assertNull(currentView.bindingStartIndex, 'elements should be created before any bindings');
     const isHostElement = typeof nameOrComponentType !== 'string';
-    // MEGAMORPHIC: `ngComponentDef` is a megamorphic property access here.
-    // This is OK, since we will refactor this code and store the result in `TView.data`
-    // which means that we will be reading this value only once. We are trading clean/simple
-    // template
-    // code for slight startup(first run) performance. (No impact on subsequent runs)
-    // TODO(misko): refactor this to store the `ComponentDef` in `TView.data`.
-    const hostComponentDef =
-        isHostElement ? (nameOrComponentType as ComponentType<any>).ngComponentDef : null;
-    const name = isHostElement ? hostComponentDef !.tag : nameOrComponentType as string;
+
+    let hostComponentDef: ComponentDef<any>|null = null;
+    let name = nameOrComponentType as string;
+    if (isHostElement) {
+      hostComponentDef = firstTemplatePass ?
+          (nameOrComponentType as ComponentType<any>).ngComponentDef :
+          tData[index + 1] as ComponentDef<any>;
+      name = hostComponentDef !.tag;
+    }
+
     if (name === null) {
       // TODO: future support for nameless components.
       throw 'for now name is required';
@@ -452,29 +523,47 @@ export function elementStart(
       // accessed through their containers because they may be removed / re-added later.
       node = createLNode(index, LNodeFlags.Element, native, componentView);
 
-      // TODO(misko): implement code which caches the local reference resolution
-      const queryName: string|null = hack_findQueryName(hostComponentDef, localRefs, '');
-
       if (node.tNode == null) {
+        const localNames: (string | number)[]|null =
+            findMatchingLocalNames(hostComponentDef, localRefs, isHostElement ? index + 1 : -1, '');
         ngDevMode && assertDataInRange(index - 1);
-        node.tNode = tData[index] =
-            createTNode(name, attrs || null, null, hostComponentDef ? null : queryName);
+        node.tNode = tData[index] = createTNode(name, attrs || null, null, localNames);
       }
 
       if (attrs) setUpAttributes(native, attrs);
       appendChild(node.parent !, native, currentView);
 
+      const elementIndex = index;
+
       if (hostComponentDef) {
         // TODO(mhevery): This assumes that the directives come in correct order, which
         // is not guaranteed. Must be refactored to take it into account.
-        const instance = hostComponentDef.n();
-        directiveCreate(++index, instance, hostComponentDef, queryName);
+        const instance = hostComponentDef.factory();
+        directiveCreate(++index, instance, hostComponentDef, null);
         initChangeDetectorIfExisting(node.nodeInjector, instance);
+        queueComponentIndexForCheck(elementIndex);
+        if (hostComponentDef.hostBindings) queueHostBindingForCheck(index, elementIndex);
       }
-      hack_declareDirectives(index, directiveTypes, localRefs);
+      hack_declareDirectives(index, elementIndex, directiveTypes, localRefs);
     }
   }
   return native;
+}
+
+/** Stores index of component's host element so it will be queued for view refresh during CD. */
+function queueComponentIndexForCheck(elIndex: number): void {
+  if (firstTemplatePass) {
+    (currentView.tView.components || (currentView.tView.components = [])).push(elIndex);
+  }
+}
+
+/** Stores index of directive and host element so it will be queued for binding refresh during CD.
+ */
+function queueHostBindingForCheck(dirIndex: number, elIndex: number): void {
+  if (firstTemplatePass) {
+    (currentView.tView.hostBindings || (currentView.tView.hostBindings = [
+     ])).push(dirIndex, elIndex);
+  }
 }
 
 /** Sets the context for a ChangeDetectorRef to the given instance. */
@@ -485,48 +574,48 @@ export function initChangeDetectorIfExisting(injector: LInjector | null, instanc
 }
 
 /**
- * This function instantiates a directive with a correct queryName. It is a hack since we should
- * compute the query value only once and store it with the template (rather than on each invocation)
+ * This function instantiates the given directives. It is a hack since it assumes the directives
+ * come in the correct order for DI.
  */
 function hack_declareDirectives(
-    index: number, directiveTypes: DirectiveType<any>[] | null | undefined,
+    index: number, elIndex: number, directiveTypes: DirectiveType<any>[] | null | undefined,
     localRefs: string[] | null | undefined, ) {
   if (directiveTypes) {
     // TODO(mhevery): This assumes that the directives come in correct order, which
     // is not guaranteed. Must be refactored to take it into account.
     for (let i = 0; i < directiveTypes.length; i++) {
-      // MEGAMORPHIC: `ngDirectiveDef` is a megamorphic property access here.
-      // This is OK, since we will refactor this code and store the result in `TView.data`
-      // which means that we will be reading this value only once. We are trading clean/simple
-      // template
-      // code for slight startup(first run) performance. (No impact on subsequent runs)
-      // TODO(misko): refactor this to store the `DirectiveDef` in `TView.data`.
+      index++;
       const directiveType = directiveTypes[i];
-      const directiveDef = directiveType.ngDirectiveDef;
-      directiveCreate(
-          ++index, directiveDef.n(), directiveDef, hack_findQueryName(directiveDef, localRefs));
+      const directiveDef =
+          firstTemplatePass ? directiveType.ngDirectiveDef : tData[index] as DirectiveDef<any>;
+      const localNames =
+          firstTemplatePass ? findMatchingLocalNames(directiveDef, localRefs, index) : null;
+      directiveCreate(index, directiveDef.factory(), directiveDef, localNames);
+      if (directiveDef.hostBindings) queueHostBindingForCheck(index, elIndex);
     }
   }
 }
 
 /**
- * This function returns the queryName for a directive. It is a hack since we should
- * compute the query value only once and store it with the template (rather than on each invocation)
+ * Finds any local names that match the given directive's exportAs and returns them with directive
+ * index. If the directiveDef is null, it matches against the default '' value instead of
+ * exportAs.
  */
-function hack_findQueryName(
-    directiveDef: DirectiveDef<any>| null, localRefs: string[] | null | undefined,
-    defaultExport?: string, ): string|null {
+function findMatchingLocalNames(
+    directiveDef: DirectiveDef<any>| null, localRefs: string[] | null | undefined, index: number,
+    defaultExport?: string): (string | number)[]|null {
   const exportAs = directiveDef && directiveDef.exportAs || defaultExport;
+  let matches: (string | number)[]|null = null;
   if (exportAs != null && localRefs) {
     for (let i = 0; i < localRefs.length; i = i + 2) {
       const local = localRefs[i];
       const toExportAs = localRefs[i | 1];
       if (toExportAs === exportAs || toExportAs === defaultExport) {
-        return local;
+        (matches || (matches = [])).push(local, index);
       }
     }
   }
-  return null;
+  return matches;
 }
 
 /**
@@ -551,7 +640,9 @@ export function createTView(): TView {
     contentCheckHooks: null,
     viewHooks: null,
     viewCheckHooks: null,
-    destroyHooks: null
+    destroyHooks: null,
+    hostBindings: null,
+    components: null
   };
 }
 
@@ -560,8 +651,12 @@ function setUpAttributes(native: RElement, attrs: string[]): void {
 
   const isProc = isProceduralRenderer(renderer);
   for (let i = 0; i < attrs.length; i += 2) {
-    isProc ? (renderer as ProceduralRenderer3).setAttribute(native, attrs[i], attrs[i | 1]) :
-             native.setAttribute(attrs[i], attrs[i | 1]);
+    const attrName = attrs[i];
+    if (attrName !== NG_PROJECT_AS_ATTR_NAME) {
+      const attrVal = attrs[i + 1];
+      isProc ? (renderer as ProceduralRenderer3).setAttribute(native, attrName, attrVal) :
+               native.setAttribute(attrName, attrVal);
+    }
   }
 }
 
@@ -619,22 +714,24 @@ export function hostElement(rNode: RElement | null, def: ComponentDef<any>): LEl
  * and saves the subscription for later cleanup.
  *
  * @param eventName Name of the event
- * @param listener The function to be called when event emits
+ * @param listenerFn The function to be called when event emits
  * @param useCapture Whether or not to use capture in event listener.
  */
-export function listener(eventName: string, listener: EventListener, useCapture = false): void {
+export function listener(
+    eventName: string, listenerFn: (e?: any) => any, useCapture = false): void {
   ngDevMode && assertPreviousIsParent();
   const node = previousOrParentNode;
   const native = node.native as RElement;
-  const wrappedListener = wrapListenerWithDirtyLogic(currentView, listener);
 
   // In order to match current behavior, native DOM event listeners must be added for all
   // events (including outputs).
   const cleanupFns = cleanup || (cleanup = currentView.cleanup = []);
   if (isProceduralRenderer(renderer)) {
+    const wrappedListener = wrapListenerWithDirtyLogic(currentView, listenerFn);
     const cleanupFn = renderer.listen(native, eventName, wrappedListener);
     cleanupFns.push(cleanupFn, null);
   } else {
+    const wrappedListener = wrapListenerWithDirtyAndDefault(currentView, listenerFn);
     native.addEventListener(eventName, wrappedListener, useCapture);
     cleanupFns.push(eventName, native, wrappedListener, useCapture);
   }
@@ -649,7 +746,7 @@ export function listener(eventName: string, listener: EventListener, useCapture 
   const outputs = tNode.outputs;
   let outputData: PropertyAliasValue|undefined;
   if (outputs && (outputData = outputs[eventName])) {
-    createOutput(outputData, listener);
+    createOutput(outputData, listenerFn);
   }
 }
 
@@ -683,20 +780,22 @@ export function elementEnd() {
  * Updates the value of removes an attribute on an Element.
  *
  * @param number index The index of the element in the data array
- * @param string name The name of the attribute.
- * @param any value The attribute is removed when value is `null` or `undefined`.
+ * @param name name The name of the attribute.
+ * @param value value The attribute is removed when value is `null` or `undefined`.
  *                  Otherwise the attribute value is set to the stringified value.
+ * @param sanitizer An optional function used to sanitize the value.
  */
-export function elementAttribute(index: number, name: string, value: any): void {
+export function elementAttribute(
+    index: number, name: string, value: any, sanitizer?: Sanitizer): void {
   if (value !== NO_CHANGE) {
     const element: LElementNode = data[index];
     if (value == null) {
       isProceduralRenderer(renderer) ? renderer.removeAttribute(element.native, name) :
                                        element.native.removeAttribute(name);
     } else {
-      isProceduralRenderer(renderer) ?
-          renderer.setAttribute(element.native, name, stringify(value)) :
-          element.native.setAttribute(name, stringify(value));
+      const strValue = sanitizer == null ? stringify(value) : sanitizer(value);
+      isProceduralRenderer(renderer) ? renderer.setAttribute(element.native, name, strValue) :
+                                       element.native.setAttribute(name, strValue);
     }
   }
 }
@@ -712,25 +811,30 @@ export function elementAttribute(index: number, name: string, value: any): void 
  * @param propName Name of property. Because it is going to DOM, this is not subject to
  *        renaming as part of minification.
  * @param value New value to write.
+ * @param sanitizer An optional function used to sanitize the value.
  */
 
-export function elementProperty<T>(index: number, propName: string, value: T | NO_CHANGE): void {
+export function elementProperty<T>(
+    index: number, propName: string, value: T | NO_CHANGE, sanitizer?: Sanitizer): void {
   if (value === NO_CHANGE) return;
   const node = data[index] as LElementNode;
   const tNode = node.tNode !;
   // if tNode.inputs is undefined, a listener has created outputs, but inputs haven't
   // yet been checked
-  if (tNode.inputs === undefined) {
+  if (tNode && tNode.inputs === undefined) {
     // mark inputs as checked
     tNode.inputs = generatePropertyAliases(node.flags, BindingDirection.Input);
   }
 
-  const inputData = tNode.inputs;
+  const inputData = tNode && tNode.inputs;
   let dataValue: PropertyAliasValue|undefined;
   if (inputData && (dataValue = inputData[propName])) {
     setInputsForProperty(dataValue, value);
     markDirtyIfOnPush(node);
   } else {
+    // It is assumed that the sanitizer is only added when the compiler determines that the property
+    // is risky, so sanitization can be done without further checks.
+    value = sanitizer != null ? (sanitizer(value) as any) : value;
     const native = node.native;
     isProceduralRenderer(renderer) ? renderer.setProperty(native, propName, value) :
                                      (native.setProperty ? native.setProperty(propName, value) :
@@ -744,15 +848,16 @@ export function elementProperty<T>(index: number, propName: string, value: T | N
  * @param tagName
  * @param attrs
  * @param data
+ * @param localNames A list of local names and their matching indices
  * @returns the TNode object
  */
 function createTNode(
     tagName: string | null, attrs: string[] | null, data: TContainer | null,
-    localName: string | null): TNode {
+    localNames: (string | number)[] | null): TNode {
   return {
     tagName: tagName,
     attrs: attrs,
-    localNames: localName ? [localName, -1] : null,
+    localNames: localNames,
     initialInputs: undefined,
     inputs: undefined,
     outputs: undefined,
@@ -806,7 +911,7 @@ function generatePropertyAliases(lNodeFlags: number, direction: BindingDirection
 }
 
 /**
- * Add or remove a class in a classList.
+ * Add or remove a class in a `classList` on a DOM element.
  *
  * This instruction is meant to handle the [class.foo]="exp" case
  *
@@ -815,7 +920,7 @@ function generatePropertyAliases(lNodeFlags: number, direction: BindingDirection
  *        renaming as part of minification.
  * @param value A value indicating if a given class should be added or removed.
  */
-export function elementClass<T>(index: number, className: string, value: T | NO_CHANGE): void {
+export function elementClassNamed<T>(index: number, className: string, value: T | NO_CHANGE): void {
   if (value !== NO_CHANGE) {
     const lElement = data[index] as LElementNode;
     if (value) {
@@ -830,30 +935,96 @@ export function elementClass<T>(index: number, className: string, value: T | NO_
 }
 
 /**
+ * Set the `className` property on a DOM element.
+ *
+ * This instruction is meant to handle the `[class]="exp"` usage.
+ *
+ * `elementClass` instruction writes the value to the "element's" `className` property.
+ *
+ * @param index The index of the element to update in the data array
+ * @param value A value indicating a set of classes which should be applied. The method overrides
+ *   any existing classes. The value is stringified (`toString`) before it is applied to the
+ *   element.
+ */
+export function elementClass<T>(index: number, value: T | NO_CHANGE): void {
+  if (value !== NO_CHANGE) {
+    // TODO: This is a naive implementation which simply writes value to the `className`. In the
+    // future
+    // we will add logic here which would work with the animation code.
+    const lElement: LElementNode = data[index];
+    isProceduralRenderer(renderer) ? renderer.setProperty(lElement.native, 'className', value) :
+                                     lElement.native['className'] = stringify(value);
+  }
+}
+
+/**
  * Update a given style on an Element.
  *
  * @param index Index of the element to change in the data array
  * @param styleName Name of property. Because it is going to DOM this is not subject to
  *        renaming as part of minification.
  * @param value New value to write (null to remove).
- * @param suffix Suffix to add to style's value (optional).
+ * @param suffix Optional suffix. Used with scalar values to add unit such as `px`.
+ * @param sanitizer An optional function used to transform the value typically used for
+ *        sanitization.
  */
-export function elementStyle<T>(
-    index: number, styleName: string, value: T | NO_CHANGE, suffix?: string): void {
+export function elementStyleNamed<T>(
+    index: number, styleName: string, value: T | NO_CHANGE, suffix?: string): void;
+export function elementStyleNamed<T>(
+    index: number, styleName: string, value: T | NO_CHANGE, sanitizer?: Sanitizer): void;
+export function elementStyleNamed<T>(
+    index: number, styleName: string, value: T | NO_CHANGE,
+    suffixOrSanitizer?: string | Sanitizer): void {
   if (value !== NO_CHANGE) {
-    const lElement = data[index] as LElementNode;
+    const lElement: LElementNode = data[index];
     if (value == null) {
       isProceduralRenderer(renderer) ?
           renderer.removeStyle(lElement.native, styleName, RendererStyleFlags3.DashCase) :
-          lElement.native.style.removeProperty(styleName);
+          lElement.native['style'].removeProperty(styleName);
     } else {
-      const strValue = suffix ? stringify(value) + suffix : stringify(value);
+      let strValue =
+          typeof suffixOrSanitizer == 'function' ? suffixOrSanitizer(value) : stringify(value);
+      if (typeof suffixOrSanitizer == 'string') strValue = strValue + suffixOrSanitizer;
       isProceduralRenderer(renderer) ?
           renderer.setStyle(lElement.native, styleName, strValue, RendererStyleFlags3.DashCase) :
-          lElement.native.style.setProperty(styleName, strValue);
+          lElement.native['style'].setProperty(styleName, strValue);
     }
   }
 }
+
+/**
+ * Set the `style` property on a DOM element.
+ *
+ * This instruction is meant to handle the `[style]="exp"` usage.
+ *
+ *
+ * @param index The index of the element to update in the data array
+ * @param value A value indicating if a given style should be added or removed.
+ *   The expected shape of `value` is an object where keys are style names and the values
+ *   are their corresponding values to set. If value is falsy than the style is remove. An absence
+ *   of style does not cause that style to be removed. `NO_CHANGE` implies that no update should be
+ *   performed.
+ */
+export function elementStyle<T>(
+    index: number, value: {[styleName: string]: any} | NO_CHANGE): void {
+  if (value !== NO_CHANGE) {
+    // TODO: This is a naive implementation which simply writes value to the `style`. In the future
+    // we will add logic here which would work with the animation code.
+    const lElement = data[index] as LElementNode;
+    if (isProceduralRenderer(renderer)) {
+      renderer.setProperty(lElement.native, 'style', value);
+    } else {
+      const style = lElement.native['style'];
+      for (let i = 0, keys = Object.keys(value); i < keys.length; i++) {
+        const styleName: string = keys[i];
+        const styleValue: any = (value as any)[styleName];
+        styleValue == null ? style.removeProperty(styleName) :
+                             style.setProperty(styleName, styleValue);
+      }
+    }
+  }
+}
+
 
 
 //////////////////////////
@@ -920,10 +1091,39 @@ export function textBinding<T>(index: number, value: T | NO_CHANGE): void {
  *        be created or retrieved out of order.
  * @param directive The directive instance.
  * @param directiveDef DirectiveDef object which contains information about the template.
- * @param queryName Name under which the query can retrieve the directive instance.
+ * @param localNames Names under which a query can retrieve the directive instance
  */
 export function directiveCreate<T>(
-    index: number, directive: T, directiveDef: DirectiveDef<T>, queryName?: string | null): T {
+    index: number, directive: T, directiveDef: DirectiveDef<T>,
+    localNames?: (string | number)[] | null): T {
+  const instance = baseDirectiveCreate(index, directive, directiveDef);
+
+  ngDevMode && assertNotNull(previousOrParentNode.tNode, 'previousOrParentNode.tNode');
+  const tNode: TNode|null = previousOrParentNode.tNode !;
+
+  if (currentView.tView.firstTemplatePass && localNames) {
+    tNode.localNames = tNode.localNames ? tNode.localNames.concat(localNames) : localNames;
+  }
+
+  if (tNode && tNode.attrs) {
+    setInputsFromAttrs<T>(instance, directiveDef !.inputs, tNode);
+  }
+
+  // Init hooks are queued now so ngOnInit is called in host components before
+  // any projected components.
+  queueInitHooks(index, directiveDef.onInit, directiveDef.doCheck, currentView.tView);
+
+  return instance;
+}
+
+/**
+ * A lighter version of directiveCreate() that is used for the root component
+ *
+ * This version does not contain features that we don't already support at root in
+ * current Angular. Example: local refs and inputs on root component.
+ */
+export function baseDirectiveCreate<T>(
+    index: number, directive: T, directiveDef: DirectiveDef<T>): T {
   let instance;
   ngDevMode &&
       assertNull(currentView.bindingStartIndex, 'directives should be created before any bindings');
@@ -945,11 +1145,6 @@ export function directiveCreate<T>(
 
   if (index >= tData.length) {
     tData[index] = directiveDef !;
-    if (queryName) {
-      ngDevMode && assertNotNull(previousOrParentNode.tNode, 'previousOrParentNode.tNode');
-      const tNode = previousOrParentNode !.tNode !;
-      (tNode.localNames || (tNode.localNames = [])).push(queryName, index);
-    }
   }
 
   const diPublic = directiveDef !.diPublic;
@@ -962,15 +1157,6 @@ export function directiveCreate<T>(
     setUpAttributes(
         (previousOrParentNode as LElementNode).native, directiveDef !.attributes as string[]);
   }
-
-  const tNode: TNode|null = previousOrParentNode.tNode !;
-  if (tNode && tNode.attrs) {
-    setInputsFromAttrs<T>(instance, directiveDef !.inputs, tNode);
-  }
-
-  // Init hooks are queued now so ngOnInit is called in host components before
-  // any projected components.
-  queueInitHooks(index, directiveDef.onInit, directiveDef.doCheck, currentView.tView);
 
   return instance;
 }
@@ -1074,15 +1260,14 @@ export function container(
   const node = createLNode(index, LNodeFlags.Container, undefined, lContainer);
 
   if (node.tNode == null) {
-    // TODO(misko): implement queryName caching
-    const queryName: string|null = hack_findQueryName(null, localRefs, '');
-    node.tNode = tData[index] = createTNode(tagName || null, attrs || null, [], queryName || null);
+    const localNames: (string | number)[]|null = findMatchingLocalNames(null, localRefs, -1, '');
+    node.tNode = tData[index] = createTNode(tagName || null, attrs || null, [], localNames);
   }
 
   // Containers are added to the current view tree instead of their embedded views
   // because views can be removed and re-inserted.
   addToViewTree(node.data);
-  hack_declareDirectives(index, directiveTypes, localRefs);
+  hack_declareDirectives(index, index, directiveTypes, localRefs);
 
   isParent = false;
   ngDevMode && assertNodeType(previousOrParentNode, LNodeFlags.Container);
@@ -1110,9 +1295,11 @@ export function containerRefreshStart(index: number): void {
                    (previousOrParentNode as LContainerNode).native, undefined,
                    `the container's native element should not have been set yet.`);
 
-  // We need to execute init hooks here so ngOnInit hooks are called in top level views
-  // before they are called in embedded views (for backwards compatibility).
-  executeInitHooks(currentView, currentView.tView, creationMode);
+  if (!checkNoChangesMode) {
+    // We need to execute init hooks here so ngOnInit hooks are called in top level views
+    // before they are called in embedded views (for backwards compatibility).
+    executeInitHooks(currentView, currentView.tView, creationMode);
+  }
 }
 
 /**
@@ -1133,8 +1320,9 @@ export function containerRefreshEnd(): void {
   container.native = undefined;
   ngDevMode && assertNodeType(container, LNodeFlags.Container);
   const nextIndex = container.data.nextIndex;
+
+  // remove extra views at the end of the container
   while (nextIndex < container.data.views.length) {
-    // remove extra view.
     removeView(container, nextIndex);
   }
 }
@@ -1152,6 +1340,35 @@ function refreshDynamicChildren() {
 }
 
 /**
+ * Looks for a view with a given view block id inside a provided LContainer.
+ * Removes views that need to be deleted in the process.
+ *
+ * @param containerNode where to search for views
+ * @param startIdx starting index in the views array to search from
+ * @param viewBlockId exact view block id to look for
+ * @returns index of a found view or -1 if not found
+ */
+function scanForView(
+    containerNode: LContainerNode, startIdx: number, viewBlockId: number): LViewNode|null {
+  const views = containerNode.data.views;
+  for (let i = startIdx; i < views.length; i++) {
+    const viewAtPositionId = views[i].data.id;
+    if (viewAtPositionId === viewBlockId) {
+      return views[i];
+    } else if (viewAtPositionId < viewBlockId) {
+      // found a view that should not be at this position - remove
+      removeView(containerNode, i);
+    } else {
+      // found a view with id grater than the one we are searching for
+      // which means that required view doesn't exist and can't be found at
+      // later positions in the views array - stop the search here
+      break;
+    }
+  }
+  return null;
+}
+
+/**
  * Marks the start of an embedded view.
  *
  * @param viewBlockId The ID of this view
@@ -1162,17 +1379,13 @@ export function embeddedViewStart(viewBlockId: number): boolean {
       (isParent ? previousOrParentNode : previousOrParentNode.parent !) as LContainerNode;
   ngDevMode && assertNodeType(container, LNodeFlags.Container);
   const lContainer = container.data;
-  const views = lContainer.views;
+  const existingViewNode = scanForView(container, lContainer.nextIndex, viewBlockId);
 
-  const existingView: LViewNode|false =
-      !creationMode && lContainer.nextIndex < views.length && views[lContainer.nextIndex];
-  let viewUpdateMode = existingView && viewBlockId === (existingView as LViewNode).data.id;
-
-  if (viewUpdateMode) {
-    previousOrParentNode = views[lContainer.nextIndex++];
+  if (existingViewNode) {
+    previousOrParentNode = existingViewNode;
     ngDevMode && assertNodeType(previousOrParentNode, LNodeFlags.View);
     isParent = true;
-    enterView((existingView as LViewNode).data, previousOrParentNode as LViewNode);
+    enterView((existingViewNode as LViewNode).data, existingViewNode as LViewNode);
   } else {
     // When we create a new LView, we always reset the state of the instructions.
     const newView = createLView(
@@ -1183,10 +1396,9 @@ export function embeddedViewStart(viewBlockId: number): boolean {
     }
 
     enterView(newView, createLNode(null, LNodeFlags.View, null, newView));
-    lContainer.nextIndex++;
   }
 
-  return !viewUpdateMode;
+  return !existingViewNode;
 }
 
 /**
@@ -1212,21 +1424,21 @@ function getOrCreateEmbeddedTView(viewIndex: number, parent: LContainerNode): TV
 
 /** Marks the end of an embedded view. */
 export function embeddedViewEnd(): void {
+  refreshDirectives();
   isParent = false;
   const viewNode = previousOrParentNode = currentView.node as LViewNode;
-  const container = previousOrParentNode.parent as LContainerNode;
-  if (container) {
+  const containerNode = previousOrParentNode.parent as LContainerNode;
+  if (containerNode) {
     ngDevMode && assertNodeType(viewNode, LNodeFlags.View);
-    ngDevMode && assertNodeType(container, LNodeFlags.Container);
-    const containerState = container.data;
-    const previousView = containerState.nextIndex <= containerState.views.length ?
-        containerState.views[containerState.nextIndex - 1] as LViewNode :
-        null;
-    const viewIdChanged = previousView == null ? true : previousView.data.id !== viewNode.data.id;
+    ngDevMode && assertNodeType(containerNode, LNodeFlags.Container);
+    const lContainer = containerNode.data;
 
-    if (viewIdChanged) {
-      insertView(container, viewNode, containerState.nextIndex - 1);
+    if (creationMode) {
+      // it is a new view, insert it into collection of views for a given container
+      insertView(containerNode, viewNode, lContainer.nextIndex);
     }
+
+    lContainer.nextIndex++;
   }
   leaveView(currentView !.parent !);
   ngDevMode && assertEqual(isParent, false, 'isParent');
@@ -1236,39 +1448,28 @@ export function embeddedViewEnd(): void {
 /////////////
 
 /**
- * Refreshes the directive, triggering init and content hooks.
- *
- * When it is a component, it also enters the component's view and processes it to update bindings,
- * queries, etc.
+ * Refreshes components by entering the component view and processing its bindings, queries, etc.
  *
  * @param directiveIndex
  * @param elementIndex
  */
-export function directiveRefresh<T>(directiveIndex: number, elementIndex: number): void {
-  executeInitHooks(currentView, currentView.tView, creationMode);
-  executeContentHooks(currentView, currentView.tView, creationMode);
-  const template = (tData[directiveIndex] as ComponentDef<T>).template;
-  if (template != null) {
-    ngDevMode && assertDataInRange(elementIndex);
-    const element = data ![elementIndex] as LElementNode;
-    ngDevMode && assertNodeType(element, LNodeFlags.Element);
-    ngDevMode &&
-        assertNotNull(element.data, `Component's host node should have an LView attached.`);
-    const hostView = element.data !;
+export function componentRefresh<T>(directiveIndex: number, elementIndex: number): void {
+  ngDevMode && assertDataInRange(elementIndex);
+  const element = data ![elementIndex] as LElementNode;
+  ngDevMode && assertNodeType(element, LNodeFlags.Element);
+  ngDevMode && assertNotNull(element.data, `Component's host node should have an LView attached.`);
+  const hostView = element.data !;
 
-    // Only CheckAlways components or dirty OnPush components should be checked
-    if (hostView.flags & (LViewFlags.CheckAlways | LViewFlags.Dirty)) {
-      ngDevMode && assertDataInRange(directiveIndex);
-      const directive = getDirectiveInstance<T>(data[directiveIndex]);
-      const oldView = enterView(hostView, element);
-      try {
-        template(directive, creationMode);
-      } finally {
-        refreshDynamicChildren();
-        leaveView(oldView);
-      }
-    }
+  // Only attached CheckAlways components or attached, dirty OnPush components should be checked
+  if (viewAttached(hostView) && hostView.flags & (LViewFlags.CheckAlways | LViewFlags.Dirty)) {
+    ngDevMode && assertDataInRange(directiveIndex);
+    detectChangesInternal(hostView, element, getDirectiveInstance<T>(data[directiveIndex]));
   }
+}
+
+/** Returns a boolean for whether the view is attached */
+function viewAttached(view: LView): boolean {
+  return (view.flags & LViewFlags.Attached) === LViewFlags.Attached;
 }
 
 /**
@@ -1277,9 +1478,23 @@ export function directiveRefresh<T>(directiveIndex: number, elementIndex: number
  * each projected node belongs (it re-distributes nodes among "buckets" where each "bucket" is
  * backed by a selector).
  *
- * @param selectors
+ * This function requires CSS selectors to be provided in 2 forms: parsed (by a compiler) and text,
+ * un-parsed form.
+ *
+ * The parsed form is needed for efficient matching of a node against a given CSS selector.
+ * The un-parsed, textual form is needed for support of the ngProjectAs attribute.
+ *
+ * Having a CSS selector in 2 different formats is not ideal, but alternatives have even more
+ * drawbacks:
+ * - having only a textual form would require runtime parsing of CSS selectors;
+ * - we can't have only a parsed as we can't re-construct textual form from it (as entered by a
+ * template author).
+ *
+ * @param selectors A collection of parsed CSS selectors
+ * @param rawSelectors A collection of CSS selectors in the raw, un-parsed form
  */
-export function projectionDef(index: number, selectors?: CssSelector[]): void {
+export function projectionDef(
+    index: number, selectors?: CssSelector[], textSelectors?: string[]): void {
   const noOfNodeBuckets = selectors ? selectors.length + 1 : 1;
   const distributedNodes = new Array<LNode[]>(noOfNodeBuckets);
   for (let i = 0; i < noOfNodeBuckets; i++) {
@@ -1294,7 +1509,7 @@ export function projectionDef(index: number, selectors?: CssSelector[]): void {
     // - there are selectors defined
     // - a node has a tag name / attributes that can be matched
     if (selectors && componentChild.tNode) {
-      const matchedIdx = matchingSelectorIndex(componentChild.tNode, selectors !);
+      const matchedIdx = matchingSelectorIndex(componentChild.tNode, selectors, textSelectors !);
       distributedNodes[matchedIdx].push(componentChild);
     } else {
       distributedNodes[0].push(componentChild);
@@ -1437,15 +1652,32 @@ export function markDirtyIfOnPush(node: LElementNode): void {
  * Wraps an event listener so its host view and its ancestor views will be marked dirty
  * whenever the event fires. Necessary to support OnPush components.
  */
-export function wrapListenerWithDirtyLogic(view: LView, listener: EventListener): EventListener {
+export function wrapListenerWithDirtyLogic(view: LView, listenerFn: (e?: any) => any): (e: Event) =>
+    any {
+  return function(e: any) {
+    markViewDirty(view);
+    return listenerFn(e);
+  };
+}
+
+/**
+ * Wraps an event listener so its host view and its ancestor views will be marked dirty
+ * whenever the event fires. Also wraps with preventDefault behavior.
+ */
+export function wrapListenerWithDirtyAndDefault(
+    view: LView, listenerFn: (e?: any) => any): EventListener {
   return function(e: Event) {
     markViewDirty(view);
-    listener(e);
+    if (listenerFn(e) === false) {
+      e.preventDefault();
+      // Necessary for legacy browsers that don't support preventDefault (e.g. IE)
+      e.returnValue = false;
+    }
   };
 }
 
 /** Marks current view and all ancestors dirty */
-function markViewDirty(view: LView): void {
+export function markViewDirty(view: LView): void {
   let currentView: LView|null = view;
 
   while (currentView.parent != null) {
@@ -1455,21 +1687,69 @@ function markViewDirty(view: LView): void {
   currentView.flags |= LViewFlags.Dirty;
 
   ngDevMode && assertNotNull(currentView !.context, 'rootContext');
-  scheduleChangeDetection(currentView !.context as RootContext);
+  scheduleTick(currentView !.context as RootContext);
 }
 
 
-/** Given a root context, schedules change detection at that root. */
-export function scheduleChangeDetection<T>(rootContext: RootContext) {
+/**
+ * Used to schedule change detection on the whole application.
+ *
+ * Unlike `tick`, `scheduleTick` coalesces multiple calls into one change detection run.
+ * It is usually called indirectly by calling `markDirty` when the view needs to be
+ * re-rendered.
+ *
+ * Typically `scheduleTick` uses `requestAnimationFrame` to coalesce multiple
+ * `scheduleTick` requests. The scheduling function can be overridden in
+ * `renderComponent`'s `scheduler` option.
+ */
+export function scheduleTick<T>(rootContext: RootContext) {
   if (rootContext.clean == _CLEAN_PROMISE) {
     let res: null|((val: null) => void);
     rootContext.clean = new Promise<null>((r) => res = r);
     rootContext.scheduler(() => {
-      detectChanges(rootContext.component);
+      tick(rootContext.component);
       res !(null);
       rootContext.clean = _CLEAN_PROMISE;
     });
   }
+}
+
+/**
+ * Used to perform change detection on the whole application.
+ *
+ * This is equivalent to `detectChanges`, but invoked on root component. Additionally, `tick`
+ * executes lifecycle hooks and conditionally checks components based on their
+ * `ChangeDetectionStrategy` and dirtiness.
+ *
+ * The preferred way to trigger change detection is to call `markDirty`. `markDirty` internally
+ * schedules `tick` using a scheduler in order to coalesce multiple `markDirty` calls into a
+ * single change detection run. By default, the scheduler is `requestAnimationFrame`, but can
+ * be changed when calling `renderComponent` and providing the `scheduler` option.
+ */
+export function tick<T>(component: T): void {
+  const rootView = getRootView(component);
+  const rootComponent = (rootView.context as RootContext).component;
+  const hostNode = _getComponentHostLElementNode(rootComponent);
+
+  ngDevMode && assertNotNull(hostNode.data, 'Component host node should be attached to an LView');
+  renderComponentOrTemplate(hostNode, rootView, rootComponent);
+}
+
+/**
+ * Retrieve the root view from any component by walking the parent `LView` until
+ * reaching the root `LView`.
+ *
+ * @param component any component
+ */
+
+export function getRootView(component: any): LView {
+  ngDevMode && assertNotNull(component, 'component');
+  const lElementNode = _getComponentHostLElementNode(component);
+  let lView = lElementNode.view;
+  while (lView.parent) {
+    lView = lView.parent;
+  }
+  return lView;
 }
 
 /**
@@ -1488,7 +1768,54 @@ export function scheduleChangeDetection<T>(rootContext: RootContext) {
 export function detectChanges<T>(component: T): void {
   const hostNode = _getComponentHostLElementNode(component);
   ngDevMode && assertNotNull(hostNode.data, 'Component host node should be attached to an LView');
-  renderComponentOrTemplate(hostNode, hostNode.view, component);
+  detectChangesInternal(hostNode.data as LView, hostNode, component);
+}
+
+
+/**
+ * Checks the change detector and its children, and throws if any changes are detected.
+ *
+ * This is used in development mode to verify that running change detection doesn't
+ * introduce other changes.
+ */
+export function checkNoChanges<T>(component: T): void {
+  checkNoChangesMode = true;
+  try {
+    detectChanges(component);
+  } finally {
+    checkNoChangesMode = false;
+  }
+}
+
+/** Throws an ExpressionChangedAfterChecked error if checkNoChanges mode is on. */
+function throwErrorIfNoChangesMode(oldValue: any, currValue: any): never|void {
+  if (checkNoChangesMode) {
+    let msg =
+        `ExpressionChangedAfterItHasBeenCheckedError: Expression has changed after it was checked. Previous value: '${oldValue}'. Current value: '${currValue}'.`;
+    if (creationMode) {
+      msg +=
+          ` It seems like the view has been created after its parent and its children have been dirty checked.` +
+          ` Has it been created in a change detection hook ?`;
+    }
+    // TODO: include debug context
+    throw new Error(msg);
+  }
+}
+
+
+/** Checks the view of the component provided. Does not gate on dirty checks or execute doCheck. */
+function detectChangesInternal<T>(hostView: LView, hostNode: LElementNode, component: T) {
+  const componentIndex = hostNode.flags >> LNodeFlags.INDX_SHIFT;
+  const template = (hostNode.view.tView.data[componentIndex] as ComponentDef<T>).template;
+
+  const oldView = enterView(hostView, hostNode);
+  try {
+    template(component, creationMode);
+    refreshDynamicChildren();
+    refreshDirectives();
+  } finally {
+    leaveView(oldView);
+  }
 }
 
 
@@ -1553,6 +1880,7 @@ export function bind<T>(value: T | NO_CHANGE): T|NO_CHANGE {
 
   const changed: boolean = value !== NO_CHANGE && isDifferent(data[bindingIndex], value);
   if (changed) {
+    throwErrorIfNoChangesMode(data[bindingIndex], value);
     data[bindingIndex] = value;
   }
   bindingIndex++;
@@ -1722,14 +2050,17 @@ export function consumeBinding(): any {
 export function bindingUpdated(value: any): boolean {
   ngDevMode && assertNotEqual(value, NO_CHANGE, 'Incoming value should never be NO_CHANGE.');
 
-  if (creationMode || isDifferent(data[bindingIndex], value)) {
-    creationMode && initBindings();
-    data[bindingIndex++] = value;
-    return true;
+  if (creationMode) {
+    initBindings();
+  } else if (isDifferent(data[bindingIndex], value)) {
+    throwErrorIfNoChangesMode(data[bindingIndex], value);
   } else {
     bindingIndex++;
     return false;
   }
+
+  data[bindingIndex++] = value;
+  return true;
 }
 
 /** Updates binding if changed, then returns the latest value. */
@@ -1748,6 +2079,10 @@ export function bindingUpdated2(exp1: any, exp2: any): boolean {
 export function bindingUpdated4(exp1: any, exp2: any, exp3: any, exp4: any): boolean {
   const different = bindingUpdated2(exp1, exp2);
   return bindingUpdated2(exp3, exp4) || different;
+}
+
+export function getTView(): TView {
+  return currentView.tView;
 }
 
 export function getDirectiveInstance<T>(instanceOrArray: T | [T]): T {

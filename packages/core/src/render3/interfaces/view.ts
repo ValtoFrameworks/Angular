@@ -7,7 +7,7 @@
  */
 
 import {LContainer} from './container';
-import {ComponentTemplate, DirectiveDef} from './definition';
+import {ComponentTemplate, DirectiveDef, PipeDef} from './definition';
 import {LElementNode, LViewNode, TNode} from './node';
 import {LQueries} from './query';
 import {Renderer3} from './renderer';
@@ -183,13 +183,16 @@ export const enum LViewFlags {
    * back into the parent view, `data` will be defined and `creationMode` will be
    * improperly reported as false.
    */
-  CreationMode = 0b001,
+  CreationMode = 0b0001,
 
   /** Whether this view has default change detection strategy (checks always) or onPush */
-  CheckAlways = 0b010,
+  CheckAlways = 0b0010,
 
   /** Whether or not this view is currently dirty (needing check) */
-  Dirty = 0b100
+  Dirty = 0b0100,
+
+  /** Whether or not this view is currently attached to change detection tree. */
+  Attached = 0b1000,
 }
 
 /** Interface necessary to work with view tree traversal */
@@ -273,6 +276,20 @@ export interface TView {
    * Odd indices: Hook function
    */
   destroyHooks: HookData|null;
+
+  /**
+   * A list of element indices for child components that will need to be refreshed when the
+   * current view has finished its check.
+   */
+  components: number[]|null;
+
+  /**
+   * A list of indices for child directives that have host bindings.
+   *
+   * Even indices: Directive indices
+   * Odd indices: Element indices
+   */
+  hostBindings: number[]|null;
 }
 
 /**
@@ -309,26 +326,25 @@ export interface RootContext {
 export type HookData = (number | (() => void))[];
 
 /** Possible values of LView.lifecycleStage, used to determine which hooks to run.  */
+// TODO: Remove this enum when containerRefresh instructions are removed
 export const enum LifecycleStage {
+
   /* Init hooks need to be run, if any. */
   INIT = 1,
 
   /* Content hooks need to be run, if any. Init hooks have already run. */
-  CONTENT_INIT = 2,
-
-  /* View hooks need to be run, if any. Any init hooks/content hooks have ran. */
-  VIEW_INIT = 3
+  AFTER_INIT = 2,
 }
 
 /**
  * Static data that corresponds to the instance-specific data array on an LView.
  *
  * Each node's static data is stored in tData at the same index that it's stored
- * in the data array. Each directive's definition is stored here at the same index
- * as its directive instance in the data array. Any nodes that do not have static
+ * in the data array. Each directive/pipe's definition is stored here at the same index
+ * as its directive/pipe instance in the data array. Any nodes that do not have static
  * data store a null value in tData to avoid a sparse array.
  */
-export type TData = (TNode | DirectiveDef<any>| null)[];
+export type TData = (TNode | DirectiveDef<any>| PipeDef<any>| null)[];
 
 // Note: This hack is necessary so we don't erroneously get a circular dependency
 // failure based on types.

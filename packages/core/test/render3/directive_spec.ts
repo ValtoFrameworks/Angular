@@ -7,7 +7,7 @@
  */
 
 import {defineDirective} from '../../src/render3/index';
-import {bind, directiveRefresh, elementEnd, elementProperty, elementStart, load} from '../../src/render3/instructions';
+import {bind, elementEnd, elementProperty, elementStart, load} from '../../src/render3/instructions';
 
 import {renderToHtml} from './render_util';
 
@@ -34,8 +34,6 @@ describe('directive', () => {
           elementStart(0, 'span', null, [Directive]);
           elementEnd();
         }
-        Directive.ngDirectiveDef.h(1, 0);
-        directiveRefresh(1, 0);
       }
 
       expect(renderToHtml(Template, {})).toEqual('<span class="foo"></span>');

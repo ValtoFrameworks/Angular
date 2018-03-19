@@ -6,13 +6,22 @@
     "name": "EMPTY$1"
   },
   {
+    "name": "EMPTY_RENDERER_TYPE_ID"
+  },
+  {
     "name": "NG_HOST_SYMBOL"
+  },
+  {
+    "name": "NG_PROJECT_AS_ATTR_NAME"
   },
   {
     "name": "NO_CHANGE"
   },
   {
     "name": "Symbol$1"
+  },
+  {
+    "name": "UNDEFINED_RENDERER_TYPE_ID"
   },
   {
     "name": "__global$1"
@@ -30,7 +39,25 @@
     "name": "_root"
   },
   {
+    "name": "appendChild"
+  },
+  {
+    "name": "baseDirectiveCreate"
+  },
+  {
+    "name": "bindingUpdated"
+  },
+  {
+    "name": "callHooks"
+  },
+  {
     "name": "canInsertNativeNode"
+  },
+  {
+    "name": "checkNoChangesMode"
+  },
+  {
+    "name": "componentRefresh"
   },
   {
     "name": "createLNode"
@@ -39,10 +66,16 @@
     "name": "createLView"
   },
   {
+    "name": "createTView"
+  },
+  {
     "name": "currentView"
   },
   {
-    "name": "detectChanges"
+    "name": "defineComponent"
+  },
+  {
+    "name": "detectChangesInternal"
   },
   {
     "name": "domRendererFactory3"
@@ -54,7 +87,16 @@
     "name": "executeHooks"
   },
   {
+    "name": "executeInitAndContentHooks"
+  },
+  {
+    "name": "executeInitHooks"
+  },
+  {
     "name": "findFirstRNode"
+  },
+  {
+    "name": "findNextRNodeSibling"
   },
   {
     "name": "getDirectiveInstance"
@@ -66,7 +108,31 @@
     "name": "getNextOrParentSiblingNode"
   },
   {
+    "name": "getOrCreateTView"
+  },
+  {
+    "name": "getSymbolObservable"
+  },
+  {
+    "name": "hostElement"
+  },
+  {
+    "name": "initBindings"
+  },
+  {
+    "name": "initChangeDetectorIfExisting"
+  },
+  {
+    "name": "insertChild"
+  },
+  {
+    "name": "interpolation1"
+  },
+  {
     "name": "invertObject"
+  },
+  {
+    "name": "isDifferent"
   },
   {
     "name": "isProceduralRenderer"
@@ -78,15 +144,54 @@
     "name": "locateHostElement"
   },
   {
-    "name": "noop$2"
+    "name": "refreshChildComponents"
+  },
+  {
+    "name": "refreshDirectives"
   },
   {
     "name": "refreshDynamicChildren"
   },
   {
+    "name": "renderComponent"
+  },
+  {
+    "name": "renderComponentOrTemplate"
+  },
+  {
     "name": "renderEmbeddedTemplate"
   },
   {
+    "name": "resetApplicationState"
+  },
+  {
+    "name": "resolveRendererType2"
+  },
+  {
+    "name": "rootDirectiveIndices"
+  },
+  {
+    "name": "setHostBindings"
+  },
+  {
+    "name": "setUpAttributes"
+  },
+  {
     "name": "stringify$1"
+  },
+  {
+    "name": "symbolIteratorPonyfill"
+  },
+  {
+    "name": "text"
+  },
+  {
+    "name": "textBinding"
+  },
+  {
+    "name": "throwErrorIfNoChangesMode"
+  },
+  {
+    "name": "viewAttached"
   }
 ]

@@ -41,7 +41,10 @@ export function withBody<T>(html: string, blockFn: T): T {
     let returnValue: any = undefined;
     if (typeof blockFn === 'function') {
       document.body.innerHTML = html;
-      let blockReturn = blockFn();
+      // TODO(i): I'm not sure why a cast is required here but otherwise I get
+      //   TS2349: Cannot invoke an expression whose type lacks a call signature. Type 'never' has
+      //   no compatible call signatures.
+      let blockReturn = (blockFn as any)();
       if (blockReturn instanceof Promise) {
         blockReturn = blockReturn.then(done, done.fail);
       } else {
@@ -53,6 +56,7 @@ export function withBody<T>(html: string, blockFn: T): T {
 
 let savedDocument: Document|undefined = undefined;
 let savedRequestAnimationFrame: ((callback: FrameRequestCallback) => number)|undefined = undefined;
+let savedNode: typeof Node|undefined = undefined;
 let requestAnimationFrameCount = 0;
 
 /**
@@ -87,6 +91,8 @@ export function ensureDocument(): void {
     // It fails with Domino with TypeError: Cannot assign to read only property
     // 'stopImmediatePropagation' of object '#<Event>'
     (global as any).Event = null;
+    savedNode = (global as any).Node;
+    (global as any).Node = domino.impl.Node;
 
     savedRequestAnimationFrame = (global as any).requestAnimationFrame;
     (global as any).requestAnimationFrame = function(cb: FrameRequestCallback): number {
@@ -104,6 +110,10 @@ export function cleanupDocument(): void {
   if (savedDocument) {
     (global as any).document = savedDocument;
     savedDocument = undefined;
+  }
+  if (savedNode) {
+    (global as any).Node = savedNode;
+    savedNode = undefined;
   }
   if (savedRequestAnimationFrame) {
     (global as any).requestAnimationFrame = savedRequestAnimationFrame;

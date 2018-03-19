@@ -9,9 +9,9 @@
 import {ChangeDetectorRef, ElementRef, TemplateRef, ViewContainerRef} from '@angular/core';
 
 import {defineComponent} from '../../src/render3/definition';
-import {InjectFlags, bloomAdd, bloomFindPossibleInjector, getOrCreateNodeInjector} from '../../src/render3/di';
-import {NgOnChangesFeature, PublicFeature, defineDirective, inject, injectChangeDetectorRef, injectElementRef, injectTemplateRef, injectViewContainerRef} from '../../src/render3/index';
-import {bind, container, containerRefreshEnd, containerRefreshStart, createLNode, createLView, createTView, directiveRefresh, elementEnd, elementStart, embeddedViewEnd, embeddedViewStart, enterView, interpolation2, leaveView, load, projection, projectionDef, text, textBinding} from '../../src/render3/instructions';
+import {InjectFlags, bloomAdd, bloomFindPossibleInjector, getOrCreateNodeInjector, injectAttribute} from '../../src/render3/di';
+import {NgOnChangesFeature, PublicFeature, defineDirective, directiveInject, injectChangeDetectorRef, injectElementRef, injectTemplateRef, injectViewContainerRef} from '../../src/render3/index';
+import {bind, container, containerRefreshEnd, containerRefreshStart, createLNode, createLView, createTView, elementEnd, elementStart, embeddedViewEnd, embeddedViewStart, enterView, interpolation2, leaveView, load, projection, projectionDef, text, textBinding} from '../../src/render3/instructions';
 import {LInjector} from '../../src/render3/interfaces/injector';
 import {LNodeFlags} from '../../src/render3/interfaces/node';
 import {LViewFlags} from '../../src/render3/interfaces/view';
@@ -59,7 +59,7 @@ describe('di', () => {
         constructor(a: DirectiveA, b: DirectiveB) { this.value = a.value + b.value; }
         static ngDirectiveDef = defineDirective({
           type: DirectiveC,
-          factory: () => new DirectiveC(inject(DirectiveA), inject(DirectiveB))
+          factory: () => new DirectiveC(directiveInject(DirectiveA), directiveInject(DirectiveB))
         });
       }
 
@@ -101,7 +101,7 @@ describe('di', () => {
         }
         static ngDirectiveDef = defineDirective({
           type: DirectiveSameInstance,
-          factory: () => new DirectiveSameInstance(injectElementRef(), inject(Directive))
+          factory: () => new DirectiveSameInstance(injectElementRef(), directiveInject(Directive))
         });
       }
 
@@ -141,7 +141,7 @@ describe('di', () => {
         }
         static ngDirectiveDef = defineDirective({
           type: DirectiveSameInstance,
-          factory: () => new DirectiveSameInstance(injectTemplateRef(), inject(Directive))
+          factory: () => new DirectiveSameInstance(injectTemplateRef(), directiveInject(Directive))
         });
       }
 
@@ -181,7 +181,8 @@ describe('di', () => {
         }
         static ngDirectiveDef = defineDirective({
           type: DirectiveSameInstance,
-          factory: () => new DirectiveSameInstance(injectViewContainerRef(), inject(Directive))
+          factory:
+              () => new DirectiveSameInstance(injectViewContainerRef(), directiveInject(Directive))
         });
       }
 
@@ -257,12 +258,6 @@ describe('di', () => {
               text(4);
             }
             textBinding(4, bind(load<Directive>(2).value));
-            MyComp.ngComponentDef.h(1, 0);
-            Directive.ngDirectiveDef.h(2, 0);
-            DirectiveSameInstance.ngDirectiveDef.h(3, 0);
-            directiveRefresh(1, 0);
-            directiveRefresh(2, 0);
-            directiveRefresh(3, 0);
           }
         });
       }
@@ -293,10 +288,6 @@ describe('di', () => {
               elementEnd();
             }
             textBinding(3, bind(load<Directive>(1).value));
-            Directive.ngDirectiveDef.h(1, 0);
-            DirectiveSameInstance.ngDirectiveDef.h(2, 0);
-            directiveRefresh(1, 0);
-            directiveRefresh(2, 0);
           }
         });
       }
@@ -334,12 +325,6 @@ describe('di', () => {
               text(5);
             }
             textBinding(5, bind(load<Directive>(3).value));
-            MyComp.ngComponentDef.h(1, 0);
-            Directive.ngDirectiveDef.h(3, 2);
-            DirectiveSameInstance.ngDirectiveDef.h(4, 2);
-            directiveRefresh(1, 0);
-            directiveRefresh(3, 2);
-            directiveRefresh(4, 2);
           }
         });
       }
@@ -382,10 +367,6 @@ describe('di', () => {
                   elementEnd();
                 }
                 textBinding(3, bind(load<Directive>(1).value));
-                Directive.ngDirectiveDef.h(1, 0);
-                DirectiveSameInstance.ngDirectiveDef.h(2, 0);
-                directiveRefresh(1, 0);
-                directiveRefresh(2, 0);
               }
               embeddedViewEnd();
             }
@@ -419,7 +400,7 @@ describe('di', () => {
           type: IfDirective,
           factory: () => new IfDirective(injectTemplateRef(), injectViewContainerRef()),
           inputs: {myIf: 'myIf'},
-          features: [PublicFeature, NgOnChangesFeature]
+          features: [PublicFeature, NgOnChangesFeature()]
         });
       }
 
@@ -438,7 +419,6 @@ describe('di', () => {
               container(0, [IfDirective], C1);
             }
             containerRefreshStart(0);
-            { directiveRefresh(1, 0); }
             containerRefreshEnd();
 
             function C1(ctx1: any, cm1: boolean) {
@@ -448,10 +428,6 @@ describe('di', () => {
                 elementEnd();
               }
               textBinding(3, bind(load<Directive>(1).value));
-              Directive.ngDirectiveDef.h(1, 0);
-              DirectiveSameInstance.ngDirectiveDef.h(2, 0);
-              directiveRefresh(1, 0);
-              directiveRefresh(2, 0);
             }
           }
         });
@@ -465,6 +441,29 @@ describe('di', () => {
       expect(dir !.cdr).toBe(dirSameInstance !.cdr);
     });
 
+    it('should injectAttribute', () => {
+      let exist: string|undefined = 'wrong';
+      let nonExist: string|undefined = 'wrong';
+      class MyApp {
+        static ngComponentDef = defineComponent({
+          type: MyApp,
+          tag: 'my-app',
+          factory: () => new MyApp(),
+          template: function(ctx: MyApp, cm: boolean) {
+            if (cm) {
+              elementStart(0, 'div', ['exist', 'existValue', 'other', 'ignore']);
+              exist = injectAttribute('exist');
+              nonExist = injectAttribute('nonExist');
+            }
+          }
+        });
+      }
+
+      const app = renderComponent(MyApp);
+      expect(exist).toEqual('existValue');
+      expect(nonExist).toEqual(undefined);
+    });
+
   });
 
   describe('inject', () => {
@@ -476,23 +475,42 @@ describe('di', () => {
         di.bf1 = 0;
         di.bf2 = 0;
         di.bf3 = 0;
+        di.bf4 = 0;
+        di.bf5 = 0;
+        di.bf6 = 0;
+        di.bf7 = 0;
+        di.bf3 = 0;
         di.cbf0 = 0;
         di.cbf1 = 0;
         di.cbf2 = 0;
         di.cbf3 = 0;
+        di.cbf4 = 0;
+        di.cbf5 = 0;
+        di.cbf6 = 0;
+        di.cbf7 = 0;
       });
 
-      function bloomState() { return [di.bf3, di.bf2, di.bf1, di.bf0]; }
+      function bloomState() {
+        return [di.bf7, di.bf6, di.bf5, di.bf4, di.bf3, di.bf2, di.bf1, di.bf0];
+      }
 
       it('should add values', () => {
         bloomAdd(di, { __NG_ELEMENT_ID__: 0 } as any);
-        expect(bloomState()).toEqual([0, 0, 0, 1]);
+        expect(bloomState()).toEqual([0, 0, 0, 0, 0, 0, 0, 1]);
         bloomAdd(di, { __NG_ELEMENT_ID__: 32 + 1 } as any);
-        expect(bloomState()).toEqual([0, 0, 2, 1]);
+        expect(bloomState()).toEqual([0, 0, 0, 0, 0, 0, 2, 1]);
         bloomAdd(di, { __NG_ELEMENT_ID__: 64 + 2 } as any);
-        expect(bloomState()).toEqual([0, 4, 2, 1]);
+        expect(bloomState()).toEqual([0, 0, 0, 0, 0, 4, 2, 1]);
         bloomAdd(di, { __NG_ELEMENT_ID__: 96 + 3 } as any);
-        expect(bloomState()).toEqual([8, 4, 2, 1]);
+        expect(bloomState()).toEqual([0, 0, 0, 0, 8, 4, 2, 1]);
+        bloomAdd(di, { __NG_ELEMENT_ID__: 128 + 4 } as any);
+        expect(bloomState()).toEqual([0, 0, 0, 16, 8, 4, 2, 1]);
+        bloomAdd(di, { __NG_ELEMENT_ID__: 160 + 5 } as any);
+        expect(bloomState()).toEqual([0, 0, 32, 16, 8, 4, 2, 1]);
+        bloomAdd(di, { __NG_ELEMENT_ID__: 192 + 6 } as any);
+        expect(bloomState()).toEqual([0, 64, 32, 16, 8, 4, 2, 1]);
+        bloomAdd(di, { __NG_ELEMENT_ID__: 224 + 7 } as any);
+        expect(bloomState()).toEqual([128, 64, 32, 16, 8, 4, 2, 1]);
       });
 
       it('should query values', () => {
@@ -500,12 +518,22 @@ describe('di', () => {
         bloomAdd(di, { __NG_ELEMENT_ID__: 32 } as any);
         bloomAdd(di, { __NG_ELEMENT_ID__: 64 } as any);
         bloomAdd(di, { __NG_ELEMENT_ID__: 96 } as any);
+        bloomAdd(di, { __NG_ELEMENT_ID__: 127 } as any);
+        bloomAdd(di, { __NG_ELEMENT_ID__: 161 } as any);
+        bloomAdd(di, { __NG_ELEMENT_ID__: 188 } as any);
+        bloomAdd(di, { __NG_ELEMENT_ID__: 223 } as any);
+        bloomAdd(di, { __NG_ELEMENT_ID__: 255 } as any);
 
         expect(bloomFindPossibleInjector(di, 0)).toEqual(di);
         expect(bloomFindPossibleInjector(di, 1)).toEqual(null);
         expect(bloomFindPossibleInjector(di, 32)).toEqual(di);
         expect(bloomFindPossibleInjector(di, 64)).toEqual(di);
         expect(bloomFindPossibleInjector(di, 96)).toEqual(di);
+        expect(bloomFindPossibleInjector(di, 127)).toEqual(di);
+        expect(bloomFindPossibleInjector(di, 161)).toEqual(di);
+        expect(bloomFindPossibleInjector(di, 188)).toEqual(di);
+        expect(bloomFindPossibleInjector(di, 223)).toEqual(di);
+        expect(bloomFindPossibleInjector(di, 255)).toEqual(di);
       });
     });
 
@@ -517,7 +545,8 @@ describe('di', () => {
           static ngComponentDef = defineComponent({
             type: MyApp,
             tag: 'my-app',
-            factory: () => new MyApp(inject(String as any, InjectFlags.Default, 'DefaultValue')),
+            factory: () => new MyApp(
+                         directiveInject(String as any, InjectFlags.Default, 'DefaultValue')),
             template: () => null
           });
         }
@@ -542,7 +571,7 @@ describe('di', () => {
         }
         static ngDirectiveDef = defineDirective({
           type: ChildDirective,
-          factory: () => new ChildDirective(inject(ParentDirective)),
+          factory: () => new ChildDirective(directiveInject(ParentDirective)),
           features: [PublicFeature]
         });
       }
@@ -554,7 +583,8 @@ describe('di', () => {
         }
         static ngDirectiveDef = defineDirective({
           type: Child2Directive,
-          factory: () => new Child2Directive(inject(ParentDirective), inject(ChildDirective))
+          factory: () => new Child2Directive(
+                       directiveInject(ParentDirective), directiveInject(ChildDirective))
         });
       }
 

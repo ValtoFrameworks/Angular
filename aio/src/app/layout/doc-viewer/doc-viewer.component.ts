@@ -1,4 +1,4 @@
-import { Component, ComponentRef, DoCheck, ElementRef, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
 import { Title, Meta } from '@angular/platform-browser';
 
 import { Observable } from 'rxjs/Observable';
@@ -10,9 +10,9 @@ import 'rxjs/add/operator/switchMap';
 import 'rxjs/add/operator/takeUntil';
 
 import { DocumentContents, FILE_NOT_FOUND_ID, FETCHING_ERROR_ID } from 'app/documents/document.service';
-import { EmbedComponentsService } from 'app/embed-components/embed-components.service';
 import { Logger } from 'app/shared/logger.service';
 import { TocService } from 'app/shared/toc.service';
+import { ElementsLoader } from 'app/custom-elements/elements-loader';
 
 
 // Constants
@@ -28,7 +28,7 @@ const initialDocViewerContent = initialDocViewerElement ? initialDocViewerElemen
   // TODO(robwormald): shadow DOM and emulated don't work here (?!)
   // encapsulation: ViewEncapsulation.Native
 })
-export class DocViewerComponent implements DoCheck, OnDestroy {
+export class DocViewerComponent implements OnDestroy {
   // Enable/Disable view transition animations.
   static animationsEnabled = true;
 
@@ -38,7 +38,6 @@ export class DocViewerComponent implements DoCheck, OnDestroy {
   private onDestroy$ = new EventEmitter<void>();
   private docContents$ = new EventEmitter<DocumentContents>();
 
-  protected embeddedComponentRefs: ComponentRef<any>[] = [];
   protected currViewContainer: HTMLElement = document.createElement('div');
   protected nextViewContainer: HTMLElement = document.createElement('div');
 
@@ -68,13 +67,12 @@ export class DocViewerComponent implements DoCheck, OnDestroy {
   @Output() docRendered = new EventEmitter<void>();
 
   constructor(
-    elementRef: ElementRef,
-    private embedComponentsService: EmbedComponentsService,
-    private logger: Logger,
-    private titleService: Title,
-    private metaService: Meta,
-    private tocService: TocService
-    ) {
+      elementRef: ElementRef,
+      private logger: Logger,
+      private titleService: Title,
+      private metaService: Meta,
+      private tocService: TocService,
+      private elementsLoader: ElementsLoader) {
     this.hostElement = elementRef.nativeElement;
     // Security: the initialDocViewerContent comes from the prerendered DOM and is considered to be secure
     this.hostElement.innerHTML = initialDocViewerContent;
@@ -83,27 +81,14 @@ export class DocViewerComponent implements DoCheck, OnDestroy {
       this.currViewContainer = this.hostElement.firstElementChild as HTMLElement;
     }
 
-    this.onDestroy$.subscribe(() => this.destroyEmbeddedComponents());
     this.docContents$
         .switchMap(newDoc => this.render(newDoc))
         .takeUntil(this.onDestroy$)
         .subscribe();
   }
 
-  ngDoCheck() {
-    this.embeddedComponentRefs.forEach(comp => comp.changeDetectorRef.detectChanges());
-  }
-
   ngOnDestroy() {
     this.onDestroy$.emit();
-  }
-
-  /**
-   * Destroy the embedded components to avoid memory leaks.
-   */
-  protected destroyEmbeddedComponents(): void {
-    this.embeddedComponentRefs.forEach(comp => comp.destroy());
-    this.embeddedComponentRefs = [];
   }
 
   /**
@@ -112,10 +97,15 @@ export class DocViewerComponent implements DoCheck, OnDestroy {
    */
   protected prepareTitleAndToc(targetElem: HTMLElement, docId: string): () => void {
     const titleEl = targetElem.querySelector('h1');
-    const hasToc = !!titleEl && !/no-?toc/i.test(titleEl.className);
+    const needsToc = !!titleEl && !/no-?toc/i.test(titleEl.className);
+    const embeddedToc = targetElem.querySelector('aio-toc.embedded');
 
-    if (hasToc) {
+    if (needsToc && !embeddedToc) {
+      // Add an embedded ToC if it's needed and there isn't one in the content already.
       titleEl!.insertAdjacentHTML('afterend', '<aio-toc class="embedded"></aio-toc>');
+    } else if (!needsToc && embeddedToc) {
+      // Remove the embedded Toc if it's there and not needed.
+      embeddedToc.remove();
     }
 
     return () => {
@@ -127,7 +117,7 @@ export class DocViewerComponent implements DoCheck, OnDestroy {
       if (titleEl) {
         title = (typeof titleEl.innerText === 'string') ? titleEl.innerText : titleEl.textContent;
 
-        if (hasToc) {
+        if (needsToc) {
           this.tocService.genToc(targetElem, docId);
         }
       }
@@ -149,15 +139,13 @@ export class DocViewerComponent implements DoCheck, OnDestroy {
         //           and is considered to be safe.
         .do(() => this.nextViewContainer.innerHTML = doc.contents || '')
         .do(() => addTitleAndToc = this.prepareTitleAndToc(this.nextViewContainer, doc.id))
-        .switchMap(() => this.embedComponentsService.embedInto(this.nextViewContainer))
+        .switchMap(() => this.elementsLoader.loadContainingCustomElements(this.nextViewContainer))
         .do(() => this.docReady.emit())
-        .do(() => this.destroyEmbeddedComponents())
-        .do(componentRefs => this.embeddedComponentRefs = componentRefs)
         .switchMap(() => this.swapViews(addTitleAndToc))
         .do(() => this.docRendered.emit())
         .catch(err => {
           const errorMessage = (err instanceof Error) ? err.stack : err;
-          this.logger.error(`[DocViewer] Error preparing document '${doc.id}': ${errorMessage}`);
+          this.logger.error(new Error(`[DocViewer] Error preparing document '${doc.id}': ${errorMessage}`));
           this.nextViewContainer.innerHTML = '';
           this.setNoIndex(true);
           return this.void$;

@@ -125,9 +125,6 @@ export interface CompilerOptions extends ts.CompilerOptions {
   // Print extra information while running the compiler
   trace?: boolean;
 
-  // Whether to enable support for <template> and the template attribute (false by default)
-  enableLegacyTemplate?: boolean;
-
   // Whether to enable lowering expressions lambdas and expressions in a reference value
   // position.
   disableExpressionLowering?: boolean;
@@ -163,6 +160,16 @@ export interface CompilerOptions extends ts.CompilerOptions {
    * in JIT mode. This is off by default.
    */
   enableSummariesForJit?: boolean;
+
+  /**
+   * Whether to replace the `templateUrl` and `styleUrls` property in all
+   * @Component decorators with inlined contents in `template` and `styles`
+   * properties.
+   * When enabled, the .js output of ngc will have no lazy-loaded `templateUrl`
+   * or `styleUrl`s. Note that this requires that resources be available to
+   * load statically at compile-time.
+   */
+  enableResourceInlining?: boolean;
 
   /**
    * Tells the compiler to generate definitions using the Render3 style code generation.

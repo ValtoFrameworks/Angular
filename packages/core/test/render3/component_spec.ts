@@ -6,12 +6,11 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {withBody} from '@angular/core/testing';
 
 import {DoCheck, ViewEncapsulation} from '../../src/core';
-import {getRenderedText, whenRendered} from '../../src/render3/component';
-import {defineComponent, markDirty} from '../../src/render3/index';
-import {bind, container, containerRefreshEnd, containerRefreshStart, detectChanges, directiveRefresh, elementEnd, elementProperty, elementStart, embeddedViewEnd, embeddedViewStart, text, textBinding} from '../../src/render3/instructions';
+import {getRenderedText} from '../../src/render3/component';
+import {LifecycleHooksFeature, defineComponent, markDirty} from '../../src/render3/index';
+import {bind, container, containerRefreshEnd, containerRefreshStart, elementEnd, elementProperty, elementStart, embeddedViewEnd, embeddedViewStart, text, textBinding, tick} from '../../src/render3/instructions';
 import {createRendererType2} from '../../src/view/index';
 
 import {getRendererFactory2} from './imported_renderer2';
@@ -34,7 +33,6 @@ describe('component', () => {
       },
       factory: () => new CounterComponent,
       inputs: {count: 'count'},
-      methods: {increment: 'increment'}
     });
   }
 
@@ -113,8 +111,6 @@ describe('component with a container', () => {
       elementEnd();
     }
     elementProperty(0, 'items', bind(ctx.items));
-    WrapperComponent.ngComponentDef.h(1, 0);
-    directiveRefresh(1, 0);
   }
 
   it('should re-render on input change', () => {
@@ -139,8 +135,6 @@ describe('encapsulation', () => {
           elementStart(0, EncapsulatedComponent);
           elementEnd();
         }
-        EncapsulatedComponent.ngComponentDef.h(1, 0);
-        directiveRefresh(1, 0);
       },
       factory: () => new WrapperComponent,
     });
@@ -156,8 +150,6 @@ describe('encapsulation', () => {
           elementStart(1, LeafComponent);
           elementEnd();
         }
-        LeafComponent.ngComponentDef.h(2, 1);
-        directiveRefresh(2, 1);
       },
       factory: () => new EncapsulatedComponent,
       rendererType:
@@ -181,14 +173,14 @@ describe('encapsulation', () => {
   }
 
   it('should encapsulate children, but not host nor grand children', () => {
-    renderComponent(WrapperComponent, getRendererFactory2(document));
+    renderComponent(WrapperComponent, {rendererFactory: getRendererFactory2(document)});
     expect(containerEl.outerHTML)
         .toMatch(
             /<div host=""><encapsulated _nghost-c(\d+)="">foo<leaf _ngcontent-c\1=""><span>bar<\/span><\/leaf><\/encapsulated><\/div>/);
   });
 
   it('should encapsulate host', () => {
-    renderComponent(EncapsulatedComponent, getRendererFactory2(document));
+    renderComponent(EncapsulatedComponent, {rendererFactory: getRendererFactory2(document)});
     expect(containerEl.outerHTML)
         .toMatch(
             /<div host="" _nghost-c(\d+)="">foo<leaf _ngcontent-c\1=""><span>bar<\/span><\/leaf><\/div>/);
@@ -204,8 +196,6 @@ describe('encapsulation', () => {
             elementStart(0, LeafComponentwith);
             elementEnd();
           }
-          LeafComponentwith.ngComponentDef.h(1, 0);
-          directiveRefresh(1, 0);
         },
         factory: () => new WrapperComponentWith,
         rendererType:
@@ -230,74 +220,83 @@ describe('encapsulation', () => {
       });
     }
 
-    renderComponent(WrapperComponentWith, getRendererFactory2(document));
+    renderComponent(WrapperComponentWith, {rendererFactory: getRendererFactory2(document)});
     expect(containerEl.outerHTML)
         .toMatch(
             /<div host="" _nghost-c(\d+)=""><leaf _ngcontent-c\1="" _nghost-c(\d+)=""><span _ngcontent-c\2="">bar<\/span><\/leaf><\/div>/);
   });
 
-  describe('markDirty, detectChanges, whenRendered, getRenderedText', () => {
-    class MyComponent implements DoCheck {
-      value: string = 'works';
-      doCheckCount = 0;
-      ngDoCheck(): void { this.doCheckCount++; }
+});
 
-      static ngComponentDef = defineComponent({
-        type: MyComponent,
-        tag: 'my-comp',
-        factory: () => new MyComponent(),
-        template: (ctx: MyComponent, cm: boolean) => {
-          if (cm) {
-            elementStart(0, 'span');
-            text(1);
-            elementEnd();
-          }
-          textBinding(1, bind(ctx.value));
+describe('recursive components', () => {
+  let events: string[] = [];
+  let count = 0;
+
+  class TreeNode {
+    constructor(
+        public value: number, public depth: number, public left: TreeNode|null,
+        public right: TreeNode|null) {}
+  }
+
+  class TreeComponent {
+    data: TreeNode = _buildTree(0);
+
+    ngDoCheck() { events.push('check' + this.data.value); }
+
+    static ngComponentDef = defineComponent({
+      type: TreeComponent,
+      tag: 'tree-comp',
+      factory: () => new TreeComponent(),
+      template: (ctx: TreeComponent, cm: boolean) => {
+        if (cm) {
+          text(0);
+          container(1);
+          container(2);
         }
-      });
-    }
+        textBinding(0, bind(ctx.data.value));
+        containerRefreshStart(1);
+        {
+          if (ctx.data.left != null) {
+            if (embeddedViewStart(0)) {
+              elementStart(0, TreeComponent);
+              elementEnd();
+            }
+            elementProperty(0, 'data', bind(ctx.data.left));
+            embeddedViewEnd();
+          }
+        }
+        containerRefreshEnd();
+        containerRefreshStart(2);
+        {
+          if (ctx.data.right != null) {
+            if (embeddedViewStart(0)) {
+              elementStart(0, TreeComponent);
+              elementEnd();
+            }
+            elementProperty(0, 'data', bind(ctx.data.right));
+            embeddedViewEnd();
+          }
+        }
+        containerRefreshEnd();
+      },
+      inputs: {data: 'data'}
+    });
+  }
 
-    it('should mark a component dirty and schedule change detection', withBody('my-comp', () => {
-         const myComp = renderComponent(MyComponent);
-         expect(getRenderedText(myComp)).toEqual('works');
-         myComp.value = 'updated';
-         markDirty(myComp);
-         expect(getRenderedText(myComp)).toEqual('works');
-         requestAnimationFrame.flush();
-         expect(getRenderedText(myComp)).toEqual('updated');
-       }));
 
-    it('should detectChanges on a component', withBody('my-comp', () => {
-         const myComp = renderComponent(MyComponent);
-         expect(getRenderedText(myComp)).toEqual('works');
-         myComp.value = 'updated';
-         detectChanges(myComp);
-         expect(getRenderedText(myComp)).toEqual('updated');
-       }));
+  function _buildTree(currDepth: number): TreeNode {
+    const children = currDepth < 2 ? _buildTree(currDepth + 1) : null;
+    const children2 = currDepth < 2 ? _buildTree(currDepth + 1) : null;
+    return new TreeNode(count++, currDepth, children, children2);
+  }
 
-    it('should detectChanges only once if markDirty is called multiple times',
-       withBody('my-comp', () => {
-         const myComp = renderComponent(MyComponent);
-         expect(getRenderedText(myComp)).toEqual('works');
-         expect(myComp.doCheckCount).toBe(1);
-         myComp.value = 'ignore';
-         markDirty(myComp);
-         myComp.value = 'updated';
-         markDirty(myComp);
-         expect(getRenderedText(myComp)).toEqual('works');
-         requestAnimationFrame.flush();
-         expect(getRenderedText(myComp)).toEqual('updated');
-         expect(myComp.doCheckCount).toBe(2);
-       }));
+  it('should check each component just once', () => {
+    const comp = renderComponent(TreeComponent, {hostFeatures: [LifecycleHooksFeature]});
+    expect(getRenderedText(comp)).toEqual('6201534');
+    expect(events).toEqual(['check6', 'check2', 'check0', 'check1', 'check5', 'check3', 'check4']);
 
-    it('should notify whenRendered', withBody('my-comp', async() => {
-         const myComp = renderComponent(MyComponent);
-         await whenRendered(myComp);
-         myComp.value = 'updated';
-         markDirty(myComp);
-         setTimeout(requestAnimationFrame.flush, 0);
-         await whenRendered(myComp);
-         expect(getRenderedText(myComp)).toEqual('updated');
-       }));
+    events = [];
+    tick(comp);
+    expect(events).toEqual(['check6', 'check2', 'check0', 'check1', 'check5', 'check3', 'check4']);
   });
 });
