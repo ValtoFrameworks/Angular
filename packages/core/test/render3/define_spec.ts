@@ -29,6 +29,7 @@ describe('define', () => {
 
           static ngDirectiveDef = defineDirective({
             type: MyDirective,
+            selectors: [['', 'myDir', '']],
             factory: () => new MyDirective(),
             features: [NgOnChangesFeature()],
             inputs: {valA: 'valA', valB: 'valB'}

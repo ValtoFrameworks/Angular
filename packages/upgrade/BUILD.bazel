@@ -25,9 +25,7 @@ ng_package(
         "//packages/upgrade/static:package.json",
     ],
     entry_point = "packages/upgrade/index.js",
-    secondary_entry_points = [
-        "static",
-    ],
+    tags = ["release-with-framework"],
     deps = [
         ":upgrade",
         "//packages/upgrade/static",

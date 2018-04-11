@@ -39,14 +39,16 @@ export class NullInjector implements Injector {
 }
 
 /**
- * @whatItDoes Injector interface
- * @howToUse
+ * @usageNotes
  * ```
  * const injector: Injector = ...;
  * injector.get(...);
  * ```
  *
  * @description
+ *
+ * Concrete injectors implement this interface.
+ *
  * For more details, see the {@linkDocs guide/dependency-injection "Dependency Injection Guide"}.
  *
  * ### Example
@@ -145,7 +147,7 @@ export class StaticInjector implements Injector {
     records.set(
         Injector, <Record>{token: Injector, fn: IDENT, deps: EMPTY, value: this, useNew: false});
     records.set(
-        INJECTOR, <Record>{token: Injector, fn: IDENT, deps: EMPTY, value: this, useNew: false});
+        INJECTOR, <Record>{token: INJECTOR, fn: IDENT, deps: EMPTY, value: this, useNew: false});
     recursivelyProcessProviders(records, providers);
   }
 
@@ -446,7 +448,9 @@ export function setCurrentInjector(injector: Injector | null): Injector|null {
 export function inject<T>(
     token: Type<T>| InjectionToken<T>, notFoundValue?: undefined, flags?: InjectFlags): T;
 export function inject<T>(
-    token: Type<T>| InjectionToken<T>, notFoundValue: T | null, flags?: InjectFlags): T|null;
+    token: Type<T>| InjectionToken<T>, notFoundValue: T, flags?: InjectFlags): T;
+export function inject<T>(
+    token: Type<T>| InjectionToken<T>, notFoundValue: null, flags?: InjectFlags): T|null;
 export function inject<T>(
     token: Type<T>| InjectionToken<T>, notFoundValue?: T | null, flags = InjectFlags.Default): T|
     null {

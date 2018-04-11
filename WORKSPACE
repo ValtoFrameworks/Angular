@@ -2,18 +2,21 @@ workspace(name = "angular")
 
 http_archive(
     name = "build_bazel_rules_nodejs",
-    url = "https://github.com/bazelbuild/rules_nodejs/archive/0.5.3.zip",
-    strip_prefix = "rules_nodejs-0.5.3",
-    sha256 = "17a5515f59777b00cb25dbc710017a14273f825029b2ec60e0969d28914870be",
+    url = "https://github.com/bazelbuild/rules_nodejs/archive/1931156c232a08356dfda02e9c8b0275c2e63c00.zip",
+    strip_prefix = "rules_nodejs-1931156c232a08356dfda02e9c8b0275c2e63c00",
+    sha256 = "9cfe33276a6ac0076ee9ee159c4a2576f9851c0f437435b5ac19b2e592493078",
 )
 
-load("@build_bazel_rules_nodejs//:defs.bzl", "check_bazel_version", "node_repositories")
+load("@build_bazel_rules_nodejs//:defs.bzl", "check_bazel_version", "node_repositories", "yarn_install")
 
 check_bazel_version("0.9.0")
-node_repositories(package_json = [
-    "//:package.json",
-    "//tools/ts-api-guardian:package.json",
-])
+node_repositories(package_json = ["//:package.json"])
+
+yarn_install(
+    name = "ts-api-guardian_runtime_deps",
+    package_json = "//tools/ts-api-guardian:package.json",
+    yarn_lock = "//tools/ts-api-guardian:yarn.lock",
+)
 
 http_archive(
     name = "build_bazel_rules_typescript",
@@ -29,6 +32,13 @@ ts_setup_workspace()
 local_repository(
     name = "rxjs",
     path = "node_modules/rxjs/src",
+)
+
+# Point to the integration test workspace just so that Bazel doesn't descend into it
+# when expanding the //... pattern
+local_repository(
+    name = "bazel_integration_test",
+    path = "integration/bazel",
 )
 
 # This commit matches the version of buildifier in angular/ngcontainer
@@ -78,7 +88,7 @@ http_archive(
 
 http_archive(
     name = "org_brotli",
-    url = "https://github.com/google/brotli/archive/v1.0.2.zip",
-    strip_prefix = "brotli-1.0.2",
-    sha256 = "b43d5d6bc40f2fa6c785b738d86c6bbe022732fe25196ebbe43b9653a025920d",
+    url = "https://github.com/google/brotli/archive/c6333e1e79fb62ea088443f192293f964409b04e.zip",
+    strip_prefix = "brotli-c6333e1e79fb62ea088443f192293f964409b04e",
+    sha256 = "3f781988dee7dd3bcce2bf238294663cfaaf3b6433505bdb762e24d0a284d1dc",
 )

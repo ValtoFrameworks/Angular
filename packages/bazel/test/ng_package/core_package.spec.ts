@@ -56,8 +56,10 @@ describe('@angular/core ng_package', () => {
 
       it('should contain module resolution mappings', () => {
         expect(shx.grep('"main":', packageJson)).toContain(`./bundles/core.umd.js`);
-        expect(shx.grep('"module":', packageJson)).toContain(`./esm5/core.js`);
-        expect(shx.grep('"es2015":', packageJson)).toContain(`./esm2015/core.js`);
+        expect(shx.grep('"module":', packageJson)).toContain(`./fesm5/core.js`);
+        expect(shx.grep('"es2015":', packageJson)).toContain(`./fesm2015/core.js`);
+        expect(shx.grep('"esm5":', packageJson)).toContain(`./esm5/core.js`);
+        expect(shx.grep('"esm2015":', packageJson)).toContain(`./esm2015/core.js`);
         expect(shx.grep('"typings":', packageJson)).toContain(`./core.d.ts`);
       });
 
@@ -92,36 +94,68 @@ describe('@angular/core ng_package', () => {
     });
 
 
-    // FESMS currently not part of APF v6
-    xdescribe('esm2015', () => {
-      it('should have a fesm15 file in the /esm2015 directory',
-         () => { expect(shx.cat('esm2015/core.js')).toContain(`export {`); });
+    describe('fesm2015', () => {
+      it('should have a fesm15 file in the /fesm2015 directory',
+         () => { expect(shx.cat('fesm2015/core.js')).toContain(`export {`); });
 
       it('should have a source map', () => {
-        expect(shx.cat('esm2015/core.js.map'))
+        expect(shx.cat('fesm2015/core.js.map'))
             .toContain(`{"version":3,"file":"core.js","sources":`);
       });
 
       it('should have the version info in the header', () => {
-        expect(shx.cat('esm2015/index.js'))
+        expect(shx.cat('fesm2015/core.js'))
             .toMatch(/@license Angular v\d+\.\d+\.\d+(?!-PLACEHOLDER)/);
+      });
+
+      it('should have been built from the generated bundle index',
+         () => { expect(shx.cat('fesm2015/core.js')).toMatch('export {.*makeParamDecorator'); });
+    });
+
+
+    describe('fesm5', () => {
+
+      it('should have a fesm5 file in the /fesm5 directory',
+         () => { expect(shx.cat('fesm5/core.js')).toContain(`export {`); });
+
+      it('should have a source map', () => {
+        expect(shx.cat('fesm5/core.js.map')).toContain(`{"version":3,"file":"core.js","sources":`);
+      });
+
+      it('should not be processed by tsickle', () => {
+        expect(shx.cat('fesm5/core.js')).not.toContain('@fileoverview added by tsickle');
+      });
+
+      it('should have annotations rather than decorators',
+         () => { expect(shx.cat('fesm5/core.js')).not.toContain('__decorate'); });
+
+      it('should load tslib from external bundle', () => {
+        expect(shx.cat('fesm5/core.js')).not.toContain('function __extends');
+        expect(shx.cat('fesm5/core.js')).toMatch('import {.*__extends');
+      });
+
+      it('should have been built from the generated bundle index',
+         () => { expect(shx.cat('fesm5/core.js')).toMatch('export {.*makeParamDecorator'); });
+    });
+
+
+    describe('esm2015', () => {
+      it('should not contain any *.ngfactory.js files', () => {
+        expect(shx.find('esm2015').filter(f => f.endsWith('.ngfactory.js'))).toEqual([]);
+      });
+
+      it('should not contain any *.ngsummary.js files', () => {
+        expect(shx.find('esm2015').filter(f => f.endsWith('.ngsummary.js'))).toEqual([]);
       });
     });
 
 
     describe('esm5', () => {
+      it('should not contain any *.ngfactory.js files',
+         () => { expect(shx.find('esm5').filter(f => f.endsWith('.ngfactory.js'))).toEqual([]); });
 
-      // FESMS currently not part of APF v6
-      xit('should have a fesm5 file in the /esm5 directory',
-          () => { expect(shx.cat('esm5/core.js')).toContain(`export {`); });
-      // FESMS currently not part of APF v6
-      xit('should have a source map', () => {
-        expect(shx.cat('esm5/core.js.map')).toContain(`{"version":3,"file":"core.js","sources":`);
-      });
-
-      it('should not be processed by tsickle', () => {
-        expect(shx.cat('esm5/index.js')).not.toContain('@fileoverview added by tsickle');
-      });
+      it('should not contain any *.ngsummary.js files',
+         () => { expect(shx.find('esm5').filter(f => f.endsWith('.ngsummary.js'))).toEqual([]); });
     });
 
 
@@ -146,6 +180,10 @@ describe('@angular/core ng_package', () => {
 
       it('should have tslib helpers',
          () => { expect(shx.cat('bundles/core.umd.js')).not.toContain('undefined.__extends'); });
+      it('should have an AMD name',
+         () => { expect(shx.cat('bundles/core.umd.js')).toContain('define(\'@angular/core\''); });
+      it('should define ng global symbols',
+         () => { expect(shx.cat('bundles/core.umd.js')).toContain('global.ng.core = {}'); });
     });
   });
 
@@ -160,8 +198,10 @@ describe('@angular/core ng_package', () => {
       it('should have its module resolution mappings defined in the nested package.json', () => {
         const packageJson = p `testing/package.json`;
         expect(shx.grep('"main":', packageJson)).toContain(`../bundles/core-testing.umd.js`);
-        expect(shx.grep('"module":', packageJson)).toContain(`../esm5/testing/testing.js`);
-        expect(shx.grep('"es2015":', packageJson)).toContain(`../esm2015/testing/testing.js`);
+        expect(shx.grep('"module":', packageJson)).toContain(`../fesm5/testing.js`);
+        expect(shx.grep('"es2015":', packageJson)).toContain(`../fesm2015/testing.js`);
+        expect(shx.grep('"esm5":', packageJson)).toContain(`../esm5/testing/testing.js`);
+        expect(shx.grep('"esm2015":', packageJson)).toContain(`../esm2015/testing/testing.js`);
         expect(shx.grep('"typings":', packageJson)).toContain(`./testing.d.ts`);
       });
     });
@@ -194,29 +234,28 @@ describe('@angular/core ng_package', () => {
       });
     });
 
-    // FESMS currently not part of APF v6
-    xdescribe('esm2015', () => {
-      it('should have a fesm15 file in the /esm2015 directory',
-         () => { expect(shx.cat('esm2015/testing.js')).toContain(`export {`); });
+
+    describe('fesm2015', () => {
+      it('should have a fesm15 file in the /fesm2015 directory',
+         () => { expect(shx.cat('fesm2015/testing.js')).toContain(`export {`); });
 
       it('should have a source map', () => {
-        expect(shx.cat('esm2015/testing.js.map'))
+        expect(shx.cat('fesm2015/testing.js.map'))
             .toContain(`{"version":3,"file":"testing.js","sources":`);
       });
 
       it('should have the version info in the header', () => {
-        expect(shx.cat('esm2015/index.js'))
+        expect(shx.cat('fesm2015/testing.js'))
             .toMatch(/@license Angular v\d+\.\d+\.\d+(?!-PLACEHOLDER)/);
       });
     });
 
-    // FESMS currently not part of APF v6
-    xdescribe('esm5', () => {
-      it('should have a fesm5 file in the /esm5 directory',
-         () => { expect(shx.cat('esm5/testing.js')).toContain(`export {`); });
+    describe('fesm5', () => {
+      it('should have a fesm5 file in the /fesm5 directory',
+         () => { expect(shx.cat('fesm5/testing.js')).toContain(`export {`); });
 
       it('should have a source map', () => {
-        expect(shx.cat('esm5/testing.js.map'))
+        expect(shx.cat('fesm5/testing.js.map'))
             .toContain(`{"version":3,"file":"testing.js","sources":`);
       });
     });
@@ -237,6 +276,16 @@ describe('@angular/core ng_package', () => {
       it('should have a source map next to the minified umd file', () => {
         expect(shx.ls('bundles/core-testing.umd.min.js.map').length).toBe(1, 'File not found');
       });
+
+      it('should have an AMD name', () => {
+        expect(shx.cat('bundles/core-testing.umd.js'))
+            .toContain('define(\'@angular/core/testing\'');
+      });
+
+      it('should define ng global symbols', () => {
+        expect(shx.cat('bundles/core-testing.umd.js')).toContain('global.ng.core.testing = {}');
+      });
+
     });
   });
 });

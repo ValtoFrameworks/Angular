@@ -34,14 +34,15 @@ export type InjectableProvider = ValueSansProvider | ExistingSansProvider |
  */
 export interface InjectableDecorator {
   /**
-   * @whatItDoes A marker metadata that marks a class as available to {@link Injector} for creation.
-   * @howToUse
+   * @usageNotes
    * ```
    * @Injectable()
    * class Car {}
    * ```
    *
    * @description
+   * A marker metadata that marks a class as available to {@link Injector} for creation.
+   *
    * For more details, see the {@linkDocs guide/dependency-injection "Dependency Injection Guide"}.
    *
    * ### Example
@@ -119,7 +120,8 @@ export const Injectable: InjectableDecorator = makeDecorator(
     'Injectable', undefined, undefined, undefined,
     (injectableType: InjectableType<any>,
      options: {providedIn?: Type<any>| 'root' | null} & InjectableProvider) => {
-      if (options && options.providedIn !== undefined) {
+      if (options && options.providedIn !== undefined &&
+          injectableType.ngInjectableDef === undefined) {
         injectableType.ngInjectableDef = defineInjectable({
           providedIn: options.providedIn,
           factory: convertInjectableProviderToFactory(injectableType, options)

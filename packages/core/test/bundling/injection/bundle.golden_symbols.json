@@ -48,9 +48,6 @@
     "name": "SkipSelf"
   },
   {
-    "name": "Symbol$1"
-  },
-  {
     "name": "THROW_IF_NOT_FOUND"
   },
   {
@@ -60,25 +57,13 @@
     "name": "_THROW_IF_NOT_FOUND"
   },
   {
-    "name": "__global$1"
-  },
-  {
     "name": "__read"
-  },
-  {
-    "name": "__self$1"
   },
   {
     "name": "__spread"
   },
   {
-    "name": "__window$1"
-  },
-  {
     "name": "_currentInjector"
-  },
-  {
-    "name": "_root"
   },
   {
     "name": "couldBeInjectableType"
@@ -103,9 +88,6 @@
   },
   {
     "name": "getNullInjector"
-  },
-  {
-    "name": "getSymbolObservable"
   },
   {
     "name": "hasDeps"
@@ -154,8 +136,5 @@
   },
   {
     "name": "stringify"
-  },
-  {
-    "name": "symbolIteratorPonyfill"
   }
 ]

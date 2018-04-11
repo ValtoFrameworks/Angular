@@ -17,7 +17,7 @@ export class LargeTableComponent {
   /** @nocollapse */
   static ngComponentDef: ComponentDef<LargeTableComponent> = defineComponent({
     type: LargeTableComponent,
-    tag: 'largetable',
+    selectors: [['largetable']],
     template: function(ctx: LargeTableComponent, cm: boolean) {
       if (cm) {
         E(0, 'table');
