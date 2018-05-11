@@ -58,7 +58,7 @@ export class NullInjector implements Injector {
  * `Injector` returns itself when given `Injector` as a token:
  * {@example core/di/ts/injector_spec.ts region='injectInjector'}
  *
- * @stable
+ *
  */
 export abstract class Injector {
   static THROW_IF_NOT_FOUND = _THROW_IF_NOT_FOUND;
@@ -411,21 +411,32 @@ function getClosureSafeProperty<T>(objWithPropertyToExtract: T): string {
 
 /**
  * Injection flags for DI.
- *
- * @stable
  */
 export const enum InjectFlags {
-  Default = 0,
+  Default = 0b0000,
 
-  /** Skip the node that is requesting injection. */
-  SkipSelf = 1 << 0,
+  /**
+   * Specifies that an injector should retrieve a dependency from any injector until reaching the
+   * host element of the current component. (Only used with Element Injector)
+   */
+  Host = 0b0001,
   /** Don't descend into ancestors of the node requesting injection. */
-  Self = 1 << 1,
+  Self = 0b0010,
+  /** Skip the node that is requesting injection. */
+  SkipSelf = 0b0100,
+  /** Inject `defaultValue` instead if token not found. */
+  Optional = 0b1000,
 }
 
-let _currentInjector: Injector|null = null;
+/**
+ * Current injector value used by `inject`.
+ * - `undefined`: it is an error to call `inject`
+ * - `null`: `inject` can be called but there is no injector (limp-mode).
+ * - Injector instance: Use the injector for resolution.
+ */
+let _currentInjector: Injector|undefined|null = undefined;
 
-export function setCurrentInjector(injector: Injector | null): Injector|null {
+export function setCurrentInjector(injector: Injector | null | undefined): Injector|undefined|null {
   const former = _currentInjector;
   _currentInjector = injector;
   return former;
@@ -445,19 +456,22 @@ export function setCurrentInjector(injector: Injector | null): Injector|null {
  *
  * @experimental
  */
-export function inject<T>(
-    token: Type<T>| InjectionToken<T>, notFoundValue?: undefined, flags?: InjectFlags): T;
-export function inject<T>(
-    token: Type<T>| InjectionToken<T>, notFoundValue: T, flags?: InjectFlags): T;
-export function inject<T>(
-    token: Type<T>| InjectionToken<T>, notFoundValue: null, flags?: InjectFlags): T|null;
-export function inject<T>(
-    token: Type<T>| InjectionToken<T>, notFoundValue?: T | null, flags = InjectFlags.Default): T|
-    null {
-  if (_currentInjector === null) {
+export function inject<T>(token: Type<T>| InjectionToken<T>): T;
+export function inject<T>(token: Type<T>| InjectionToken<T>, flags?: InjectFlags): T|null;
+export function inject<T>(token: Type<T>| InjectionToken<T>, flags = InjectFlags.Default): T|null {
+  if (_currentInjector === undefined) {
     throw new Error(`inject() must be called from an injection context`);
+  } else if (_currentInjector === null) {
+    const injectableDef: InjectableDef<T> = (token as any).ngInjectableDef;
+    if (injectableDef && injectableDef.providedIn == 'root') {
+      return injectableDef.value === undefined ? injectableDef.value = injectableDef.factory() :
+                                                 injectableDef.value;
+    }
+    if (flags & InjectFlags.Optional) return null;
+    throw new Error(`Injector: NOT_FOUND [${stringify(token)}]`);
+  } else {
+    return _currentInjector.get(token, flags & InjectFlags.Optional ? null : undefined, flags);
   }
-  return _currentInjector.get(token, notFoundValue, flags);
 }
 
 export function injectArgs(types: (Type<any>| InjectionToken<any>| any[])[]): any[] {
@@ -469,13 +483,12 @@ export function injectArgs(types: (Type<any>| InjectionToken<any>| any[])[]): an
         throw new Error('Arguments array must have arguments.');
       }
       let type: Type<any>|undefined = undefined;
-      let defaultValue: null|undefined = undefined;
       let flags: InjectFlags = InjectFlags.Default;
 
       for (let j = 0; j < arg.length; j++) {
         const meta = arg[j];
         if (meta instanceof Optional || meta.__proto__.ngMetadataName === 'Optional') {
-          defaultValue = null;
+          flags |= InjectFlags.Optional;
         } else if (meta instanceof SkipSelf || meta.__proto__.ngMetadataName === 'SkipSelf') {
           flags |= InjectFlags.SkipSelf;
         } else if (meta instanceof Self || meta.__proto__.ngMetadataName === 'Self') {
@@ -487,7 +500,7 @@ export function injectArgs(types: (Type<any>| InjectionToken<any>| any[])[]): an
         }
       }
 
-      args.push(inject(type !, defaultValue, InjectFlags.Default));
+      args.push(inject(type !, flags));
     } else {
       args.push(inject(arg));
     }

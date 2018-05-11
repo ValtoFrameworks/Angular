@@ -31,13 +31,7 @@ export class Identifiers {
 
   static containerCreate: o.ExternalReference = {name: 'ɵC', moduleName: CORE};
 
-  static containerEnd: o.ExternalReference = {name: 'ɵc', moduleName: CORE};
-
-  static directiveCreate: o.ExternalReference = {name: 'ɵD', moduleName: CORE};
-
   static text: o.ExternalReference = {name: 'ɵT', moduleName: CORE};
-
-  static directiveInput: o.ExternalReference = {name: 'ɵi', moduleName: CORE};
 
   static textCreateBound: o.ExternalReference = {name: 'ɵt', moduleName: CORE};
 
@@ -81,6 +75,10 @@ export class Identifiers {
 
   static directiveLifeCycle: o.ExternalReference = {name: 'ɵl', moduleName: CORE};
 
+  static inject: o.ExternalReference = {name: 'inject', moduleName: CORE};
+
+  static injectAttribute: o.ExternalReference = {name: 'ɵinjectAttribute', moduleName: CORE};
+
   static injectElementRef: o.ExternalReference = {name: 'ɵinjectElementRef', moduleName: CORE};
 
   static injectTemplateRef: o.ExternalReference = {name: 'ɵinjectTemplateRef', moduleName: CORE};
@@ -88,12 +86,22 @@ export class Identifiers {
   static injectViewContainerRef:
       o.ExternalReference = {name: 'ɵinjectViewContainerRef', moduleName: CORE};
 
-  static inject: o.ExternalReference = {name: 'ɵinject', moduleName: CORE};
+  static directiveInject: o.ExternalReference = {name: 'ɵdirectiveInject', moduleName: CORE};
 
   static defineComponent: o.ExternalReference = {name: 'ɵdefineComponent', moduleName: CORE};
 
+  static ComponentDef: o.ExternalReference = {
+    name: 'ComponentDef',
+    moduleName: CORE,
+  };
+
   static defineDirective: o.ExternalReference = {
     name: 'ɵdefineDirective',
+    moduleName: CORE,
+  };
+
+  static DirectiveDef: o.ExternalReference = {
+    name: 'DirectiveDef',
     moduleName: CORE,
   };
 

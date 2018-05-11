@@ -18,7 +18,7 @@
   "peerDependencies": {
     "@angular/core": "0.0.0-PLACEHOLDER",
     "@angular/platform-browser": "0.0.0-PLACEHOLDER",
-    "rxjs": "^6.0.0-rc.0"
+    "rxjs": "^6.0.0"
   },
   "repository": {
     "type": "git",
@@ -27,5 +27,6 @@
   "ng-update": {
     "packageGroup": "NG_UPDATE_PACKAGE_GROUP"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "schematics": "./schematics/collection.json"
 }

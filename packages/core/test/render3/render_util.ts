@@ -8,13 +8,15 @@
 
 import {stringifyElement} from '@angular/platform-browser/testing/src/browser_util';
 
+import {Injector} from '../../src/di/injector';
 import {CreateComponentOptions} from '../../src/render3/component';
 import {extractDirectiveDef, extractPipeDef} from '../../src/render3/definition';
-import {ComponentDef, ComponentTemplate, ComponentType, DirectiveDef, DirectiveType, PublicFeature, defineComponent, defineDirective, renderComponent as _renderComponent, tick} from '../../src/render3/index';
+import {ComponentDef, ComponentTemplate, ComponentType, DirectiveDef, DirectiveType, PublicFeature, RenderFlags, defineComponent, defineDirective, renderComponent as _renderComponent, tick} from '../../src/render3/index';
 import {NG_HOST_SYMBOL, renderTemplate} from '../../src/render3/instructions';
 import {DirectiveDefList, DirectiveDefListOrFactory, DirectiveTypesOrFactory, PipeDef, PipeDefList, PipeDefListOrFactory, PipeTypesOrFactory} from '../../src/render3/interfaces/definition';
 import {LElementNode} from '../../src/render3/interfaces/node';
 import {RElement, RText, Renderer3, RendererFactory3, domRendererFactory3} from '../../src/render3/interfaces/renderer';
+import {Sanitizer} from '../../src/sanitization/security';
 import {Type} from '../../src/type';
 
 import {getRendererFactory2} from './imported_renderer2';
@@ -50,6 +52,8 @@ export class TemplateFixture extends BaseFixture {
   hostNode: LElementNode;
   private _directiveDefs: DirectiveDefList|null;
   private _pipeDefs: PipeDefList|null;
+  private _sanitizer: Sanitizer|null;
+
   /**
    *
    * @param createBlock Instructions which go into the creation block:
@@ -59,16 +63,20 @@ export class TemplateFixture extends BaseFixture {
    */
   constructor(
       private createBlock: () => void, private updateBlock: () => void = noop,
-      directives?: DirectiveTypesOrFactory|null, pipes?: PipeTypesOrFactory|null) {
+      directives?: DirectiveTypesOrFactory|null, pipes?: PipeTypesOrFactory|null,
+      sanitizer?: Sanitizer) {
     super();
     this._directiveDefs = toDefs(directives, extractDirectiveDef);
     this._pipeDefs = toDefs(pipes, extractPipeDef);
-    this.hostNode = renderTemplate(this.hostElement, (ctx: any, cm: boolean) => {
-      if (cm) {
+    this._sanitizer = sanitizer || null;
+    this.hostNode = renderTemplate(this.hostElement, (rf: RenderFlags, ctx: any) => {
+      if (rf & RenderFlags.Create) {
         this.createBlock();
       }
-      this.updateBlock();
-    }, null !, domRendererFactory3, null, this._directiveDefs, this._pipeDefs);
+      if (rf & RenderFlags.Update) {
+        this.updateBlock();
+      }
+    }, null !, domRendererFactory3, null, this._directiveDefs, this._pipeDefs, sanitizer);
   }
 
   /**
@@ -79,7 +87,7 @@ export class TemplateFixture extends BaseFixture {
   update(updateBlock?: () => void): void {
     renderTemplate(
         this.hostNode.native, updateBlock || this.updateBlock, null !, domRendererFactory3,
-        this.hostNode, this._directiveDefs, this._pipeDefs);
+        this.hostNode, this._directiveDefs, this._pipeDefs, this._sanitizer);
   }
 }
 
@@ -91,7 +99,9 @@ export class ComponentFixture<T> extends BaseFixture {
   component: T;
   requestAnimationFrame: {(fn: () => void): void; flush(): void; queue: (() => void)[];};
 
-  constructor(private componentType: ComponentType<T>) {
+  constructor(
+      private componentType: ComponentType<T>,
+      opts: {injector?: Injector, sanitizer?: Sanitizer} = {}) {
     super();
     this.requestAnimationFrame = function(fn: () => void) {
       requestAnimationFrame.queue.push(fn);
@@ -106,6 +116,8 @@ export class ComponentFixture<T> extends BaseFixture {
     this.component = _renderComponent(componentType, {
       host: this.hostElement,
       scheduler: this.requestAnimationFrame,
+      injector: opts.injector,
+      sanitizer: opts.sanitizer
     });
   }
 
@@ -193,6 +205,7 @@ export function renderComponent<T>(type: ComponentType<T>, opts?: CreateComponen
     rendererFactory: opts && opts.rendererFactory || testRendererFactory,
     host: containerEl,
     scheduler: requestAnimationFrame,
+    sanitizer: opts ? opts.sanitizer : undefined,
     hostFeatures: opts && opts.hostFeatures
   });
 }

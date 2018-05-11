@@ -8,9 +8,6 @@
 
 import {ChangeDetectorRef, Directive, DoCheck, EmbeddedViewRef, Input, IterableChangeRecord, IterableChanges, IterableDiffer, IterableDiffers, NgIterable, OnChanges, SimpleChanges, TemplateRef, TrackByFunction, ViewContainerRef, forwardRef, isDevMode} from '@angular/core';
 
-/**
- * @stable
- */
 export class NgForOfContext<T> {
   constructor(
       public $implicit: T, public ngForOf: NgIterable<T>, public index: number,
@@ -93,7 +90,7 @@ export class NgForOfContext<T> {
  * See a [live demo](http://plnkr.co/edit/KVuXxDp0qinGDyo307QW?p=preview) for a more detailed
  * example.
  *
- * @stable
+ *
  */
 @Directive({selector: '[ngFor][ngForOf]'})
 export class NgForOf<T> implements DoCheck, OnChanges {

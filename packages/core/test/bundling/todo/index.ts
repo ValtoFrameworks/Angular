@@ -7,8 +7,7 @@
  */
 
 import {CommonModule, NgForOf, NgIf} from '@angular/common';
-import {ChangeDetectionStrategy, Component, EventEmitter, InjectFlags, Injectable, Input, IterableDiffers, NgModule, Output, createInjector, defineInjector, inject, ɵComponentDef as ComponentDef, ɵComponentType as ComponentType, ɵDirectiveDef as DirectiveDef, ɵDirectiveType as DirectiveType, ɵNgOnChangesFeature as NgOnChangesFeature, ɵdefaultIterableDiffers as defaultIterableDiffers, ɵdefineDirective as defineDirective, ɵinjectTemplateRef as injectTemplateRef, ɵinjectViewContainerRef as injectViewContainerRef, ɵmarkDirty as markDirty, ɵrenderComponent as renderComponent} from '@angular/core';
-
+import {Component, Injectable, IterableDiffers, NgModule, defineInjector, ɵNgOnChangesFeature as NgOnChangesFeature, ɵdefineDirective as defineDirective, ɵdirectiveInject as directiveInject, ɵinjectTemplateRef as injectTemplateRef, ɵinjectViewContainerRef as injectViewContainerRef, ɵrenderComponent as renderComponent} from '@angular/core';
 
 export class Todo {
   editing: boolean;
@@ -23,7 +22,7 @@ export class Todo {
   }
 }
 
-@Injectable()
+@Injectable({providedIn: 'root'})
 export class TodoStore {
   todos: Array<Todo> = [
     new Todo('Demonstrate Components'),
@@ -56,8 +55,6 @@ export class TodoStore {
 
 @Component({
   selector: 'todo-app',
-  // TODO(misko) remove all `foo && foo.something` once `ViewContainerRef` can separate creation and
-  // update block.
   // TODO(misko): make this work with `[(ngModel)]`
   template: `
   <section class="todoapp">
@@ -74,18 +71,18 @@ export class TodoStore {
              (click)="todoStore.setAllTo(toggleall.checked)">
       <ul class="todo-list">
         <li *ngFor="let todo of todoStore.todos" 
-            [class.completed]="todo && todo.completed" 
-            [class.editing]="todo && todo.editing">
+            [class.completed]="todo.completed" 
+            [class.editing]="todo.editing">
           <div class="view">
             <input class="toggle" type="checkbox" 
                    (click)="toggleCompletion(todo)" 
-                   [checked]="todo && todo.completed">
-            <label (dblclick)="editTodo(todo)">{{todo && todo.title}}</label>
+                   [checked]="todo.completed">
+            <label (dblclick)="editTodo(todo)">{{todo.title}}</label>
             <button class="destroy" (click)="remove(todo)"></button>
           </div>
-          <input *ngIf="todo && todo.editing" 
+          <input *ngIf="todo.editing" 
                  class="edit" #editedtodo
-                 [value]="todo && todo.title" 
+                 [value]="todo.title" 
                  (blur)="stopEditing(todo, editedtodo.value)"
                  (keyup)="todo.title = $event.target.value" 
                  (keyup)="$event.code == 'Enter' && updateEditingTodo(todo, editedtodo.value)" 
@@ -106,16 +103,13 @@ export class TodoStore {
     </footer>
   </section>
   `,
-  // TODO(misko): switch oven to OnPush
+  // TODO(misko): switch over to OnPush
   // changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ToDoAppComponent {
-  todoStore: TodoStore;
   newTodoText = '';
 
-  // TODO(misko) Fix injection
-  // constructor(todoStore: TodoStore) { this.todoStore = todoStore; }
-  constructor() { this.todoStore = new TodoStore(); }
+  constructor(public todoStore: TodoStore) {}
 
   stopEditing(todo: Todo, editedTitle: string) {
     todo.title = editedTitle;
@@ -159,10 +153,7 @@ export class ToDoAppComponent {
   type: NgForOf,
   selectors: [['', 'ngFor', '', 'ngForOf', '']],
   factory: () => new NgForOf(
-               injectViewContainerRef(), injectTemplateRef(),
-               // TODO(misko): inject does not work since it needs to be directiveInject
-               // inject(IterableDiffers, defaultIterableDiffers)
-               defaultIterableDiffers),
+               injectViewContainerRef(), injectTemplateRef(), directiveInject(IterableDiffers)),
   features: [NgOnChangesFeature({
     ngForOf: 'ngForOf',
     ngForTrackBy: 'ngForTrackBy',

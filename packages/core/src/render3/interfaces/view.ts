@@ -6,6 +6,9 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
+import {Injector} from '../../di/injector';
+import {Sanitizer} from '../../sanitization/security';
+
 import {LContainer} from './container';
 import {ComponentTemplate, DirectiveDef, DirectiveDefList, PipeDef, PipeDefList} from './definition';
 import {LElementNode, LViewNode, TNode} from './node';
@@ -61,7 +64,16 @@ export interface LView {
    * will begin reading bindings at the correct point in the array when
    * we are in update mode.
    */
-  bindingStartIndex: number|null;
+  bindingStartIndex: number;
+
+  /**
+   * The binding index we should access next.
+   *
+   * This is stored so that bindings can continue where they left off
+   * if a view is left midway through processing bindings (e.g. if there is
+   * a setter that creates an embedded view, like in ngIf).
+   */
+  bindingIndex: number;
 
   /**
    * When a view is destroyed, listeners need to be released and outputs need to be
@@ -180,6 +192,16 @@ export interface LView {
    * Queries active for this view - nodes from a view are reported to those queries
    */
   queries: LQueries|null;
+
+  /**
+   * An optional Module Injector to be used as fall back after Element Injectors are consulted.
+   */
+  injector: Injector|null;
+
+  /**
+   * An optional custom sanitizer
+   */
+  sanitizer: Sanitizer|null;
 }
 
 /** Flags associated with an LView (saved in LView.flags) */
@@ -399,10 +421,10 @@ export type HookData = (number | (() => void))[];
 export const enum LifecycleStage {
 
   /* Init hooks need to be run, if any. */
-  INIT = 1,
+  Init = 1,
 
   /* Content hooks need to be run, if any. Init hooks have already run. */
-  AFTER_INIT = 2,
+  AfterInit = 2,
 }
 
 /**

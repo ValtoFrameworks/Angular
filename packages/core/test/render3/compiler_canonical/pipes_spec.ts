@@ -8,12 +8,14 @@
 
 import {ChangeDetectionStrategy, ChangeDetectorRef, Component, ContentChild, ContentChildren, Directive, HostBinding, HostListener, Injectable, Input, NgModule, OnDestroy, Optional, Pipe, PipeTransform, QueryList, SimpleChanges, TemplateRef, ViewChild, ViewChildren, ViewContainerRef} from '../../../src/core';
 import * as $r3$ from '../../../src/core_render3_private_export';
+import {ComponentDef} from '../../../src/render3/interfaces/definition';
 import {containerEl, renderComponent, toHtml} from '../render_util';
+
 
 /// See: `normative.md`
 describe('pipes', () => {
   type $any$ = any;
-  type $boolean$ = boolean;
+  type $RenderFlags$ = $r3$.ɵRenderFlags;
 
   let myPipeTransformCalls = 0;
   let myPurePipeTransformCalls = 0;
@@ -81,20 +83,23 @@ describe('pipes', () => {
         type: MyApp,
         selectors: [['my-app']],
         factory: function MyApp_Factory() { return new MyApp(); },
-        template: function MyApp_Template(ctx: $MyApp$, cm: $boolean$) {
-          if (cm) {
+        template: function MyApp_Template(rf: $RenderFlags$, ctx: $MyApp$) {
+          if (rf & 1) {
             $r3$.ɵT(0);
             $r3$.ɵPp(1, 'myPipe');
             $r3$.ɵPp(2, 'myPurePipe');
           }
-          $r3$.ɵt(0, $r3$.ɵi1('', $r3$.ɵpb2(1, $r3$.ɵpb2(2, ctx.name, ctx.size), ctx.size), ''));
+          if (rf & 2) {
+            $r3$.ɵt(0, $r3$.ɵi1('', $r3$.ɵpb2(1, $r3$.ɵpb2(2, ctx.name, ctx.size), ctx.size), ''));
+          }
         }
       });
       // /NORMATIVE
     }
 
     // NON-NORMATIVE
-    MyApp.ngComponentDef.pipeDefs = () => [MyPurePipe.ngPipeDef, MyPipe.ngPipeDef];
+    (MyApp.ngComponentDef as ComponentDef<any>).pipeDefs =
+        () => [MyPurePipe.ngPipeDef, MyPipe.ngPipeDef];
     // /NON-NORMATIVE
 
     let myApp: MyApp = renderComponent(MyApp);
@@ -154,28 +159,32 @@ describe('pipes', () => {
         type: MyApp,
         selectors: [['my-app']],
         factory: function MyApp_Factory() { return new MyApp(); },
-        template: function MyApp_Template(ctx: $MyApp$, cm: $boolean$) {
-          if (cm) {
+        template: function MyApp_Template(rf: $RenderFlags$, ctx: $MyApp$) {
+          if (rf & 1) {
             $r3$.ɵT(0);
             $r3$.ɵPp(1, 'myPurePipe');
             $r3$.ɵT(2);
             $r3$.ɵPp(3, 'myPurePipe');
             $r3$.ɵC(4, C4, '', ['oneTimeIf', '']);
           }
-          $r3$.ɵt(0, $r3$.ɵi1('', $r3$.ɵpb2(1, ctx.name, ctx.size), ''));
-          $r3$.ɵt(2, $r3$.ɵi1('', $r3$.ɵpb2(3, ctx.name, ctx.size), ''));
-          $r3$.ɵp(4, 'oneTimeIf', $r3$.ɵb(ctx.more));
-          $r3$.ɵcR(4);
-          $r3$.ɵcr();
+          if (rf & 2) {
+            $r3$.ɵt(0, $r3$.ɵi1('', $r3$.ɵpb2(1, ctx.name, ctx.size), ''));
+            $r3$.ɵt(2, $r3$.ɵi1('', $r3$.ɵpb2(3, ctx.name, ctx.size), ''));
+            $r3$.ɵp(4, 'oneTimeIf', $r3$.ɵb(ctx.more));
+            $r3$.ɵcR(4);
+            $r3$.ɵcr();
+          }
 
-          function C4(ctx1: $any$, cm: $boolean$) {
-            if (cm) {
+          function C4(rf: $RenderFlags$, ctx1: $any$) {
+            if (rf & 1) {
               $r3$.ɵE(0, 'div');
               $r3$.ɵT(1);
               $r3$.ɵPp(2, 'myPurePipe');
               $r3$.ɵe();
             }
-            $r3$.ɵt(1, $r3$.ɵi1('', $r3$.ɵpb2(2, ctx.name, ctx.size), ''));
+            if (rf & 2) {
+              $r3$.ɵt(1, $r3$.ɵi1('', $r3$.ɵpb2(2, ctx.name, ctx.size), ''));
+            }
           }
         }
       });
@@ -183,8 +192,8 @@ describe('pipes', () => {
     }
 
     // NON-NORMATIVE
-    MyApp.ngComponentDef.directiveDefs = [OneTimeIf.ngDirectiveDef];
-    MyApp.ngComponentDef.pipeDefs = [MyPurePipe.ngPipeDef];
+    (MyApp.ngComponentDef as ComponentDef<any>).directiveDefs = [OneTimeIf.ngDirectiveDef];
+    (MyApp.ngComponentDef as ComponentDef<any>).pipeDefs = [MyPurePipe.ngPipeDef];
     // /NON-NORMATIVE
 
     let myApp: MyApp = renderComponent(MyApp);
