@@ -33,7 +33,7 @@ export class Identifiers {
 
   static text: o.ExternalReference = {name: 'ɵT', moduleName: CORE};
 
-  static textCreateBound: o.ExternalReference = {name: 'ɵt', moduleName: CORE};
+  static textBinding: o.ExternalReference = {name: 'ɵt', moduleName: CORE};
 
   static bind: o.ExternalReference = {name: 'ɵb', moduleName: CORE};
 
@@ -65,6 +65,7 @@ export class Identifiers {
   static pipeBindV: o.ExternalReference = {name: 'ɵpbV', moduleName: CORE};
 
   static load: o.ExternalReference = {name: 'ɵld', moduleName: CORE};
+  static loadDirective: o.ExternalReference = {name: 'ɵd', moduleName: CORE};
 
   static pipe: o.ExternalReference = {name: 'ɵPp', moduleName: CORE};
 
@@ -110,6 +111,8 @@ export class Identifiers {
     moduleName: CORE,
   };
 
+  static defineNgModule: o.ExternalReference = {name: 'ɵdefineNgModule', moduleName: CORE};
+
   static definePipe: o.ExternalReference = {name: 'ɵdefinePipe', moduleName: CORE};
 
   static query: o.ExternalReference = {name: 'ɵQ', moduleName: CORE};
@@ -118,4 +121,7 @@ export class Identifiers {
   static NgOnChangesFeature: o.ExternalReference = {name: 'ɵNgOnChangesFeature', moduleName: CORE};
 
   static listener: o.ExternalReference = {name: 'ɵL', moduleName: CORE};
+
+  // Reserve slots for pure functions
+  static reserveSlots: o.ExternalReference = {name: 'ɵrS', moduleName: CORE};
 }

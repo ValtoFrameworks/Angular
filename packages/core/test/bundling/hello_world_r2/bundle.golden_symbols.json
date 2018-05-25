@@ -1326,6 +1326,9 @@
     "name": "Quote"
   },
   {
+    "name": "R3_COMPILE_INJECTABLE"
+  },
+  {
     "name": "REMOVE_EVENT_LISTENER"
   },
   {
@@ -3600,7 +3603,7 @@
     "name": "parseIntAutoRadix"
   },
   {
-    "name": "pipeBinding"
+    "name": "pipeBindingCallInfo"
   },
   {
     "name": "pipeBindingIdentifiers"
@@ -3619,6 +3622,9 @@
   },
   {
     "name": "platformCoreDynamic"
+  },
+  {
+    "name": "preR3InjectableCompile"
   },
   {
     "name": "preparseElement"
@@ -3655,6 +3661,9 @@
   },
   {
     "name": "pureArrayDef"
+  },
+  {
+    "name": "pureFunctionCallInfo"
   },
   {
     "name": "pureFunctionIdentifiers"

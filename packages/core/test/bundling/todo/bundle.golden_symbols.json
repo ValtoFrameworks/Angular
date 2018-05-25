@@ -384,10 +384,16 @@
     "name": "generatePropertyAliases"
   },
   {
+    "name": "getChildLNode"
+  },
+  {
     "name": "getCurrentSanitizer"
   },
   {
     "name": "getDirectiveInstance"
+  },
+  {
+    "name": "getNextLNode"
   },
   {
     "name": "getNextLNodeWithProjection"
@@ -616,9 +622,6 @@
   },
   {
     "name": "setUpAttributes"
-  },
-  {
-    "name": "setViewNext"
   },
   {
     "name": "stringify"
