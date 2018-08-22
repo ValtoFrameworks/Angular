@@ -16,7 +16,7 @@ import {take} from 'rxjs/operators';
  *
  * Mock Connection to represent a {@link Connection} for tests.
  *
- * @deprecated use @angular/common/http instead
+ * @deprecated see https://angular.io/guide/http
  */
 export class MockConnection implements Connection {
   // TODO: Name `readyState` should change to be more generic, and states could be made to be more
@@ -176,7 +176,7 @@ export class MockConnection implements Connection {
  *        this.heroService.getHeroes()
  *            .then((heroes: String[]) => result = heroes)
  *            .catch((error: any) => catchedError = error);
- *        this.lastConnection.mockRespond(new Response(new ResponseOptions({
+ *        this.lastConnection.mockError(new Response(new ResponseOptions({
  *          status: 404,
  *          statusText: 'URL not Found',
  *        })));
@@ -189,7 +189,7 @@ export class MockConnection implements Connection {
  *
  * This method only exists in the mock implementation, not in real Backends.
  *
- * @deprecated use @angular/common/http instead
+ * @deprecated see https://angular.io/guide/http
  */
 @Injectable()
 export class MockBackend implements ConnectionBackend {

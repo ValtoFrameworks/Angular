@@ -32,7 +32,7 @@ from the [The Tour of Heroes](tutorial/).
 </code-tabs>
 
 The `HeroesComponent` is the top-level heroes component.
-It's only purpose is to display the `HeroListComponent`
+Its only purpose is to display the `HeroListComponent`
 which displays a list of hero names.
 
 This version of the `HeroListComponent` gets its `heroes` from the `HEROES` array, an in-memory collection
@@ -98,7 +98,7 @@ Without a provider, the injector would not know
 that it is responsible for injecting the service
 nor be able to create the service.
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 You'll learn much more about _providers_ [below](#providers).
 For now, it is sufficient to know that they configure where and how services are created.
@@ -141,7 +141,7 @@ The second registers a value (`HERO_DI_CONFIG`) under the `APP_CONFIG` _injectio
 With the above registrations, Angular can inject the `UserService` or the `HERO_DI_CONFIG` value
 into any class that it creates.
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 You'll learn about _injection tokens_ and _provider_ syntax [below](#providers).
 </div>
@@ -174,7 +174,7 @@ You're likely to inject the `UserService` in many places throughout the app
 and will want to inject the same service instance every time.
 Providing the `UserService` with an Angular module is a good choice if an `@Injectable` provider is not an option..
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 To be precise, Angular module providers are registered with the root injector
 _unless the module is_ [lazy loaded](guide/lazy-loading-ngmodules).
@@ -199,7 +199,7 @@ and is never destroyed so the `HeroService` created for the `HeroComponent` also
 If you want to restrict `HeroService` access to the `HeroComponent` and its nested `HeroListComponent`,
 providing the `HeroService` in the `HeroComponent` may be a good choice.
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 The scope and lifetime of component-provided services is a consequence of [the way Angular creates component instances](#component-child-injectors). 
 
@@ -375,7 +375,7 @@ and let the injector pass them along to the factory function:
 <code-example path="dependency-injection/src/app/heroes/hero.service.provider.ts" region="provider" title="src/app/heroes/hero.service.provider.ts (excerpt)" linenums="false">
 </code-example>
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 The `useFactory` field tells Angular that the provider is a factory function
 whose implementation is the `heroServiceFactory`.
@@ -410,7 +410,7 @@ Here you see the new and the old implementation side-by-side:
 
 Tree shaking is the ability to remove code that is not referenced in an application from the final bundle. Tree-shakable providers give Angular the ability to remove services that are not used in your application from the final output. This significantly reduces the size of your bundles.
 
-Ideally, if an application is not injecting a service, it should not be included in the final output. However, it turns out that the Angular compiler cannot identify at build time if the service will be required or not. Because it's always possible to inject a service directly using `injector.get(Service)`, Angular cannot identify all of the places in your code where this injection could happen, so it has no choice but to include the service in the injector regardless. Thus, services provided in modules are not tree-shakeable.
+Ideally, if an application is not injecting a service, it should not be included in the final output. However, it turns out that the Angular compiler cannot identify at build time if the service will be required or not. Because it's always possible to inject a service directly using `injector.get(Service)`, Angular cannot identify all of the places in your code where this injection could happen, so it has no choice but to include the service in the injector regardless. Thus, services provided in modules are not tree-shakable.
 
 Let us consider an example of non-tree-shakable providers in Angular.
 
@@ -424,13 +424,13 @@ This module can then be imported into your application module, to make the servi
 
 When `ngc` runs, it compiles AppModule into a module factory, which contains definitions for all the providers declared in all the modules it includes. At runtime, this factory becomes an injector that instantiates these services.
 
-Tree-shaking doesn't work in the method above because Angular cannot decide to exclude one chunk of code (the provider definition for the service within the module factory) based on whether another chunk of code (the service class) is used. To make services tree-shakeable, the information about how to construct an instance of the service (the provider definition) needs to be a part of the service class itself.
+Tree-shaking doesn't work in the method above because Angular cannot decide to exclude one chunk of code (the provider definition for the service within the module factory) based on whether another chunk of code (the service class) is used. To make services tree-shakable, the information about how to construct an instance of the service (the provider definition) needs to be a part of the service class itself.
 
 #### Creating tree-shakable providers
 
 To create providers that are tree-shakable, the information that used to be specified in the module should be specified in the `@Injectable` decorator on the service itself.
 
-The following example shows the tree-shakeable equivalent to the `ServiceModule` example above:
+The following example shows the tree-shakable equivalent to the `ServiceModule` example above:
 
 <code-example path="dependency-injection/src/app/tree-shaking/service.ts"  title="src/app/tree-shaking/service.ts" linenums="false"> </code-example>
 
@@ -440,7 +440,7 @@ The service can be instantiated by configuring a factory function as shown below
 
 <code-example path="dependency-injection/src/app/tree-shaking/service.0.ts"  title="src/app/tree-shaking/service.0.ts" linenums="false"> </code-example>
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 To override tree-shakable providers, register the provider using the `providers: []` array syntax of any Angular decorator that supports it.
 
@@ -532,7 +532,7 @@ under test:
 <code-example path="dependency-injection/src/app/test.component.ts" region="spec" title="src/app/test.component.ts" linenums="false">
 </code-example>
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 Learn more in the [Testing](guide/testing) guide.
 
@@ -636,7 +636,7 @@ But what should you use as the token?
 You don't have a class to serve as a token.
 There is no `AppConfig` class.
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 ### TypeScript interfaces aren't valid tokens
 
@@ -690,9 +690,9 @@ If the factory function needs access to other DI tokens, it can use the inject f
 
 <code-example>
 const TOKEN = 
-  new InjectionToken('tree-shakeable token', 
+  new InjectionToken('tree-shakable token', 
     { providedIn: 'root', factory: () => 
-        new AppConfig(inject(Parameter1), inject(Paremeter2)), });
+        new AppConfig(inject(Parameter1), inject(Parameter2)), });
 </code-example>
 
 {@a optional}
@@ -742,7 +742,7 @@ You can call `get()` with a second parameter, which is the value to return if th
 is not found. Angular can't find the service if it's not registered with this or any ancestor injector.
 
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 
 
@@ -776,7 +776,7 @@ If you define the component before the service,
 you'll get a runtime null reference error.
 
 
-<div class="l-sub-section">
+<div class="alert is-helpful">
 
 You actually can define the component first with the help of the `forwardRef()` method as explained
 in this [blog post](http://blog.thoughtram.io/angular/2015/09/03/forward-references-in-angular-2.html).

@@ -7,10 +7,11 @@
  */
 
 import {defineComponent, defineDirective} from '../../src/render3/index';
-import {container, containerRefreshEnd, containerRefreshStart, elementEnd, elementStart, embeddedViewEnd, embeddedViewStart, listener, text} from '../../src/render3/instructions';
+import {container, containerRefreshEnd, containerRefreshStart, element, elementEnd, elementStart, embeddedViewEnd, embeddedViewStart, listener, text} from '../../src/render3/instructions';
 import {RenderFlags} from '../../src/render3/interfaces/definition';
+
 import {getRendererFactory2} from './imported_renderer2';
-import {containerEl, renderComponent, renderToHtml} from './render_util';
+import {ComponentFixture, containerEl, renderComponent, renderToHtml} from './render_util';
 
 
 describe('event listeners', () => {
@@ -25,6 +26,8 @@ describe('event listeners', () => {
     static ngComponentDef = defineComponent({
       type: MyComp,
       selectors: [['comp']],
+      consts: 2,
+      vars: 0,
       /** <button (click)="onClick()"> Click me </button> */
       template: function CompTemplate(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
@@ -46,7 +49,8 @@ describe('event listeners', () => {
 
   class PreventDefaultComp {
     handlerReturnValue: any = true;
-    event: Event;
+    // TODO(issue/24571): remove '!'.
+    event !: Event;
 
     onClick(e: any) {
       this.event = e;
@@ -63,6 +67,8 @@ describe('event listeners', () => {
       type: PreventDefaultComp,
       selectors: [['prevent-default-comp']],
       factory: () => new PreventDefaultComp(),
+      consts: 2,
+      vars: 0,
       /** <button (click)="onClick($event)">Click</button> */
       template: (rf: RenderFlags, ctx: PreventDefaultComp) => {
         if (rf & RenderFlags.Create) {
@@ -144,7 +150,7 @@ describe('event listeners', () => {
       onClick: function() { this.counter++; },
       onClick2: function() { this.counter2++; }
     };
-    renderToHtml(Template, ctx);
+    renderToHtml(Template, ctx, 2);
     const button = containerEl.querySelector('button') !;
 
     button.click();
@@ -171,7 +177,7 @@ describe('event listeners', () => {
     }
 
     const ctx = {showing: false};
-    renderToHtml(Template, ctx);
+    renderToHtml(Template, ctx, 2);
     const button = containerEl.querySelector('button') !;
 
     button.click();
@@ -196,7 +202,7 @@ describe('event listeners', () => {
         containerRefreshStart(0);
         {
           if (ctx.showing) {
-            if (embeddedViewStart(1)) {
+            if (embeddedViewStart(1, 2, 0)) {
               elementStart(0, 'button');
               {
                 listener('click', function() { return ctx.onClick(); });
@@ -212,7 +218,7 @@ describe('event listeners', () => {
     }
 
     let comp = new MyComp();
-    renderToHtml(Template, comp);
+    renderToHtml(Template, comp, 1);
     const button = containerEl.querySelector('button') !;
 
     button.click();
@@ -223,9 +229,196 @@ describe('event listeners', () => {
 
     // the listener should be removed when the view is removed
     comp.showing = false;
-    renderToHtml(Template, comp);
+    renderToHtml(Template, comp, 1);
     button.click();
     expect(comp.counter).toEqual(2);
+  });
+
+  it('should destroy listeners in views with renderer2', () => {
+
+    /**
+       * % if (ctx.showing) {
+       *  <button (click)="onClick()"> Click me </button>
+       * % }
+     */
+    class AppComp {
+      counter = 0;
+      showing = true;
+
+      onClick() { this.counter++; }
+
+      static ngComponentDef = defineComponent({
+        type: AppComp,
+        selectors: [['app-comp']],
+        factory: () => new AppComp(),
+        consts: 1,
+        vars: 0,
+        template: function(rf: RenderFlags, ctx: any) {
+          if (rf & RenderFlags.Create) {
+            container(0);
+          }
+          if (rf & RenderFlags.Update) {
+            containerRefreshStart(0);
+            {
+              if (ctx.showing) {
+                if (embeddedViewStart(0, 2, 0)) {
+                  elementStart(0, 'button');
+                  {
+                    listener('click', function() { return ctx.onClick(); });
+                    text(1, 'Click me');
+                  }
+                  elementEnd();
+                }
+                embeddedViewEnd();
+              }
+            }
+            containerRefreshEnd();
+          }
+        }
+      });
+    }
+
+    const fixture = new ComponentFixture(AppComp, {rendererFactory: getRendererFactory2(document)});
+    const comp = fixture.component;
+    const button = fixture.hostElement.querySelector('button') !;
+
+    button.click();
+    expect(comp.counter).toEqual(1);
+
+    button.click();
+    expect(comp.counter).toEqual(2);
+
+    // the listener should be removed when the view is removed
+    comp.showing = false;
+    fixture.update();
+    button.click();
+    expect(comp.counter).toEqual(2);
+  });
+
+  it('should destroy listeners in for loops', () => {
+
+    /**
+       * % for (let i = 0; i < ctx.buttons; i++) {
+       *  <button (click)="onClick(i)"> Click me </button>
+       * % }
+     */
+    class AppComp {
+      buttons = 2;
+      counters = [0, 0];
+
+      onClick(index: number) { this.counters[index]++; }
+
+      static ngComponentDef = defineComponent({
+        type: AppComp,
+        selectors: [['app-comp']],
+        factory: () => new AppComp(),
+        consts: 1,
+        vars: 0,
+        template: function(rf: RenderFlags, ctx: any) {
+          if (rf & RenderFlags.Create) {
+            container(0);
+          }
+          if (rf & RenderFlags.Update) {
+            containerRefreshStart(0);
+            {
+              for (let i = 0; i < ctx.buttons; i++) {
+                if (embeddedViewStart(0, 2, 0)) {
+                  elementStart(0, 'button');
+                  {
+                    listener('click', function() { return ctx.onClick(i); });
+                    text(1, 'Click me');
+                  }
+                  elementEnd();
+                }
+                embeddedViewEnd();
+              }
+            }
+            containerRefreshEnd();
+          }
+        }
+      });
+    }
+
+    const fixture = new ComponentFixture(AppComp);
+    const comp = fixture.component;
+    const buttons = fixture.hostElement.querySelectorAll('button') !;
+
+    buttons[0].click();
+    expect(comp.counters).toEqual([1, 0]);
+
+    buttons[1].click();
+    expect(comp.counters).toEqual([1, 1]);
+
+    // the listener should be removed when the view is removed
+    comp.buttons = 0;
+    fixture.update();
+
+    buttons[0].click();
+    buttons[1].click();
+    expect(comp.counters).toEqual([1, 1]);
+  });
+
+  it('should destroy listeners in for loops with renderer2', () => {
+
+    /**
+       * % for (let i = 0; i < ctx.buttons; i++) {
+       *  <button (click)="onClick(i)"> Click me </button>
+       * % }
+     */
+    class AppComp {
+      buttons = 2;
+      counters = [0, 0];
+
+      onClick(index: number) { this.counters[index]++; }
+
+      static ngComponentDef = defineComponent({
+        type: AppComp,
+        selectors: [['app-comp']],
+        factory: () => new AppComp(),
+        consts: 1,
+        vars: 0,
+        template: function(rf: RenderFlags, ctx: any) {
+          if (rf & RenderFlags.Create) {
+            container(0);
+          }
+          if (rf & RenderFlags.Update) {
+            containerRefreshStart(0);
+            {
+              for (let i = 0; i < ctx.buttons; i++) {
+                if (embeddedViewStart(1, 2, 0)) {
+                  elementStart(0, 'button');
+                  {
+                    listener('click', function() { return ctx.onClick(i); });
+                    text(1, 'Click me');
+                  }
+                  elementEnd();
+                }
+                embeddedViewEnd();
+              }
+            }
+            containerRefreshEnd();
+          }
+        }
+      });
+    }
+
+    const fixture = new ComponentFixture(AppComp, {rendererFactory: getRendererFactory2(document)});
+    const comp = fixture.component;
+    const buttons = fixture.hostElement.querySelectorAll('button') !;
+
+    buttons[0].click();
+    expect(comp.counters).toEqual([1, 0]);
+
+    buttons[1].click();
+    expect(comp.counters).toEqual([1, 1]);
+
+    // the listener should be removed when the view is removed
+    comp.buttons = 0;
+    fixture.update();
+
+    buttons[0].click();
+    buttons[1].click();
+    expect(comp.counters).toEqual([1, 1]);
   });
 
   it('should support host listeners', () => {
@@ -254,7 +447,7 @@ describe('event listeners', () => {
       }
     }
 
-    renderToHtml(Template, {}, [HostListenerDir]);
+    renderToHtml(Template, {}, 2, 0, [HostListenerDir]);
     const button = containerEl.querySelector('button') !;
     button.click();
     expect(events).toEqual(['click!']);
@@ -266,7 +459,7 @@ describe('event listeners', () => {
   it('should destroy listeners in nested views', () => {
 
     /**
-     * % if (showing) {
+       * % if (showing) {
        *    Hello
        *    % if (button) {
        *      <button (click)="onClick()"> Click </button>
@@ -281,7 +474,7 @@ describe('event listeners', () => {
         containerRefreshStart(0);
         {
           if (ctx.showing) {
-            let rf1 = embeddedViewStart(0);
+            let rf1 = embeddedViewStart(0, 2, 0);
             if (rf1 & RenderFlags.Create) {
               text(0, 'Hello');
               container(1);
@@ -290,7 +483,7 @@ describe('event listeners', () => {
               containerRefreshStart(1);
               {
                 if (ctx.button) {
-                  let rf1 = embeddedViewStart(0);
+                  let rf1 = embeddedViewStart(0, 2, 0);
                   if (rf1 & RenderFlags.Create) {
                     elementStart(0, 'button');
                     {
@@ -312,7 +505,7 @@ describe('event listeners', () => {
     }
 
     const comp = {showing: true, counter: 0, button: true, onClick: function() { this.counter++; }};
-    renderToHtml(Template, comp);
+    renderToHtml(Template, comp, 1);
     const button = containerEl.querySelector('button') !;
 
     button.click();
@@ -320,7 +513,7 @@ describe('event listeners', () => {
 
     // the child view listener should be removed when the parent view is removed
     comp.showing = false;
-    renderToHtml(Template, comp);
+    renderToHtml(Template, comp, 1);
     button.click();
     expect(comp.counter).toEqual(1);
   });
@@ -328,7 +521,7 @@ describe('event listeners', () => {
   it('should destroy listeners in component views', () => {
 
     /**
-     * % if (showing) {
+       * % if (showing) {
        *    Hello
        *    <comp></comp>
        *    <comp></comp>
@@ -345,13 +538,11 @@ describe('event listeners', () => {
         containerRefreshStart(0);
         {
           if (ctx.showing) {
-            let rf1 = embeddedViewStart(0);
+            let rf1 = embeddedViewStart(0, 3, 0);
             if (rf1 & RenderFlags.Create) {
               text(0, 'Hello');
-              elementStart(1, 'comp');
-              elementEnd();
-              elementStart(2, 'comp');
-              elementEnd();
+              element(1, 'comp');
+              element(2, 'comp');
             }
             embeddedViewEnd();
           }
@@ -361,7 +552,7 @@ describe('event listeners', () => {
     }
 
     const ctx = {showing: true};
-    renderToHtml(Template, ctx, [MyComp]);
+    renderToHtml(Template, ctx, 1, 0, [MyComp]);
     const buttons = containerEl.querySelectorAll('button') !;
 
     buttons[0].click();
@@ -372,7 +563,7 @@ describe('event listeners', () => {
 
     // the child view listener should be removed when the parent view is removed
     ctx.showing = false;
-    renderToHtml(Template, ctx, [MyComp]);
+    renderToHtml(Template, ctx, 1, 0, [MyComp]);
     buttons[0].click();
     buttons[1].click();
     expect(comps[0] !.counter).toEqual(1);
@@ -400,7 +591,7 @@ describe('event listeners', () => {
         containerRefreshStart(0);
         {
           if (ctx.condition) {
-            let rf1 = embeddedViewStart(0);
+            let rf1 = embeddedViewStart(0, 3, 0);
             if (rf1 & RenderFlags.Create) {
               text(0, 'Hello');
               container(1);
@@ -410,7 +601,7 @@ describe('event listeners', () => {
               containerRefreshStart(1);
               {
                 if (ctx.sub1) {
-                  let rf1 = embeddedViewStart(0);
+                  let rf1 = embeddedViewStart(0, 2, 0);
                   if (rf1 & RenderFlags.Create) {
                     elementStart(0, 'button');
                     {
@@ -426,7 +617,7 @@ describe('event listeners', () => {
               containerRefreshStart(2);
               {
                 if (ctx.sub2) {
-                  let rf1 = embeddedViewStart(0);
+                  let rf1 = embeddedViewStart(0, 2, 0);
                   if (rf1 & RenderFlags.Create) {
                     elementStart(0, 'button');
                     {
@@ -448,7 +639,7 @@ describe('event listeners', () => {
     }
 
     const ctx = {condition: true, counter1: 0, counter2: 0, sub1: true, sub2: true};
-    renderToHtml(Template, ctx);
+    renderToHtml(Template, ctx, 1);
     const buttons = containerEl.querySelectorAll('button') !;
 
     buttons[0].click();
@@ -459,7 +650,7 @@ describe('event listeners', () => {
 
     // the child view listeners should be removed when the parent view is removed
     ctx.condition = false;
-    renderToHtml(Template, ctx);
+    renderToHtml(Template, ctx, 1);
     buttons[0].click();
     buttons[1].click();
     expect(ctx.counter1).toEqual(1);

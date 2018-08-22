@@ -7,7 +7,8 @@ ng_module(
     srcs = glob(
         [
             "*.ts",
-            "src/**/*.ts",
+            "src/common/**/*.ts",
+            "src/dynamic/**/*.ts",
         ],
     ),
     module_name = "@angular/upgrade",
@@ -25,7 +26,11 @@ ng_package(
         "//packages/upgrade/static:package.json",
     ],
     entry_point = "packages/upgrade/index.js",
-    tags = ["release-with-framework"],
+    tags = [
+        "ivy-jit",
+        "ivy-local",
+        "release-with-framework",
+    ],
     deps = [
         ":upgrade",
         "//packages/upgrade/static",

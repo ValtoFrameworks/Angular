@@ -15,13 +15,14 @@ import {QueryList as viewEngine_QueryList} from '../linker/query_list';
 import {Type} from '../type';
 import {getSymbolIterator} from '../util';
 
-import {assertEqual, assertNotNull} from './assert';
+import {assertDefined, assertEqual} from './assert';
 import {ReadFromInjectorFn, getOrCreateNodeInjectorForNode} from './di';
-import {assertPreviousIsParent, getCurrentQueries, store} from './instructions';
-import {DirectiveDef, unusedValueExportToPlacateAjd as unused1} from './interfaces/definition';
+import {assertPreviousIsParent, getOrCreateCurrentQueries, isContentQueryHost, store, storeCleanupWithContext} from './instructions';
+import {DirectiveDefInternal, unusedValueExportToPlacateAjd as unused1} from './interfaces/definition';
 import {LInjector, unusedValueExportToPlacateAjd as unused2} from './interfaces/injector';
 import {LContainerNode, LElementNode, LNode, TNode, TNodeFlags, unusedValueExportToPlacateAjd as unused3} from './interfaces/node';
 import {LQueries, QueryReadType, unusedValueExportToPlacateAjd as unused4} from './interfaces/query';
+import {DIRECTIVES, TVIEW} from './interfaces/view';
 import {flatten} from './util';
 
 const unusedValueToPlacateAjd = unused1 + unused2 + unused3 + unused4;
@@ -76,19 +77,22 @@ export interface LQuery<T> {
    * This is what builds up the `QueryList._valuesTree`.
    */
   values: any[];
+
+  /**
+   * A pointer to an array that stores collected values from views. This is necessary so we know a
+   * container into which to insert nodes collected from views.
+   */
+  containerValues: any[]|null;
 }
 
 export class LQueries_ implements LQueries {
-  shallow: LQuery<any>|null = null;
-  deep: LQuery<any>|null = null;
-
-  constructor(deep?: LQuery<any>) { this.deep = deep == null ? null : deep; }
+  constructor(
+      public parent: LQueries_|null, private shallow: LQuery<any>|null,
+      private deep: LQuery<any>|null) {}
 
   track<T>(
       queryList: viewEngine_QueryList<T>, predicate: Type<T>|string[], descend?: boolean,
       read?: QueryReadType<T>|Type<T>): void {
-    // TODO(misko): This is not right. In case of inherited state, a calling track will incorrectly
-    // mutate parent.
     if (descend) {
       this.deep = createQuery(this.deep, queryList, predicate, read != null ? read : null);
     } else {
@@ -96,75 +100,123 @@ export class LQueries_ implements LQueries {
     }
   }
 
-  child(): LQueries|null {
-    if (this.deep === null) {
-      // if we don't have any deep queries then no need to track anything more.
-      return null;
-    }
-    if (this.shallow === null) {
-      // DeepQuery: We can reuse the current state if the child state would be same as current
-      // state.
-      return this;
-    } else {
-      // We need to create new state
-      return new LQueries_(this.deep);
-    }
-  }
+  clone(): LQueries { return new LQueries_(this, null, this.deep); }
 
   container(): LQueries|null {
-    let result: LQuery<any>|null = null;
-    let query = this.deep;
+    const shallowResults = copyQueriesToContainer(this.shallow);
+    const deepResults = copyQueriesToContainer(this.deep);
 
-    while (query) {
-      const containerValues: any[] = [];  // prepare room for views
-      query.values.push(containerValues);
-      const clonedQuery: LQuery<any> =
-          {next: null, list: query.list, predicate: query.predicate, values: containerValues};
-      clonedQuery.next = result;
-      result = clonedQuery;
-      query = query.next;
-    }
-
-    return result ? new LQueries_(result) : null;
+    return shallowResults || deepResults ? new LQueries_(this, shallowResults, deepResults) : null;
   }
 
-  enterView(index: number): LQueries|null {
-    let result: LQuery<any>|null = null;
-    let query = this.deep;
+  createView(): LQueries|null {
+    const shallowResults = copyQueriesToView(this.shallow);
+    const deepResults = copyQueriesToView(this.deep);
 
-    while (query) {
-      const viewValues: any[] = [];  // prepare room for view nodes
-      query.values.splice(index, 0, viewValues);
-      const clonedQuery: LQuery<any> =
-          {next: null, list: query.list, predicate: query.predicate, values: viewValues};
-      clonedQuery.next = result;
-      result = clonedQuery;
-      query = query.next;
-    }
-
-    return result ? new LQueries_(result) : null;
+    return shallowResults || deepResults ? new LQueries_(this, shallowResults, deepResults) : null;
   }
 
-  addNode(node: LNode): void {
-    add(this.shallow, node);
+  insertView(index: number): void {
+    insertView(index, this.shallow);
+    insertView(index, this.deep);
+  }
+
+  addNode(node: LNode): LQueries|null {
     add(this.deep, node);
+
+    if (isContentQueryHost(node.tNode)) {
+      add(this.shallow, node);
+
+      if (node.tNode.parent && isContentQueryHost(node.tNode.parent)) {
+        // if node has a content query and parent also has a content query
+        // both queries need to check this node for shallow matches
+        add(this.parent !.shallow, node);
+      }
+      return this.parent;
+    }
+
+    isRootNodeOfQuery(node.tNode) && add(this.shallow, node);
+    return this;
   }
 
-  removeView(index: number): void {
-    let query = this.deep;
-    while (query) {
-      const removed = query.values.splice(index, 1);
-
-      // mark a query as dirty only when removed view had matching modes
-      ngDevMode && assertEqual(removed.length, 1, 'removed.length');
-      if (removed[0].length) {
-        query.list.setDirty();
-      }
-
-      query = query.next;
-    }
+  removeView(): void {
+    removeView(this.shallow);
+    removeView(this.deep);
   }
 }
+
+function isRootNodeOfQuery(tNode: TNode) {
+  return tNode.parent === null || isContentQueryHost(tNode.parent);
+}
+
+function copyQueriesToContainer(query: LQuery<any>| null): LQuery<any>|null {
+  let result: LQuery<any>|null = null;
+
+  while (query) {
+    const containerValues: any[] = [];  // prepare room for views
+    query.values.push(containerValues);
+    const clonedQuery: LQuery<any> = {
+      next: result,
+      list: query.list,
+      predicate: query.predicate,
+      values: containerValues,
+      containerValues: null
+    };
+    result = clonedQuery;
+    query = query.next;
+  }
+
+  return result;
+}
+
+function copyQueriesToView(query: LQuery<any>| null): LQuery<any>|null {
+  let result: LQuery<any>|null = null;
+
+  while (query) {
+    const clonedQuery: LQuery<any> = {
+      next: result,
+      list: query.list,
+      predicate: query.predicate,
+      values: [],
+      containerValues: query.values
+    };
+    result = clonedQuery;
+    query = query.next;
+  }
+
+  return result;
+}
+
+function insertView(index: number, query: LQuery<any>| null) {
+  while (query) {
+    ngDevMode &&
+        assertDefined(
+            query.containerValues, 'View queries need to have a pointer to container values.');
+    query.containerValues !.splice(index, 0, query.values);
+    query = query.next;
+  }
+}
+
+function removeView(query: LQuery<any>| null) {
+  while (query) {
+    ngDevMode &&
+        assertDefined(
+            query.containerValues, 'View queries need to have a pointer to container values.');
+
+    const containerValues = query.containerValues !;
+    const viewValuesIdx = containerValues.indexOf(query.values);
+    const removed = containerValues.splice(viewValuesIdx, 1);
+
+    // mark a query as dirty only when removed view had matching modes
+    ngDevMode && assertEqual(removed.length, 1, 'removed.length');
+    if (removed[0].length) {
+      query.list.setDirty();
+    }
+
+    query = query.next;
+  }
+}
+
 
 /**
  * Iterates over local names for a given node and returns directive index
@@ -194,13 +246,13 @@ function getIdxOfMatchingSelector(tNode: TNode, selector: string): number|null {
  * @returns Index of a found directive or null when none found.
  */
 function getIdxOfMatchingDirective(node: LNode, type: Type<any>): number|null {
-  const defs = node.view.tView.directives !;
+  const defs = node.view[TVIEW].directives !;
   const flags = node.tNode.flags;
   const count = flags & TNodeFlags.DirectiveCountMask;
   const start = flags >> TNodeFlags.DirectiveStartingIndexShift;
   const end = start + count;
   for (let i = start; i < end; i++) {
-    const def = defs[i] as DirectiveDef<any>;
+    const def = defs[i] as DirectiveDefInternal<any>;
     if (def.type === type && def.diPublic) {
       return i;
     }
@@ -216,7 +268,7 @@ function readFromNodeInjector(
   } else {
     const matchingIdx = getIdxOfMatchingDirective(node, read as Type<any>);
     if (matchingIdx !== null) {
-      return node.view.directives ![matchingIdx];
+      return node.view[DIRECTIVES] ![matchingIdx];
     }
   }
   return null;
@@ -245,7 +297,7 @@ function add(query: LQuery<any>| null, node: LNode) {
         if (directiveIdx !== null) {
           // a node is matching a predicate - determine what to read
           // note that queries using name selector must specify read strategy
-          ngDevMode && assertNotNull(predicate.read, 'the node should have a predicate');
+          ngDevMode && assertDefined(predicate.read, 'the node should have a predicate');
           const result = readFromNodeInjector(nodeInjector, node, predicate.read !, directiveIdx);
           if (result !== null) {
             addMatch(query, result);
@@ -279,7 +331,8 @@ function createQuery<T>(
     next: previous,
     list: queryList,
     predicate: createPredicate(predicate, read),
-    values: (queryList as any as QueryList_<T>)._valuesTree
+    values: (queryList as any as QueryList_<T>)._valuesTree,
+    containerValues: null
   };
 }
 
@@ -385,9 +438,9 @@ export function query<T>(
     read?: QueryReadType<T>| Type<T>): QueryList<T> {
   ngDevMode && assertPreviousIsParent();
   const queryList = new QueryList<T>();
-  const queries = getCurrentQueries(LQueries_);
+  const queries = getOrCreateCurrentQueries(LQueries_);
   queries.track(queryList, predicate, descend, read);
-
+  storeCleanupWithContext(null, queryList, queryList.destroy);
   if (memoryIndex != null) {
     store(memoryIndex, queryList);
   }

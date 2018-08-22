@@ -6,12 +6,13 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
+import {StylingContext} from '../styling';
+
 import {LContainer} from './container';
 import {LInjector} from './injector';
-import {LProjection} from './projection';
 import {LQueries} from './query';
-import {RElement, RNode, RText} from './renderer';
-import {LView, TData, TView} from './view';
+import {RComment, RElement, RText} from './renderer';
+import {LViewData, TView} from './view';
 
 
 
@@ -20,11 +21,12 @@ import {LView, TData, TView} from './view';
  * on how to map a particular set of bits in LNode.flags to the node type.
  */
 export const enum TNodeType {
-  Container = 0b00,
-  Projection = 0b01,
-  View = 0b10,
-  Element = 0b11,
-  ViewOrElement = 0b10,
+  Container = 0b000,
+  Projection = 0b001,
+  View = 0b010,
+  Element = 0b011,
+  ViewOrElement = 0b010,
+  ElementContainer = 0b100,
 }
 
 /**
@@ -34,11 +36,17 @@ export const enum TNodeFlags {
   /** The number of directives on this node is encoded on the least significant bits */
   DirectiveCountMask = 0b00000000000000000000111111111111,
 
-  /** Then this bit is set when the node is a component */
-  isComponent = 0b1000000000000,
+  /** This bit is set if the node is a component */
+  isComponent = 0b00000000000000000001000000000000,
+
+  /** This bit is set if the node has been projected */
+  isProjected = 0b00000000000000000010000000000000,
+
+  /** This bit is set if the node has any content queries */
+  hasContentQuery = 0b00000000000000000100000000000000,
 
   /** The index of the first directive on this node is encoded on the most significant bits  */
-  DirectiveStartingIndexShift = 13,
+  DirectiveStartingIndexShift = 15,
 }
 
 /**
@@ -63,22 +71,15 @@ export interface LNode {
    *  - append children to their element parents in the DOM (e.g. `parent.native.appendChild(...)`)
    *  - retrieve the sibling elements of text nodes whose creation / insertion has been delayed
    */
-  readonly native: RElement|RText|null|undefined;
+  readonly native: RComment|RElement|RText|null;
 
   /**
-   * We need a reference to a node's parent so we can append the node to its parent's native
-   * element at the appropriate time.
-   */
-  readonly parent: LNode|null;
-
-  /**
-   * If regular LElementNode, then `data` will be null.
-   * If LElementNode with component, then `data` contains LView.
-   * If LViewNode, then `data` contains the LView.
+   * If regular LElementNode, LTextNode, and LProjectionNode then `data` will be null.
+   * If LElementNode with component, then `data` contains LViewData.
+   * If LViewNode, then `data` contains the LViewData.
    * If LContainerNode, then `data` contains LContainer.
-   * If LProjectionNode, then `data` contains LProjection.
    */
-  readonly data: LView|LContainer|LProjection|null;
+  readonly data: LViewData|LContainer|null;
 
 
   /**
@@ -86,25 +87,10 @@ export interface LNode {
    *
    * When the injector is walking up a tree, it needs access to the `directives` (part of view).
    */
-  readonly view: LView;
+  readonly view: LViewData;
 
   /** The injector associated with this node. Necessary for DI. */
   nodeInjector: LInjector|null;
-
-  /**
-   * Optional set of queries that track query-related events for this node.
-   *
-   * If present the node creation/updates are reported to the `LQueries`.
-   */
-  queries: LQueries|null;
-
-  /**
-   * If this node is projected, pointer to the next node in the same projection parent
-   * (which is a container, an element, or a text node), or to the parent projection node
-   * if this is the last node in the projection.
-   * If this node is not projected, this field is null.
-   */
-  pNextOrParent: LNode|null;
 
   /**
    * Pointer to the corresponding TNode object, which stores static
@@ -126,19 +112,20 @@ export interface LElementNode extends LNode {
   readonly native: RElement;
 
   /** If Component then data has LView (light DOM) */
-  readonly data: LView|null;
+  readonly data: LViewData|null;
+}
 
-  /** LElementNodes can be inside other LElementNodes or inside LViewNodes. */
-  readonly parent: LElementNode|LViewNode;
+/** LNode representing <ng-container>. */
+export interface LElementContainerNode extends LNode {
+  /** The DOM comment associated with this node. */
+  readonly native: RComment;
+  readonly data: null;
 }
 
 /** LNode representing a #text node. */
 export interface LTextNode extends LNode {
   /** The text node associated with this node. */
   native: RText;
-
-  /** LTextNodes can be inside LElementNodes or inside LViewNodes. */
-  readonly parent: LElementNode|LViewNode;
   readonly data: null;
   dynamicLContainerNode: null;
 }
@@ -146,39 +133,57 @@ export interface LTextNode extends LNode {
 /** Abstract node which contains root nodes of a view. */
 export interface LViewNode extends LNode {
   readonly native: null;
-
-  /**  LViewNodes can only be added to LContainerNodes. */
-  readonly parent: LContainerNode|null;
-  readonly data: LView;
+  readonly data: LViewData;
   dynamicLContainerNode: null;
 }
 
 /** Abstract node container which contains other views. */
 export interface LContainerNode extends LNode {
   /*
-   * Caches the reference of the first native node following this container in the same native
-   * parent.
-   * This is reset to undefined in containerRefreshEnd.
-   * When it is undefined, it means the value has not been computed yet.
-   * Otherwise, it contains the result of findBeforeNode(container, null).
+   * This comment node is appended to the container's parent element to mark where
+   * in the DOM the container's child views should be added.
+   *
+   * If the container is a root node of a view, this comment will not be appended
+   * until the parent view is processed.
    */
-  native: RElement|RText|null|undefined;
+  native: RComment;
   readonly data: LContainer;
-
-  /** Containers can be added to elements or views. */
-  readonly parent: LElementNode|LViewNode|null;
 }
 
 
 export interface LProjectionNode extends LNode {
   readonly native: null;
-
-  readonly data: LProjection;
-
-  /** Projections can be added to elements or views. */
-  readonly parent: LElementNode|LViewNode;
+  readonly data: null;
   dynamicLContainerNode: null;
 }
+
+/**
+ * A set of marker values to be used in the attributes arrays. Those markers indicate that some
+ * items are not regular attributes and the processing should be adapted accordingly.
+ */
+export const enum AttributeMarker {
+  /**
+   * Marker indicates that the following 3 values in the attributes array are:
+   * namespaceUri, attributeName, attributeValue
+   * in that order.
+   */
+  NamespaceURI = 0,
+
+  /**
+   * This marker indicates that the following attribute names were extracted from bindings (ex.:
+   * [foo]="exp") and / or event handlers (ex. (bar)="doSth()").
+   * Taking the above bindings and outputs as an example an attributes array could look as follows:
+   * ['class', 'fade in', AttributeMarker.SelectOnly, 'foo', 'bar']
+   */
+  SelectOnly = 1
+}
+
+/**
+ * A combination of:
+ * - attribute names and values
+ * - special markers acting as flags to alter attributes processing.
+ */
+export type TAttributes = (string | AttributeMarker)[];
 
 /**
  * LNode binding data (flyweight) for a particular node that is shared between all templates
@@ -201,9 +206,9 @@ export interface TNode {
    * This is necessary to get from any TNode to its corresponding LNode when
    * traversing the node tree.
    *
-   * If null, this is a view node created from a dynamically created view.
+   * If index is -1, this is a dynamically created container node or embedded view node.
    */
-  index: number|null;
+  index: number;
 
   /**
    * This number stores two values using its bits:
@@ -220,18 +225,20 @@ export interface TNode {
   tagName: string|null;
 
   /**
-   * Static attributes associated with an element. We need to store
-   * static attributes to support content projection with selectors.
-   * Attributes are stored statically because reading them from the DOM
-   * would be way too slow for content projection and queries.
+   * Attributes associated with an element. We need to store attributes to support various use-cases
+   * (attribute injection, content projection with selectors, directives matching).
+   * Attributes are stored statically because reading them from the DOM would be way too slow for
+   * content projection and queries.
    *
-   * Since attrs will always be calculated first, they will never need
-   * to be marked undefined by other instructions.
+   * Since attrs will always be calculated first, they will never need to be marked undefined by
+   * other instructions.
    *
-   * The name of the attribute and its value alternate in the array.
+   * For regular attributes a name of an attribute and its value alternate in the array.
    * e.g. ['role', 'checkbox']
+   * This array can contain flags that will indicate "special attributes" (attributes with
+   * namespaces, attributes extracted from bindings and outputs).
    */
-  attrs: string[]|null;
+  attrs: TAttributes|null;
 
   /**
    * A set of local names under which a given element is exported in a template and
@@ -308,39 +315,154 @@ export interface TNode {
   child: TNode|null;
 
   /**
+   * Parent node (in the same view only).
+   *
+   * We need a reference to a node's parent so we can append the node to its parent's native
+   * element at the appropriate time.
+   *
+   * If the parent would be in a different view (e.g. component host), this property will be null.
+   * It's important that we don't try to cross component boundaries when retrieving the parent
+   * because the parent will change (e.g. index, attrs) depending on where the component was
+   * used (and thus shouldn't be stored on TNode). In these cases, we retrieve the parent through
+   * LView.node instead (which will be instance-specific).
+   *
+   * If this is an inline view node (V), the parent will be its container.
+   */
+  parent: TElementNode|TContainerNode|null;
+
+  /**
    * A pointer to a TContainerNode created by directives requesting ViewContainerRef
    */
   dynamicContainerNode: TNode|null;
+
+  /**
+   * If this node is part of an i18n block, it indicates whether this container is part of the DOM
+   * If this node is not part of an i18n block, this field is null.
+   */
+  detached: boolean|null;
+
+  stylingTemplate: StylingContext|null;
+  /**
+   * List of projected TNodes for a given component host element OR index into the said nodes.
+   *
+   * For easier discussion assume this example:
+   * `<parent>`'s view definition:
+   * ```
+   * <child id="c1">content1</child>
+   * <child id="c2"><span>content2</span></child>
+   * ```
+   * `<child>`'s view definition:
+   * ```
+   * <ng-content id="cont1"></ng-content>
+   * ```
+   *
+   * If `Array.isArray(projection)` then `TNode` is a host element:
+   * - `projection` stores the content nodes which are to be projected.
+   *    - The nodes represent categories defined by the selector: For example:
+   *      `<ng-content/><ng-content select="abc"/>` would represent the heads for `<ng-content/>`
+   *      and `<ng-content select="abc"/>` respectively.
+   *    - The nodes we store in `projection` are heads only, we used `.next` to get their
+   *      siblings.
+   *    - The nodes `.next` is sorted/rewritten as part of the projection setup.
+   *    - `projection` size is equal to the number of projections `<ng-content>`. The size of
+   *      `c1` will be `1` because `<child>` has only one `<ng-content>`.
+   * - we store `projection` with the host (`c1`, `c2`) rather than the `<ng-content>` (`cont1`)
+   *   because the same component (`<child>`) can be used in multiple locations (`c1`, `c2`) and as
+   *   a result have different set of nodes to project.
+   * - without `projection` it would be difficult to efficiently traverse nodes to be projected.
+   *
+   * If `typeof projection == 'number'` then `TNode` is a `<ng-content>` element:
+   * - `projection` is an index of the host's `projection`Nodes.
+   *   - This would return the first head node to project:
+   *     `getHost(currentTNode).projection[currentTNode.projection]`.
+   * - When projecting nodes the parent node retrieved may be a `<ng-content>` node, in which case
+   *   the process is recursive in nature (not implementation).
+   */
+  projection: (TNode|null)[]|number|null;
 }
 
 /** Static data for an LElementNode  */
 export interface TElementNode extends TNode {
-  child: TContainerNode|TElementNode|TProjectionNode|null;
+  /** Index in the data[] array */
+  index: number;
+  child: TElementNode|TTextNode|TContainerNode|TProjectionNode|null;
+  /**
+   * Element nodes will have parents unless they are the first node of a component or
+   * embedded view (which means their parent is in a different view and must be
+   * retrieved using LView.node).
+   */
+  parent: TElementNode|null;
   tViews: null;
+
+  /**
+   * If this is a component TNode with projection, this will be an array of projected
+   * TNodes (see TNode.projection for more info). If it's a regular element node or a
+   * component without projection, it will be null.
+   */
+  projection: (TNode|null)[]|null;
 }
 
 /** Static data for an LTextNode  */
 export interface TTextNode extends TNode {
+  /** Index in the data[] array */
+  index: number;
   child: null;
+  /**
+   * Text nodes will have parents unless they are the first node of a component or
+   * embedded view (which means their parent is in a different view and must be
+   * retrieved using LView.node).
+   */
+  parent: TElementNode|null;
   tViews: null;
+  projection: null;
 }
 
 /** Static data for an LContainerNode */
 export interface TContainerNode extends TNode {
+  /**
+   * Index in the data[] array.
+   *
+   * If it's -1, this is a dynamically created container node that isn't stored in
+   * data[] (e.g. when you inject ViewContainerRef) .
+   */
+  index: number;
   child: null;
+
+  /**
+   * Container nodes will have parents unless:
+   *
+   * - They are the first node of a component or embedded view
+   * - They are dynamically created
+   */
+  parent: TElementNode|null;
   tViews: TView|TView[]|null;
+  projection: null;
 }
 
 /** Static data for an LViewNode  */
 export interface TViewNode extends TNode {
-  child: TContainerNode|TElementNode|TProjectionNode|null;
+  /** If -1, it's a dynamically created view. Otherwise, it is the view block ID. */
+  index: number;
+  child: TElementNode|TTextNode|TContainerNode|TProjectionNode|null;
+  parent: TContainerNode|null;
   tViews: null;
+  projection: null;
 }
 
 /** Static data for an LProjectionNode  */
 export interface TProjectionNode extends TNode {
+  /** Index in the data[] array */
   child: null;
+  /**
+   * Projection nodes will have parents unless they are the first node of a component
+   * or embedded view (which means their parent is in a different view and must be
+   * retrieved using LView.node).
+   */
+  parent: TElementNode|null;
   tViews: null;
+
+  /** Index of the projection node. (See TNode.projection for more info.) */
+  projection: number;
 }
 
 /**
@@ -402,3 +524,16 @@ export type InitialInputs = string[];
 // Note: This hack is necessary so we don't erroneously get a circular dependency
 // failure based on types.
 export const unusedValueExportToPlacateAjd = 1;
+
+/**
+ * Type representing a set of LNodes that can have local refs (`#foo`) placed on them.
+ */
+export type LNodeWithLocalRefs = LContainerNode | LElementNode | LElementContainerNode;
+
+/**
+ * Type for a function that extracts a value for a local refs.
+ * Example:
+ * - `<div #nativeDivEl>` - `nativeDivEl` should point to the native `<div>` element;
+ * - `<ng-template #tplRef>` - `tplRef` should point to the `TemplateRef` instance;
+ */
+export type LocalRefExtractor = (lNode: LNodeWithLocalRefs) => any;

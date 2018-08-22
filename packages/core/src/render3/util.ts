@@ -5,11 +5,20 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
+import {devModeEqual} from '../change_detection/change_detection_util';
+import {assertLessThan} from './assert';
+import {LElementNode} from './interfaces/node';
+import {HEADER_OFFSET, LViewData} from './interfaces/view';
 
 /**
-* Must use this method for CD (instead of === ) since NaN !== NaN
-*/
-export function isDifferent(a: any, b: any): boolean {
+ * Returns wether the values are different from a change detection stand point.
+ *
+ * Constraints are relaxed in checkNoChanges mode. See `devModeEqual` for details.
+ */
+export function isDifferent(a: any, b: any, checkNoChangesMode: boolean): boolean {
+  if (ngDevMode && checkNoChangesMode) {
+    return !devModeEqual(a, b);
+  }
   // NaN is the only value that is not equal to itself so the first
   // test checks if both a and b are not NaN
   return !(a !== a && b !== b) && a !== b;
@@ -55,4 +64,28 @@ export function flatten(list: any[]): any[] {
   }
 
   return result;
+}
+
+/** Retrieves a value from any `LViewData`. */
+export function loadInternal<T>(index: number, arr: LViewData): T {
+  ngDevMode && assertDataInRangeInternal(index + HEADER_OFFSET, arr);
+  return arr[index + HEADER_OFFSET];
+}
+
+export function assertDataInRangeInternal(index: number, arr: any[]) {
+  assertLessThan(index, arr ? arr.length : 0, 'index expected to be a valid data index');
+}
+
+/** Retrieves an element value from the provided `viewData`.
+  *
+  * Elements that are read may be wrapped in a style context,
+  * therefore reading the value may involve unwrapping that.
+  */
+export function loadElementInternal(index: number, arr: LViewData): LElementNode {
+  const value = loadInternal<LElementNode>(index, arr);
+  return readElementValue(value);
+}
+
+export function readElementValue(value: LElementNode | any[]): LElementNode {
+  return (Array.isArray(value) ? (value as any as any[])[0] : value) as LElementNode;
 }

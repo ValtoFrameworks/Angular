@@ -1,18 +1,54 @@
 [
   {
+    "name": "ACTIVE_INDEX"
+  },
+  {
+    "name": "BINDING_INDEX"
+  },
+  {
+    "name": "BLOOM_MASK"
+  },
+  {
     "name": "CLEAN_PROMISE"
   },
   {
-    "name": "EMPTY$2"
+    "name": "CONTAINER_INDEX"
   },
   {
-    "name": "EMPTY_RENDERER_TYPE_ID"
+    "name": "CONTEXT"
   },
   {
-    "name": "HelloWorld"
+    "name": "ChangeDetectionStrategy"
   },
   {
-    "name": "INeedToExistEvenThoughIAmNotNeeded"
+    "name": "DIRECTIVES"
+  },
+  {
+    "name": "EMPTY$1"
+  },
+  {
+    "name": "EMPTY_ARRAY"
+  },
+  {
+    "name": "FLAGS"
+  },
+  {
+    "name": "HEADER_FILLER"
+  },
+  {
+    "name": "HEADER_OFFSET"
+  },
+  {
+    "name": "HOST_NODE"
+  },
+  {
+    "name": "INJECTOR$1"
+  },
+  {
+    "name": "NEXT"
+  },
+  {
+    "name": "NG_ELEMENT_ID"
   },
   {
     "name": "NG_HOST_SYMBOL"
@@ -21,10 +57,37 @@
     "name": "NG_PROJECT_AS_ATTR_NAME"
   },
   {
-    "name": "ROOT_DIRECTIVE_INDICES"
+    "name": "NO_CHANGE"
   },
   {
-    "name": "UNDEFINED_RENDERER_TYPE_ID"
+    "name": "PARENT"
+  },
+  {
+    "name": "PublicFeature"
+  },
+  {
+    "name": "QUERIES"
+  },
+  {
+    "name": "RENDERER"
+  },
+  {
+    "name": "RENDER_PARENT"
+  },
+  {
+    "name": "SANITIZER"
+  },
+  {
+    "name": "TVIEW"
+  },
+  {
+    "name": "VIEWS"
+  },
+  {
+    "name": "_CLEAN_PROMISE"
+  },
+  {
+    "name": "_getComponentHostLElementNode"
   },
   {
     "name": "_renderCompCount"
@@ -36,7 +99,19 @@
     "name": "baseDirectiveCreate"
   },
   {
+    "name": "bindingRootIndex"
+  },
+  {
+    "name": "bloomAdd"
+  },
+  {
     "name": "callHooks"
+  },
+  {
+    "name": "canInsertNativeChildOfElement"
+  },
+  {
+    "name": "canInsertNativeChildOfView"
   },
   {
     "name": "canInsertNativeNode"
@@ -54,7 +129,10 @@
     "name": "createLNodeObject"
   },
   {
-    "name": "createLView"
+    "name": "createLViewData"
+  },
+  {
+    "name": "createRootContext"
   },
   {
     "name": "createTNode"
@@ -66,16 +144,22 @@
     "name": "createTextNode"
   },
   {
-    "name": "currentView"
+    "name": "createViewBlueprint"
+  },
+  {
+    "name": "createViewQuery"
   },
   {
     "name": "defineComponent"
   },
   {
-    "name": "defineInjector"
+    "name": "detectChangesInternal"
   },
   {
-    "name": "detectChangesInternal"
+    "name": "diPublic"
+  },
+  {
+    "name": "diPublicInInjector"
   },
   {
     "name": "domRendererFactory3"
@@ -102,16 +186,34 @@
     "name": "firstTemplatePass"
   },
   {
-    "name": "getCurrentSanitizer"
+    "name": "getChildLNode"
   },
   {
-    "name": "getDirectiveInstance"
+    "name": "getLViewChild"
+  },
+  {
+    "name": "getOrCreateNodeInjector"
+  },
+  {
+    "name": "getOrCreateNodeInjectorForNode"
   },
   {
     "name": "getOrCreateTView"
   },
   {
+    "name": "getParentLNode"
+  },
+  {
+    "name": "getPreviousOrParentNode"
+  },
+  {
     "name": "getRenderFlags"
+  },
+  {
+    "name": "getRenderParent"
+  },
+  {
+    "name": "getRootView"
   },
   {
     "name": "hostElement"
@@ -132,16 +234,37 @@
     "name": "locateHostElement"
   },
   {
+    "name": "namespaceHTML"
+  },
+  {
+    "name": "nativeInsertBefore"
+  },
+  {
+    "name": "nextNgElementId"
+  },
+  {
+    "name": "queueHostBindingForCheck"
+  },
+  {
+    "name": "readElementValue"
+  },
+  {
     "name": "refreshChildComponents"
   },
   {
-    "name": "refreshDynamicChildren"
+    "name": "refreshContentQueries"
   },
   {
-    "name": "refreshView"
+    "name": "refreshDescendantViews"
+  },
+  {
+    "name": "refreshDynamicEmbeddedViews"
   },
   {
     "name": "renderComponent"
+  },
+  {
+    "name": "renderComponentOrTemplate"
   },
   {
     "name": "renderEmbeddedTemplate"
@@ -150,19 +273,22 @@
     "name": "resetApplicationState"
   },
   {
-    "name": "resolveRendererType2"
-  },
-  {
     "name": "setHostBindings"
   },
   {
     "name": "setUpAttributes"
   },
   {
-    "name": "stringify$1"
+    "name": "stringify$2"
   },
   {
     "name": "text"
+  },
+  {
+    "name": "tickRootContext"
+  },
+  {
+    "name": "updateViewQuery"
   },
   {
     "name": "viewAttached"
