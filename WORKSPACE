@@ -1,115 +1,52 @@
 workspace(name = "angular")
 
-#
-# Download Bazel toolchain dependencies as needed by build actions
-#
-
-http_archive(
-    name = "build_bazel_rules_nodejs",
-    urls = ["https://github.com/bazelbuild/rules_nodejs/archive/0.11.4.zip"],
-    strip_prefix = "rules_nodejs-0.11.4",
-    sha256 = "c31c4ead696944a50fad2b3ee9dfbbeffe31a8dcca0b21b9bf5b3e6c6b069801",
-)
-
-http_archive(
-    name = "bazel_skylib",
-    urls = ["https://github.com/bazelbuild/bazel-skylib/archive/0.3.1.zip"],
-    strip_prefix = "bazel-skylib-0.3.1",
-    sha256 = "95518adafc9a2b656667bbf517a952e54ce7f350779d0dd95133db4eb5c27fb1",
-)
-
-http_archive(
-  name = "bazel_toolchains",
-  urls = [
-    "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/5124557861ebf4c0b67f98180bff1f8551e0b421.tar.gz",
-    "https://github.com/bazelbuild/bazel-toolchains/archive/5124557861ebf4c0b67f98180bff1f8551e0b421.tar.gz",
-  ],
-  strip_prefix = "bazel-toolchains-5124557861ebf4c0b67f98180bff1f8551e0b421",
-  sha256 = "c3b08805602cd1d2b67ebe96407c1e8c6ed3d4ce55236ae2efe2f1948f38168d",
-)
-
-http_archive(
-    name = "io_bazel_rules_webtesting",
-    url = "https://github.com/bazelbuild/rules_webtesting/archive/0.2.1.zip",
-    strip_prefix = "rules_webtesting-0.2.1",
-    sha256 = "7d490aadff9b5262e5251fa69427ab2ffd1548422467cb9f9e1d110e2c36f0fa",
-)
-
-http_archive(
-    name = "build_bazel_rules_typescript",
-    url = "https://github.com/bazelbuild/rules_typescript/archive/0.16.0.zip",
-    strip_prefix = "rules_typescript-0.16.0",
-    sha256 = "e65c5639a42e2f6d3f9d2bda62487d6b42734830dda45be1620c3e2b1115070c",
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load(
+    "//packages/bazel:package.bzl",
+    "rules_angular_dependencies",
+    "rules_angular_dev_dependencies",
 )
 
 http_archive(
     name = "io_bazel_rules_go",
-    url = "https://github.com/bazelbuild/rules_go/releases/download/0.10.3/rules_go-0.10.3.tar.gz",
-    sha256 = "feba3278c13cde8d67e341a837f69a029f698d7a27ddbb2a202be7a10b22142a",
+    sha256 = "b7a62250a3a73277ade0ce306d22f122365b513f5402222403e507f2f997d421",
+    url = "https://github.com/bazelbuild/rules_go/releases/download/0.16.3/rules_go-0.16.3.tar.gz",
 )
 
-http_archive(
-    name = "io_bazel_rules_sass",
-    url = "https://github.com/bazelbuild/rules_sass/archive/0.1.0.zip",
-    strip_prefix = "rules_sass-0.1.0",
-    sha256 = "b243c4d64f054c174051785862ab079050d90b37a1cef7da93821c6981cb9ad4",
-)
+# Uncomment for local bazel rules development
+#local_repository(
+#    name = "build_bazel_rules_nodejs",
+#    path = "../rules_nodejs",
+#)
+#local_repository(
+#    name = "build_bazel_rules_typescript",
+#    path = "../rules_typescript",
+#)
 
-# This commit matches the version of buildifier in angular/ngcontainer
-# If you change this, also check if it matches the version in the angular/ngcontainer
-# version in /.circleci/config.yml
-BAZEL_BUILDTOOLS_VERSION = "82b21607e00913b16fe1c51bec80232d9d6de31c"
+# Angular Bazel users will call this function
+rules_angular_dependencies()
 
-http_archive(
-    name = "com_github_bazelbuild_buildtools",
-    url = "https://github.com/bazelbuild/buildtools/archive/%s.zip" % BAZEL_BUILDTOOLS_VERSION,
-    strip_prefix = "buildtools-%s" % BAZEL_BUILDTOOLS_VERSION,
-    sha256 = "edb24c2f9c55b10a820ec74db0564415c0cf553fa55e9fc709a6332fb6685eff",
-)
+# Install transitive deps of rules_nodejs
+load("@build_bazel_rules_nodejs//:package.bzl", "rules_nodejs_dependencies")
 
-# Fetching the Bazel source code allows us to compile the Skylark linter
-http_archive(
-    name = "io_bazel",
-    url = "https://github.com/bazelbuild/bazel/archive/968f87900dce45a7af749a965b72dbac51b176b3.zip",
-    strip_prefix = "bazel-968f87900dce45a7af749a965b72dbac51b176b3",
-    sha256 = "e373d2ae24955c1254c495c9c421c009d88966565c35e4e8444c082cb1f0f48f",
-)
+rules_nodejs_dependencies()
 
-http_archive(
-    name = "io_bazel_skydoc",
-    # TODO: switch to upstream when https://github.com/bazelbuild/skydoc/pull/103 is merged
-    url = "https://github.com/alexeagle/skydoc/archive/fe2e9f888d28e567fef62ec9d4a93c425526d701.zip",
-    strip_prefix = "skydoc-fe2e9f888d28e567fef62ec9d4a93c425526d701",
-    sha256 = "7bfb5545f59792a2745f2523b9eef363f9c3e7274791c030885e7069f8116016",
-)
+# These are the dependencies only for us
+rules_angular_dev_dependencies()
 
-# We have a source dependency on the Devkit repository, because it's built with
-# Bazel.
-# This allows us to edit sources and have the effect appear immediately without
-# re-packaging or "npm link"ing.
-# Even better, things like aspects will visit the entire graph including
-# ts_library rules in the devkit repository.
-http_archive(
-    name = "angular_cli",
-    url = "https://github.com/angular/angular-cli/archive/v6.1.0-rc.0.zip",
-    strip_prefix = "angular-cli-6.1.0-rc.0",
-    sha256 = "8cf320ea58c321e103f39087376feea502f20eaf79c61a4fdb05c7286c8684fd",
-)
+# Install transitive deps of rules_typescript
+load("@build_bazel_rules_typescript//:package.bzl", "rules_typescript_dependencies")
 
-http_archive(
-    name = "org_brotli",
-    url = "https://github.com/google/brotli/archive/f9b8c02673c576a3e807edbf3a9328e9e7af6d7c.zip",
-    strip_prefix = "brotli-f9b8c02673c576a3e807edbf3a9328e9e7af6d7c",
-    sha256 = "8a517806d2b7c8505ba5c53934e7d7c70d341b68ffd268e9044d35b564a48828",
-)
+rules_typescript_dependencies()
 
 #
 # Point Bazel to WORKSPACEs that live in subdirectories
 #
-
-local_repository(
+http_archive(
     name = "rxjs",
-    path = "node_modules/rxjs/src",
+    sha256 = "72b0b4e517f43358f554c125e40e39f67688cd2738a8998b4a266981ed32f403",
+    strip_prefix = "package/src",
+    url = "https://registry.yarnpkg.com/rxjs/-/rxjs-6.3.3.tgz",
 )
 
 # Point to the integration test workspace just so that Bazel doesn't descend into it
@@ -122,23 +59,38 @@ local_repository(
 #
 # Load and install our dependencies downloaded above.
 #
-
 load("@build_bazel_rules_nodejs//:defs.bzl", "check_bazel_version", "node_repositories", "yarn_install")
 
-check_bazel_version("0.15.0")
+check_bazel_version("0.20.0", """
+You no longer need to install Bazel on your machine.
+Angular has a dependency on the @bazel/bazel package which supplies it.
+Try running `yarn bazel` instead.
+    (If you did run that, check that you've got a fresh `yarn install`)
+
+""")
+
 node_repositories(
-  package_json = ["//:package.json"],
-  preserve_symlinks = True,
+    node_version = "10.9.0",
+    package_json = ["//:package.json"],
+    preserve_symlinks = True,
+    yarn_version = "1.12.1",
 )
 
-load("@io_bazel_rules_go//go:def.bzl", "go_rules_dependencies", "go_register_toolchains")
+local_repository(
+    name = "npm",
+    path = "tools/npm_workspace",
+)
+
+load("@io_bazel_rules_go//go:def.bzl", "go_register_toolchains", "go_rules_dependencies")
 
 go_rules_dependencies()
+
 go_register_toolchains()
 
 load("@io_bazel_rules_webtesting//web:repositories.bzl", "browser_repositories", "web_test_repositories")
 
 web_test_repositories()
+
 browser_repositories(
     chromium = True,
     firefox = True,
@@ -152,29 +104,13 @@ load("@angular//:index.bzl", "ng_setup_workspace")
 
 ng_setup_workspace()
 
-#
-# Ask Bazel to manage these toolchain dependencies for us.
-# Bazel will run `yarn install` when one of these toolchains is requested during
-# a build.
-#
-
-yarn_install(
-    name = "ts-api-guardian_runtime_deps",
-    package_json = "//tools/ts-api-guardian:package.json",
-    yarn_lock = "//tools/ts-api-guardian:yarn.lock",
-)
-
-yarn_install(
-    name = "http-server_runtime_deps",
-    package_json = "//tools/http-server:package.json",
-    yarn_lock = "//tools/http-server:yarn.lock",
-)
-
 ##################################
 # Skylark documentation generation
 
 load("@io_bazel_rules_sass//sass:sass_repositories.bzl", "sass_repositories")
+
 sass_repositories()
 
 load("@io_bazel_skydoc//skylark:skylark.bzl", "skydoc_repositories")
+
 skydoc_repositories()

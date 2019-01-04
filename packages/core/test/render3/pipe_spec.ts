@@ -6,17 +6,25 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {Directive, OnChanges, OnDestroy, Pipe, PipeTransform} from '@angular/core';
+import {Directive as _Directive, InjectionToken, OnChanges, OnDestroy, Pipe as _Pipe, PipeTransform, WrappedValue, createInjector, defineInjectable, defineInjector, ɵNgModuleDef as NgModuleDef, ɵdefineComponent as defineComponent, ɵdirectiveInject as directiveInject} from '@angular/core';
 import {expect} from '@angular/platform-browser/testing/src/matchers';
 
 import {defineDirective, definePipe} from '../../src/render3/definition';
-import {bind, container, containerRefreshEnd, containerRefreshStart, elementEnd, elementProperty, elementStart, embeddedViewEnd, embeddedViewStart, interpolation1, load, loadDirective, text, textBinding} from '../../src/render3/instructions';
+import {bind, container, containerRefreshEnd, containerRefreshStart, elementEnd, elementProperty, elementStart, embeddedViewEnd, embeddedViewStart, interpolation1, load, text, textBinding} from '../../src/render3/instructions';
 import {RenderFlags} from '../../src/render3/interfaces/definition';
 import {pipe, pipeBind1, pipeBind3, pipeBind4, pipeBindV} from '../../src/render3/pipe';
 
 import {RenderLog, getRendererFactory2, patchLoggingRenderer2} from './imported_renderer2';
-import {ComponentFixture, createComponent, renderToHtml} from './render_util';
+import {ComponentFixture, TemplateFixture, createComponent, getDirectiveOnNode, renderToHtml} from './render_util';
 
+const Directive: typeof _Directive = function(...args: any[]): any {
+  // In test we use @Directive for documentation only so it's safe to mock out the implementation.
+  return () => undefined;
+} as any;
+const Pipe: typeof _Pipe = function(...args: any[]): any {
+  // In test we use @Pipe for documentation only so it's safe to mock out the implementation.
+  return () => undefined;
+} as any;
 
 let log: string[] = [];
 let person: Person;
@@ -61,7 +69,7 @@ describe('pipe', () => {
 
     expect(() => {
       const fixture = new ComponentFixture(App);
-    }).toThrowError(/Pipe with name 'randomPipeName' not found!/);
+    }).toThrowError(/The pipe 'randomPipeName' could not be found!/);
   });
 
   it('should support bindings', () => {
@@ -100,7 +108,7 @@ describe('pipe', () => {
       }
       if (rf & RenderFlags.Update) {
         elementProperty(0, 'elprop', bind(pipeBind1(1, 1, ctx)));
-        directive = loadDirective(0);
+        directive = getDirectiveOnNode(0);
       }
     }
     renderToHtml(Template, 'a', 2, 3, [MyDir], [DoublePipe]);
@@ -325,6 +333,125 @@ describe('pipe', () => {
       person.age = 10;
       renderToHtml(Template, person, 1, 0, null, pipes);
       expect(log).toEqual(['pipeWithOnDestroy - ngOnDestroy']);
+    });
+  });
+
+  describe('injection mechanism', () => {
+    class ServiceA {
+      title = 'ServiceA Title';
+    }
+
+    class ServiceB {
+      title = 'ServiceB Title';
+
+      static ngInjectableDef =
+          defineInjectable({providedIn: 'root', factory: () => new ServiceB()});
+    }
+
+    class ModuleA {
+      static ngInjectorDef = defineInjector({factory: () => new ModuleA(), providers: [ServiceA]});
+      static ngModuleDef: NgModuleDef<any> = { bootstrap: [] } as any;
+    }
+
+    const generatePipe = (InjectionType: any) => {
+      return class MyConcatPipe implements PipeTransform {
+        constructor(public obj: any) {}
+
+        transform(value: string): string { return `${value} - ${this.obj.title}`; }
+
+        static ngPipeDef = definePipe({
+          name: 'myConcatPipe',
+          type: MyConcatPipe,
+          factory: () => new MyConcatPipe(directiveInject(InjectionType)),
+          pure: false
+        });
+      };
+    };
+
+    const generateComponent = (overrides: any) => {
+      return class MyComponent {
+        title = 'MyComponent Title';
+
+        static ngComponentDef = defineComponent({
+          type: MyComponent,
+          selectors: [['my-app']],
+          factory: function MyComponent_Factory() { return new MyComponent(); },
+          consts: 2,
+          vars: 3,
+          // '{{ title | myConcatPipe }}'
+          template: (rf: RenderFlags, ctx: MyComponent) => {
+            if (rf & 1) {
+              text(0);
+              pipe(1, 'myConcatPipe');
+            }
+            if (rf & 2) {
+              textBinding(0, interpolation1('', pipeBind1(1, 1, ctx.title), ''));
+            }
+          },
+          ...overrides
+        });
+      };
+    };
+
+    it('should be able to handle Service injection', () => {
+      const Comp = generateComponent({providers: [ServiceB], pipes: [generatePipe(ServiceB)]});
+      const fixture = new ComponentFixture(Comp);
+      expect(fixture.html).toEqual('MyComponent Title - ServiceB Title');
+    });
+
+    it('should be able to handle Token injections', () => {
+      const provider = new InjectionToken<ServiceA>(
+          'token', {providedIn: 'root', factory: () => new ServiceB()});
+      const Comp = generateComponent({providers: [provider], pipes: [generatePipe(provider)]});
+      const fixture = new ComponentFixture(Comp);
+      expect(fixture.html).toEqual('MyComponent Title - ServiceB Title');
+    });
+
+    it('should be able to handle Module injection', () => {
+      const injector = createInjector(ModuleA);
+      const Comp = generateComponent({providers: [], pipes: [generatePipe(ServiceA)]});
+      const fixture = new ComponentFixture(Comp, {injector});
+      expect(fixture.html).toEqual('MyComponent Title - ServiceA Title');
+    });
+
+  });
+
+  describe('WrappedValue', () => {
+    @Pipe({name: 'wrappingPipe'})
+    class WrappingPipe implements PipeTransform {
+      transform(value: any) { return new WrappedValue('Bar'); }
+
+      static ngPipeDef = definePipe({
+        name: 'wrappingPipe',
+        type: WrappingPipe,
+        factory: function WrappingPipe_Factory() { return new WrappingPipe(); },
+        pure: false
+      });
+    }
+
+    function createTemplate() {
+      text(0);
+      pipe(1, 'wrappingPipe');
+    }
+
+    function updateTemplate() { textBinding(0, interpolation1('', pipeBind1(1, 1, null), '')); }
+
+    it('should unwrap', () => {
+      const fixture =
+          new TemplateFixture(createTemplate, updateTemplate, 2, 3, undefined, [WrappingPipe]);
+      expect(fixture.html).toEqual('Bar');
+    });
+
+    it('should force change detection', () => {
+      const fixture =
+          new TemplateFixture(createTemplate, updateTemplate, 2, 3, undefined, [WrappingPipe]);
+      expect(fixture.html).toEqual('Bar');
+
+      fixture.hostElement.childNodes[0] !.textContent = 'Foo';
+      expect(fixture.html).toEqual('Foo');
+
+      fixture.update();
+      expect(fixture.html).toEqual('Bar');
     });
   });
 

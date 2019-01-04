@@ -11,19 +11,24 @@
 import {Observable} from 'rxjs';
 
 import {EventEmitter} from '../event_emitter';
+import {ElementRef as ViewEngine_ElementRef} from '../linker/element_ref';
 import {QueryList as viewEngine_QueryList} from '../linker/query_list';
+import {TemplateRef as ViewEngine_TemplateRef} from '../linker/template_ref';
 import {Type} from '../type';
 import {getSymbolIterator} from '../util';
 
-import {assertDefined, assertEqual} from './assert';
-import {ReadFromInjectorFn, getOrCreateNodeInjectorForNode} from './di';
-import {assertPreviousIsParent, getOrCreateCurrentQueries, isContentQueryHost, store, storeCleanupWithContext} from './instructions';
-import {DirectiveDefInternal, unusedValueExportToPlacateAjd as unused1} from './interfaces/definition';
-import {LInjector, unusedValueExportToPlacateAjd as unused2} from './interfaces/injector';
-import {LContainerNode, LElementNode, LNode, TNode, TNodeFlags, unusedValueExportToPlacateAjd as unused3} from './interfaces/node';
-import {LQueries, QueryReadType, unusedValueExportToPlacateAjd as unused4} from './interfaces/query';
-import {DIRECTIVES, TVIEW} from './interfaces/view';
-import {flatten} from './util';
+import {assertDefined, assertEqual, assertPreviousIsParent} from './assert';
+import {getNodeInjectable, locateDirectiveOrProvider} from './di';
+import {NG_ELEMENT_ID} from './fields';
+import {store, storeCleanupWithContext} from './instructions';
+import {unusedValueExportToPlacateAjd as unused1} from './interfaces/definition';
+import {unusedValueExportToPlacateAjd as unused2} from './interfaces/injector';
+import {TContainerNode, TElementContainerNode, TElementNode, TNode, TNodeType, unusedValueExportToPlacateAjd as unused3} from './interfaces/node';
+import {LQueries, unusedValueExportToPlacateAjd as unused4} from './interfaces/query';
+import {LView, TVIEW} from './interfaces/view';
+import {getIsParent, getLView, getOrCreateCurrentQueries} from './state';
+import {flatten, isContentQueryHost} from './util';
+import {createElementRef, createTemplateRef} from './view_engine_compatibility';
 
 const unusedValueToPlacateAjd = unused1 + unused2 + unused3 + unused4;
 
@@ -45,7 +50,7 @@ export interface QueryPredicate<T> {
   /**
    * Indicates which token should be read from DI for this query.
    */
-  read: QueryReadType<T>|Type<T>|null;
+  read: Type<T>|null;
 }
 
 /**
@@ -92,7 +97,7 @@ export class LQueries_ implements LQueries {
 
   track<T>(
       queryList: viewEngine_QueryList<T>, predicate: Type<T>|string[], descend?: boolean,
-      read?: QueryReadType<T>|Type<T>): void {
+      read?: Type<T>): void {
     if (descend) {
       this.deep = createQuery(this.deep, queryList, predicate, read != null ? read : null);
     } else {
@@ -121,21 +126,21 @@ export class LQueries_ implements LQueries {
     insertView(index, this.deep);
   }
 
-  addNode(node: LNode): LQueries|null {
-    add(this.deep, node);
+  addNode(tNode: TElementNode|TContainerNode|TElementContainerNode): LQueries|null {
+    add(this.deep, tNode);
 
-    if (isContentQueryHost(node.tNode)) {
-      add(this.shallow, node);
+    if (isContentQueryHost(tNode)) {
+      add(this.shallow, tNode);
 
-      if (node.tNode.parent && isContentQueryHost(node.tNode.parent)) {
+      if (tNode.parent && isContentQueryHost(tNode.parent)) {
         // if node has a content query and parent also has a content query
         // both queries need to check this node for shallow matches
-        add(this.parent !.shallow, node);
+        add(this.parent !.shallow, tNode);
       }
       return this.parent;
     }
 
-    isRootNodeOfQuery(node.tNode) && add(this.shallow, node);
+    isRootNodeOfQuery(tNode) && add(this.shallow, tNode);
     return this;
   }
 
@@ -238,67 +243,82 @@ function getIdxOfMatchingSelector(tNode: TNode, selector: string): number|null {
   return null;
 }
 
-/**
- * Iterates over all the directives for a node and returns index of a directive for a given type.
- *
- * @param node Node on which directives are present.
- * @param type Type of a directive to look for.
- * @returns Index of a found directive or null when none found.
- */
-function getIdxOfMatchingDirective(node: LNode, type: Type<any>): number|null {
-  const defs = node.view[TVIEW].directives !;
-  const flags = node.tNode.flags;
-  const count = flags & TNodeFlags.DirectiveCountMask;
-  const start = flags >> TNodeFlags.DirectiveStartingIndexShift;
-  const end = start + count;
-  for (let i = start; i < end; i++) {
-    const def = defs[i] as DirectiveDefInternal<any>;
-    if (def.type === type && def.diPublic) {
-      return i;
-    }
-  }
-  return null;
-}
 
-function readFromNodeInjector(
-    nodeInjector: LInjector, node: LNode, read: QueryReadType<any>| Type<any>,
-    directiveIdx: number): any {
-  if (read instanceof ReadFromInjectorFn) {
-    return read.read(nodeInjector, node, directiveIdx);
+// TODO: "read" should be an AbstractType (FW-486)
+function queryByReadToken(read: any, tNode: TNode, currentView: LView): any {
+  const factoryFn = (read as any)[NG_ELEMENT_ID];
+  if (typeof factoryFn === 'function') {
+    return factoryFn();
   } else {
-    const matchingIdx = getIdxOfMatchingDirective(node, read as Type<any>);
+    const matchingIdx =
+        locateDirectiveOrProvider(tNode, currentView, read as Type<any>, false, false);
     if (matchingIdx !== null) {
-      return node.view[DIRECTIVES] ![matchingIdx];
+      return getNodeInjectable(
+          currentView[TVIEW].data, currentView, matchingIdx, tNode as TElementNode);
     }
   }
   return null;
 }
 
-function add(query: LQuery<any>| null, node: LNode) {
-  const nodeInjector = getOrCreateNodeInjectorForNode(node as LElementNode | LContainerNode);
+function queryByTNodeType(tNode: TNode, currentView: LView): any {
+  if (tNode.type === TNodeType.Element || tNode.type === TNodeType.ElementContainer) {
+    return createElementRef(ViewEngine_ElementRef, tNode, currentView);
+  }
+  if (tNode.type === TNodeType.Container) {
+    return createTemplateRef(ViewEngine_TemplateRef, ViewEngine_ElementRef, tNode, currentView);
+  }
+  return null;
+}
+
+function queryByTemplateRef(
+    templateRefToken: ViewEngine_TemplateRef<any>, tNode: TNode, currentView: LView,
+    read: any): any {
+  const templateRefResult = (templateRefToken as any)[NG_ELEMENT_ID]();
+  if (read) {
+    return templateRefResult ? queryByReadToken(read, tNode, currentView) : null;
+  }
+  return templateRefResult;
+}
+
+function queryRead(tNode: TNode, currentView: LView, read: any, matchingIdx: number): any {
+  if (read) {
+    return queryByReadToken(read, tNode, currentView);
+  }
+  if (matchingIdx > -1) {
+    return getNodeInjectable(
+        currentView[TVIEW].data, currentView, matchingIdx, tNode as TElementNode);
+  }
+  // if read token and / or strategy is not specified,
+  // detect it using appropriate tNode type
+  return queryByTNodeType(tNode, currentView);
+}
+
+function add(
+    query: LQuery<any>| null, tNode: TElementNode | TContainerNode | TElementContainerNode) {
+  const currentView = getLView();
+
   while (query) {
     const predicate = query.predicate;
-    const type = predicate.type;
+    const type = predicate.type as any;
     if (type) {
-      const directiveIdx = getIdxOfMatchingDirective(node, type);
-      if (directiveIdx !== null) {
-        // a node is matching a predicate - determine what to read
-        // if read token and / or strategy is not specified, use type as read token
-        const result =
-            readFromNodeInjector(nodeInjector, node, predicate.read || type, directiveIdx);
-        if (result !== null) {
-          addMatch(query, result);
+      let result = null;
+      if (type === ViewEngine_TemplateRef) {
+        result = queryByTemplateRef(type, tNode, currentView, predicate.read);
+      } else {
+        const matchingIdx = locateDirectiveOrProvider(tNode, currentView, type, false, false);
+        if (matchingIdx !== null) {
+          result = queryRead(tNode, currentView, predicate.read, matchingIdx);
         }
+      }
+      if (result !== null) {
+        addMatch(query, result);
       }
     } else {
       const selector = predicate.selector !;
       for (let i = 0; i < selector.length; i++) {
-        const directiveIdx = getIdxOfMatchingSelector(node.tNode, selector[i]);
-        if (directiveIdx !== null) {
-          // a node is matching a predicate - determine what to read
-          // note that queries using name selector must specify read strategy
-          ngDevMode && assertDefined(predicate.read, 'the node should have a predicate');
-          const result = readFromNodeInjector(nodeInjector, node, predicate.read !, directiveIdx);
+        const matchingIdx = getIdxOfMatchingSelector(tNode, selector[i]);
+        if (matchingIdx !== null) {
+          const result = queryRead(tNode, currentView, predicate.read, matchingIdx);
           if (result !== null) {
             addMatch(query, result);
           }
@@ -314,8 +334,7 @@ function addMatch(query: LQuery<any>, matchingValue: any): void {
   query.list.setDirty();
 }
 
-function createPredicate<T>(
-    predicate: Type<T>| string[], read: QueryReadType<T>| Type<T>| null): QueryPredicate<T> {
+function createPredicate<T>(predicate: Type<T>| string[], read: Type<T>| null): QueryPredicate<T> {
   const isArray = Array.isArray(predicate);
   return {
     type: isArray ? null : predicate as Type<T>,
@@ -326,7 +345,7 @@ function createPredicate<T>(
 
 function createQuery<T>(
     previous: LQuery<any>| null, queryList: QueryList<T>, predicate: Type<T>| string[],
-    read: QueryReadType<T>| Type<T>| null): LQuery<T> {
+    read: Type<T>| null): LQuery<T> {
   return {
     next: previous,
     list: queryList,
@@ -435,12 +454,13 @@ export const QueryList: typeof viewEngine_QueryList = QueryList_ as any;
  */
 export function query<T>(
     memoryIndex: number | null, predicate: Type<any>| string[], descend?: boolean,
-    read?: QueryReadType<T>| Type<T>): QueryList<T> {
-  ngDevMode && assertPreviousIsParent();
+    // TODO: "read" should be an AbstractType (FW-486)
+    read?: any): QueryList<T> {
+  ngDevMode && assertPreviousIsParent(getIsParent());
   const queryList = new QueryList<T>();
   const queries = getOrCreateCurrentQueries(LQueries_);
   queries.track(queryList, predicate, descend, read);
-  storeCleanupWithContext(null, queryList, queryList.destroy);
+  storeCleanupWithContext(getLView(), queryList, queryList.destroy);
   if (memoryIndex != null) {
     store(memoryIndex, queryList);
   }

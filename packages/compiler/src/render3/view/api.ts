@@ -6,10 +6,13 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
+import {ChangeDetectionStrategy, ViewEncapsulation} from '../../core';
+import {InterpolationConfig} from '../../ml_parser/interpolation_config';
 import * as o from '../../output/output_ast';
 import {ParseSourceSpan} from '../../parse_util';
 import * as t from '../r3_ast';
 import {R3DependencyMetadata} from '../r3_factory';
+
 
 /**
  * Information needed to compile a directive for the render3 runtime.
@@ -85,7 +88,7 @@ export interface R3DirectiveMetadata {
   /**
    * A mapping of input field names to the property names.
    */
-  inputs: {[field: string]: string};
+  inputs: {[field: string]: string | [string, string]};
 
   /**
    * A mapping of output field names to the property names.
@@ -102,6 +105,11 @@ export interface R3DirectiveMetadata {
    * if any.
    */
   exportAs: string|null;
+
+  /**
+   * The list of providers defined in the directive.
+   */
+  providers: o.Expression|null;
 }
 
 /**
@@ -116,16 +124,6 @@ export interface R3ComponentMetadata extends R3DirectiveMetadata {
      * Parsed nodes of the template.
      */
     nodes: t.Node[];
-
-    /**
-     * Whether the template includes <ng-content> tags.
-     */
-    hasNgContent: boolean;
-
-    /**
-     * Selectors found in the <ng-content> tags in the template.
-     */
-    ngContentSelectors: string[];
   };
 
   /**
@@ -140,17 +138,66 @@ export interface R3ComponentMetadata extends R3DirectiveMetadata {
   pipes: Map<string, o.Expression>;
 
   /**
-   * A map of directive selectors to an expression referencing the directive type which are in the
+   * A list of directive selectors and an expression referencing the directive type which are in the
    * scope of the compilation.
    */
-  directives: Map<string, o.Expression>;
+  directives: {selector: string, expression: o.Expression}[];
 
   /**
-   * Whether to wrap the 'directives' array, if one is generated, in a closure.
+   * Whether to wrap the 'directives' and/or `pipes` array, if one is generated, in a closure.
    *
-   * This is done when the directives contain forward references.
+   * This is done when the directives or pipes contain forward references.
    */
-  wrapDirectivesInClosure: boolean;
+  wrapDirectivesAndPipesInClosure: boolean;
+
+  /**
+   * A collection of styling data that will be applied and scoped to the component.
+   */
+  styles: string[];
+
+  /**
+   * An encapsulation policy for the template and CSS styles. One of:
+   * - `ViewEncapsulation.Native`: Use shadow roots. This works only if natively available on the
+   *   platform (note that this is marked the as the "deprecated shadow DOM" as of Angular v6.1.
+   * - `ViewEncapsulation.Emulated`: Use shimmed CSS that emulates the native behavior.
+   * - `ViewEncapsulation.None`: Use global CSS without any encapsulation.
+   * - `ViewEncapsulation.ShadowDom`: Use the latest ShadowDOM API to natively encapsulate styles
+   * into a shadow root.
+   */
+  encapsulation: ViewEncapsulation;
+
+  /**
+   * A collection of animation triggers that will be used in the component template.
+   */
+  animations: o.Expression|null;
+
+  /**
+   * The list of view providers defined in the component.
+   */
+  viewProviders: o.Expression|null;
+
+  /**
+   * Path to the .ts file in which this template's generated code will be included, relative to
+   * the compilation root. This will be used to generate identifiers that need to be globally
+   * unique in certain contexts (such as g3).
+   */
+  relativeContextFilePath: string;
+
+  /**
+   * Whether translation variable name should contain external message id
+   * (used by Closure Compiler's output of `goog.getMsg` for transition period).
+   */
+  i18nUseExternalIds: boolean;
+
+  /**
+   * Overrides the default interpolation start and end delimiters ({{ and }}).
+   */
+  interpolation: InterpolationConfig;
+
+  /**
+   * Strategy used for detecting changes in the component.
+   */
+  changeDetection?: ChangeDetectionStrategy;
 }
 
 /**
@@ -178,8 +225,8 @@ export interface R3QueryMetadata {
   descendants: boolean;
 
   /**
-   * An expression representing a type to read from each matched node, or null if the node itself
-   * is to be returned.
+   * An expression representing a type to read from each matched node, or null if the default value
+   * for a given node is to be returned.
    */
   read: o.Expression|null;
 }

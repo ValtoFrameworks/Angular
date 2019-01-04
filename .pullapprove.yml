@@ -24,7 +24,6 @@
 # petebacondarwin - Pete Bacon Darwin
 # pkozlowski-opensource - Pawel Kozlowski
 # robwormald - Rob Wormald
-# vicb - Victor Berchet
 # vikerman - Vikram Subramanian
 
 
@@ -88,10 +87,10 @@ groups:
       files:
         include:
           - "WORKSPACE"
+          - ".bazel*"
           - "*.bazel"
           - "*.bzl"
           - "packages/bazel/*"
-          - "tools/bazel.rc"
           - "/docs/BAZEL.md"
     users:
       - alexeagle #primary
@@ -99,6 +98,7 @@ groups:
       - IgorMinar #fallback
       - mhevery
       - vikerman #fallback
+      - kara
 
   build-and-ci:
     conditions:
@@ -109,9 +109,9 @@ groups:
           - "*.lock"
           - "tools/*"
         exclude:
-          - "tools/bazel.rc"
-          - "tools/public_api_guard/*"
           - "aio/*"
+          - "packages/core/test/bundling/*"
+          - "tools/public_api_guard/*"
     users:
       - IgorMinar #primary
       - alexeagle
@@ -125,7 +125,6 @@ groups:
     users:
       - alexeagle
       - mhevery
-      - vicb
       - IgorMinar #fallback
 
   core:
@@ -197,7 +196,6 @@ groups:
       - mhevery #primary
       - jasonaden
       - kara
-      - vicb
       - IgorMinar
       - jenniferfell #docs only
 
@@ -214,6 +212,7 @@ groups:
       - mhevery #fallback
       - IgorMinar #fallback
       - jenniferfell #docs only
+      - kara
 
   compiler/i18n:
     conditions:
@@ -222,11 +221,11 @@ groups:
         - "aio/content/guide/i18n.md"
         - "aio/content/examples/i18n/*"
     users:
-      - vicb #primary
-      - alxhub
+      - alxhub #primary
       - IgorMinar #fallback
       - mhevery #fallback
       - jenniferfell #docs only
+      - kara
 
   compiler:
     conditions:
@@ -235,10 +234,10 @@ groups:
         - "aio/content/guide/aot-compiler.md"
     users:
       - alxhub #primary
-      - vicb
       - mhevery
       - IgorMinar #fallback
       - jenniferfell #docs only
+      - kara
 
   compiler-cli/ngtools:
     conditions:
@@ -248,21 +247,21 @@ groups:
       - hansl
       - filipesilva #fallback
       - IgorMinar #fallback
+      - kara
 
   compiler-cli:
     conditions:
       files:
         include:
           - "packages/compiler-cli/*"
-          - "packages/bazel/*"
         exclude:
           - "packages/compiler-cli/src/ngtools*"
     users:
       - alexeagle
       - alxhub
-      - vicb
       - IgorMinar #fallback
       - mhevery #fallback
+      - kara
 
   common:
     conditions:
@@ -273,9 +272,9 @@ groups:
           - "packages/common/http/*"
     users:
       - pkozlowski-opensource #primary
-      - vicb
       - IgorMinar #fallback
       - mhevery #fallback
+      - kara
 
   forms:
     conditions:
@@ -284,6 +283,9 @@ groups:
         - "aio/content/guide/forms.md"
         - "aio/content/examples/forms/*"
         - "aio/content/images/guide/forms/*"
+        - "aio/content/guide/forms-overview.md"
+        - "aio/content/examples/forms-overview/*"
+        - "aio/content/images/guide/forms-overview/*"
         - "aio/content/guide/form-validation.md"
         - "aio/content/examples/form-validation/*"
         - "aio/content/images/guide/form-validation/*"
@@ -322,7 +324,6 @@ groups:
     users:
       - kyliau #primary
       # needs secondary
-      - vicb
       - IgorMinar #fallback
       - mhevery #fallback
       - jenniferfell #docs only
@@ -336,10 +337,10 @@ groups:
         - "aio/content/images/guide/router/*"
     users:
       - jasonaden #primary
-      - vicb
       - IgorMinar #fallback
       - mhevery #fallback
       - jenniferfell #docs only
+      - kara
 
   testing:
     conditions:
@@ -373,16 +374,17 @@ groups:
       - IgorMinar #fallback
       - mhevery #fallback
       - jenniferfell #docs only
+      - kara
 
   platform-browser:
     conditions:
       files:
         - "packages/platform-browser/*"
     users:
-      - vicb #primary
+      - mhevery #primary
       # needs secondary
       - IgorMinar #fallback
-      - mhevery #fallback
+      - kara
 
   platform-server:
     conditions:
@@ -393,7 +395,6 @@ groups:
     users:
       - vikerman #primary
       - alxhub #secondary
-      - vicb
       - IgorMinar #fallback
       - mhevery #fallback
       - jenniferfell #docs only
@@ -403,10 +404,10 @@ groups:
       files:
         - "packages/platform-webworker/*"
     users:
-      - vicb #primary
+      - mhevery #primary
       # needs secondary
       - IgorMinar #fallback
-      - mhevery #fallback
+      - kara
 
   service-worker:
     conditions:
@@ -440,6 +441,7 @@ groups:
       - IgorMinar #fallback
       - mhevery #fallback
       - jenniferfell #docs only
+      - kara
 
   benchpress:
     conditions:

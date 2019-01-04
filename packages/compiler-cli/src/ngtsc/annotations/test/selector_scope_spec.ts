@@ -20,7 +20,7 @@ describe('SelectorScopeRegistry', () => {
       {
         name: 'node_modules/@angular/core/index.d.ts',
         contents: `
-        export interface NgComponentDef<A, B> {}
+        export interface NgComponentDefWithMeta<A, B, C, D, E, F> {}
         export interface NgModuleDef<A, B, C, D> {}
       `
       },
@@ -38,10 +38,10 @@ describe('SelectorScopeRegistry', () => {
       {
         name: 'node_modules/some_library/component.d.ts',
         contents: `
-        import {NgComponentDef} from '@angular/core';
+        import {NgComponentDefWithMeta} from '@angular/core';
 
         export declare class SomeCmp {
-          static ngComponentDef: NgComponentDef<SomeCmp, 'some-cmp'>;
+          static ngComponentDef: NgComponentDefWithMeta<SomeCmp, 'some-cmp', never, {}, {}, never>;
         }
       `
       },
@@ -62,6 +62,8 @@ describe('SelectorScopeRegistry', () => {
         program, 'node_modules/some_library/index.d.ts', 'SomeModule', ts.isClassDeclaration);
     expect(ProgramModule).toBeDefined();
     expect(SomeModule).toBeDefined();
+
+    const ProgramCmpRef = new ResolvedReference(ProgramCmp, ProgramCmp.name !);
 
     const registry = new SelectorScopeRegistry(checker, host);
 
@@ -71,12 +73,25 @@ describe('SelectorScopeRegistry', () => {
       imports: [new AbsoluteReference(SomeModule, SomeModule.name !, 'some_library', 'SomeModule')],
     });
 
-    registry.registerSelector(ProgramCmp, 'program-cmp');
+    const ref = new ResolvedReference(ProgramCmp, ProgramCmp.name !);
+    registry.registerDirective(ProgramCmp, {
+      name: 'ProgramCmp',
+      ref: ProgramCmpRef,
+      directive: ProgramCmpRef,
+      selector: 'program-cmp',
+      isComponent: true,
+      exportAs: null,
+      inputs: {},
+      outputs: {},
+      queries: [],
+      hasNgTemplateContextGuard: false,
+      ngTemplateGuards: [],
+    });
 
     const scope = registry.lookupCompilationScope(ProgramCmp) !;
     expect(scope).toBeDefined();
     expect(scope.directives).toBeDefined();
-    expect(scope.directives.size).toBe(2);
+    expect(scope.directives.length).toBe(2);
   });
 
   it('exports of third-party libs work', () => {
@@ -84,21 +99,21 @@ describe('SelectorScopeRegistry', () => {
       {
         name: 'node_modules/@angular/core/index.d.ts',
         contents: `
-        export interface NgComponentDef<A, B> {}
+        export interface NgComponentDefWithMeta<A, B, C, D, E, F> {}
         export interface NgModuleDef<A, B, C, D> {}
       `
       },
       {
         name: 'node_modules/some_library/index.d.ts',
         contents: `
-        import {NgComponentDef, NgModuleDef} from '@angular/core';
+        import {NgComponentDefWithMeta, NgModuleDef} from '@angular/core';
         
         export declare class SomeModule {
           static ngModuleDef: NgModuleDef<SomeModule, [typeof SomeCmp], never, [typeof SomeCmp]>;
         }
 
         export declare class SomeCmp {
-          static ngComponentDef: NgComponentDef<SomeCmp, 'some-cmp'>;
+          static ngComponentDef: NgComponentDefWithMeta<SomeCmp, 'some-cmp', never, {}, {}, never>;
         }
       `
       },
@@ -120,6 +135,8 @@ describe('SelectorScopeRegistry', () => {
     expect(ProgramModule).toBeDefined();
     expect(SomeModule).toBeDefined();
 
+    const ProgramCmpRef = new ResolvedReference(ProgramCmp, ProgramCmp.name !);
+
     const registry = new SelectorScopeRegistry(checker, host);
 
     registry.registerModule(ProgramModule, {
@@ -128,11 +145,23 @@ describe('SelectorScopeRegistry', () => {
       imports: [],
     });
 
-    registry.registerSelector(ProgramCmp, 'program-cmp');
+    registry.registerDirective(ProgramCmp, {
+      name: 'ProgramCmp',
+      ref: ProgramCmpRef,
+      directive: ProgramCmpRef,
+      selector: 'program-cmp',
+      isComponent: true,
+      exportAs: null,
+      inputs: {},
+      outputs: {},
+      queries: [],
+      hasNgTemplateContextGuard: false,
+      ngTemplateGuards: [],
+    });
 
     const scope = registry.lookupCompilationScope(ProgramCmp) !;
     expect(scope).toBeDefined();
     expect(scope.directives).toBeDefined();
-    expect(scope.directives.size).toBe(2);
+    expect(scope.directives.length).toBe(2);
   });
 });

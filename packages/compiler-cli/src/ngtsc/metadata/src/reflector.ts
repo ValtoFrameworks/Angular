@@ -8,7 +8,7 @@
 
 import * as ts from 'typescript';
 
-import {ClassMember, ClassMemberKind, Declaration, Decorator, Import, Parameter, ReflectionHost} from '../../host';
+import {ClassMember, ClassMemberKind, CtorParameter, Declaration, Decorator, FunctionDefinition, Import, ReflectionHost} from '../../host';
 
 /**
  * reflector.ts implements static reflection of declarations using the TypeScript `ts.TypeChecker`.
@@ -31,7 +31,7 @@ export class TypeScriptReflectionHost implements ReflectionHost {
         .filter((member): member is ClassMember => member !== null);
   }
 
-  getConstructorParameters(declaration: ts.Declaration): Parameter[]|null {
+  getConstructorParameters(declaration: ts.Declaration): CtorParameter[]|null {
     const clazz = castDeclarationToClassOrDie(declaration);
 
     // First, find the constructor.
@@ -49,25 +49,43 @@ export class TypeScriptReflectionHost implements ReflectionHost {
       // It may or may not be possible to write an expression that refers to the value side of the
       // type named for the parameter.
       let typeValueExpr: ts.Expression|null = null;
+      let originalTypeNode = node.type || null;
+      let typeNode = originalTypeNode;
+
+      // Check if we are dealing with a simple nullable union type e.g. `foo: Foo|null`
+      // and extract the type. More complext union types e.g. `foo: Foo|Bar` are not supported.
+      // We also don't need to support `foo: Foo|undefined` because Angular's DI injects `null` for
+      // optional tokes that don't have providers.
+      if (typeNode && ts.isUnionTypeNode(typeNode)) {
+        let childTypeNodes = typeNode.types.filter(
+            childTypeNode => childTypeNode.kind !== ts.SyntaxKind.NullKeyword);
+
+        if (childTypeNodes.length === 1) {
+          typeNode = childTypeNodes[0];
+        } else {
+          typeNode = null;
+        }
+      }
 
       // It's not possible to get a value expression if the parameter doesn't even have a type.
-      if (node.type !== undefined) {
+      if (typeNode) {
         // It's only valid to convert a type reference to a value reference if the type actually has
-        // a
-        // value declaration associated with it.
-        const type = this.checker.getTypeFromTypeNode(node.type);
-        if (type.symbol !== undefined && type.symbol.valueDeclaration !== undefined) {
+        // a value declaration associated with it.
+        let type: ts.Type|null = this.checker.getTypeFromTypeNode(typeNode);
+
+        if (type && type.symbol !== undefined && type.symbol.valueDeclaration !== undefined) {
           // The type points to a valid value declaration. Rewrite the TypeReference into an
           // Expression
           // which references the value pointed to by the TypeReference, if possible.
-          typeValueExpr = typeNodeToValueExpr(node.type);
+          typeValueExpr = typeNodeToValueExpr(typeNode);
         }
       }
 
       return {
         name,
         nameNode: node.name,
-        type: typeValueExpr, decorators,
+        typeExpression: typeValueExpr,
+        typeNode: originalTypeNode, decorators,
       };
     });
   }
@@ -127,7 +145,7 @@ export class TypeScriptReflectionHost implements ReflectionHost {
     return map;
   }
 
-  isClass(node: ts.Declaration): boolean {
+  isClass(node: ts.Node): node is ts.NamedDeclaration {
     // In TypeScript code, classes are ts.ClassDeclarations.
     return ts.isClassDeclaration(node);
   }
@@ -145,6 +163,32 @@ export class TypeScriptReflectionHost implements ReflectionHost {
     }
     return this.getDeclarationOfSymbol(symbol);
   }
+
+  getDefinitionOfFunction<T extends ts.FunctionDeclaration|ts.MethodDeclaration|
+                          ts.FunctionExpression>(node: T): FunctionDefinition<T> {
+    return {
+      node,
+      body: node.body !== undefined ? Array.from(node.body.statements) : null,
+      parameters: node.parameters.map(param => {
+        const name = parameterName(param.name);
+        const initializer = param.initializer || null;
+        return {name, node: param, initializer};
+      }),
+    };
+  }
+
+  getGenericArityOfClass(clazz: ts.Declaration): number|null {
+    if (!ts.isClassDeclaration(clazz)) {
+      return null;
+    }
+    return clazz.typeParameters !== undefined ? clazz.typeParameters.length : 0;
+  }
+
+  getVariableValue(declaration: ts.VariableDeclaration): ts.Expression|null {
+    return declaration.initializer || null;
+  }
+
+  getDtsDeclaration(_: ts.Declaration): ts.Declaration|null { return null; }
 
   /**
    * Resolve a `ts.Symbol` to its declaration, keeping track of the `viaModule` along the way.
@@ -221,6 +265,7 @@ export class TypeScriptReflectionHost implements ReflectionHost {
 
     return {
       name: decoratorExpr.text,
+      identifier: decoratorExpr,
       import: importDecl, node, args,
     };
   }
@@ -287,7 +332,7 @@ export function reflectTypeEntityToDeclaration(
     type: ts.EntityName, checker: ts.TypeChecker): {node: ts.Declaration, from: string | null} {
   let realSymbol = checker.getSymbolAtLocation(type);
   if (realSymbol === undefined) {
-    throw new Error(`Cannot resolve type entity to symbol`);
+    throw new Error(`Cannot resolve type entity ${type.getText()} to symbol`);
   }
   while (realSymbol.flags & ts.SymbolFlags.Alias) {
     realSymbol = checker.getAliasedSymbol(realSymbol);
@@ -391,7 +436,7 @@ function parameterName(name: ts.BindingName): string|null {
   }
 }
 
-function typeNodeToValueExpr(node: ts.TypeNode): ts.Expression|null {
+export function typeNodeToValueExpr(node: ts.TypeNode): ts.Expression|null {
   if (ts.isTypeReferenceNode(node)) {
     return entityNameToValue(node.typeName);
   } else {

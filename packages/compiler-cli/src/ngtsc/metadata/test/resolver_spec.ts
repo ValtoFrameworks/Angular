@@ -11,7 +11,7 @@ import * as ts from 'typescript';
 
 import {TypeScriptReflectionHost} from '..';
 import {getDeclaration, makeProgram} from '../../testing/in_memory_typescript';
-import {AbsoluteReference, Reference, ResolvedValue, staticallyResolve} from '../src/resolver';
+import {AbsoluteReference, EnumValue, Reference, ResolvedValue, staticallyResolve} from '../src/resolver';
 
 function makeSimpleProgram(contents: string): ts.Program {
   return makeProgram([{name: 'entry.ts', contents}]).program;
@@ -117,6 +117,10 @@ describe('ngtsc metadata', () => {
 
   it('array `length` property access works',
      () => { expect(evaluate(`const a = [1, 2, 3];`, 'a[\'length\'] + 1')).toEqual(4); });
+
+  it('array `slice` function works', () => {
+    expect(evaluate(`const a = [1, 2, 3];`, 'a[\'slice\']()')).toEqual([1, 2, 3]);
+  });
 
   it('negation works', () => {
     expect(evaluate(`const x = 3;`, '!x')).toEqual(false);
@@ -265,4 +269,35 @@ describe('ngtsc metadata', () => {
 
   it('template expressions work',
      () => { expect(evaluate('const a = 2, b = 4;', '`1${a}3${b}5`')).toEqual('12345'); });
+
+  it('enum resolution works', () => {
+    const result = evaluate(
+        `
+      enum Foo {
+        A,
+        B,
+        C,
+      }
+
+      const r = Foo.B;
+    `,
+        'r');
+    if (!(result instanceof EnumValue)) {
+      return fail(`result is not an EnumValue`);
+    }
+    expect(result.enumRef.node.name.text).toBe('Foo');
+    expect(result.name).toBe('B');
+  });
+
+  it('variable declaration resolution works', () => {
+    const {program} = makeProgram([
+      {name: 'decl.d.ts', contents: 'export declare let value: number;'},
+      {name: 'entry.ts', contents: `import {value} from './decl'; const target$ = value;`},
+    ]);
+    const checker = program.getTypeChecker();
+    const host = new TypeScriptReflectionHost(checker);
+    const result = getDeclaration(program, 'entry.ts', 'target$', ts.isVariableDeclaration);
+    const res = staticallyResolve(result.initializer !, host, checker);
+    expect(res instanceof Reference).toBe(true);
+  });
 });

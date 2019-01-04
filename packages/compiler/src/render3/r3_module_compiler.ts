@@ -6,7 +6,6 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {StaticSymbol} from '../aot/static_symbol';
 import {CompileShallowModuleMetadata, identifierName} from '../compile_metadata';
 import {InjectableCompiler} from '../injectable_compiler';
 import {mapLiteral} from '../output/map_util';
@@ -35,7 +34,7 @@ export interface R3NgModuleMetadata {
   /**
    * An array of expressions representing the bootstrap components specified by the module.
    */
-  bootstrap: o.Expression[];
+  bootstrap: R3Reference[];
 
   /**
    * An array of expressions representing the directives and pipes declared by the module.
@@ -67,13 +66,13 @@ export function compileNgModule(meta: R3NgModuleMetadata): R3NgModuleDef {
   const {type: moduleType, bootstrap, declarations, imports, exports} = meta;
   const expression = o.importExpr(R3.defineNgModule).callFn([mapToMapExpression({
     type: moduleType,
-    bootstrap: o.literalArr(bootstrap),
+    bootstrap: o.literalArr(bootstrap.map(ref => ref.value)),
     declarations: o.literalArr(declarations.map(ref => ref.value)),
     imports: o.literalArr(imports.map(ref => ref.value)),
     exports: o.literalArr(exports.map(ref => ref.value)),
   })]);
 
-  const type = new o.ExpressionType(o.importExpr(R3.NgModuleDef, [
+  const type = new o.ExpressionType(o.importExpr(R3.NgModuleDefWithMeta, [
     new o.ExpressionType(moduleType), tupleTypeOf(declarations), tupleTypeOf(imports),
     tupleTypeOf(exports)
   ]));

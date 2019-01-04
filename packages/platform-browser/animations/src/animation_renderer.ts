@@ -100,7 +100,7 @@ export class AnimationRendererFactory implements RendererFactory2 {
     this._cdRecurDepth--;
 
     // this is to prevent animations from running twice when an inner
-    // component does CD when a parent component insted has inserted it
+    // component does CD when a parent component instead has inserted it
     if (this._cdRecurDepth == 0) {
       this._zone.runOutsideAngular(() => {
         this._scheduleCountTask();
@@ -152,7 +152,9 @@ export class BaseAnimationRenderer implements Renderer2 {
     this.engine.onRemove(this.namespaceId, oldChild, this.delegate);
   }
 
-  selectRootElement(selectorOrNode: any) { return this.delegate.selectRootElement(selectorOrNode); }
+  selectRootElement(selectorOrNode: any, preserveContent?: boolean) {
+    return this.delegate.selectRootElement(selectorOrNode, preserveContent);
+  }
 
   parentNode(node: any) { return this.delegate.parentNode(node); }
 

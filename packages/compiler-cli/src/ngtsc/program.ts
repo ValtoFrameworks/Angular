@@ -11,13 +11,16 @@ import * as path from 'path';
 import * as ts from 'typescript';
 
 import * as api from '../transformers/api';
+import {nocollapseHack} from '../transformers/nocollapse_hack';
 
-import {ComponentDecoratorHandler, DirectiveDecoratorHandler, InjectableDecoratorHandler, NgModuleDecoratorHandler, PipeDecoratorHandler, ResourceLoader, SelectorScopeRegistry} from './annotations';
+import {ComponentDecoratorHandler, DirectiveDecoratorHandler, InjectableDecoratorHandler, NgModuleDecoratorHandler, NoopReferencesRegistry, PipeDecoratorHandler, ResourceLoader, SelectorScopeRegistry} from './annotations';
 import {BaseDefDecoratorHandler} from './annotations/src/base_def';
-import {FactoryGenerator, FactoryInfo, GeneratedFactoryHostWrapper, generatedFactoryTransform} from './factories';
 import {TypeScriptReflectionHost} from './metadata';
 import {FileResourceLoader, HostResourceLoader} from './resource_loader';
+import {FactoryGenerator, FactoryInfo, FlatIndexGenerator, GeneratedShimsHostWrapper, ShimGenerator, SummaryGenerator, generatedFactoryTransform} from './shims';
+import {ivySwitchTransform} from './switch';
 import {IvyCompilation, ivyTransformFactory} from './transform';
+import {TypeCheckContext, TypeCheckProgramHost} from './typecheck';
 
 export class NgtscProgram implements api.Program {
   private tsProgram: ts.Program;
@@ -29,21 +32,39 @@ export class NgtscProgram implements api.Program {
   private _coreImportsFrom: ts.SourceFile|null|undefined = undefined;
   private _reflector: TypeScriptReflectionHost|undefined = undefined;
   private _isCore: boolean|undefined = undefined;
+  private rootDirs: string[];
+  private closureCompilerEnabled: boolean;
 
 
   constructor(
       rootNames: ReadonlyArray<string>, private options: api.CompilerOptions,
       host: api.CompilerHost, oldProgram?: api.Program) {
-    this.resourceLoader = host.readResource !== undefined ?
-        new HostResourceLoader(host.readResource.bind(host)) :
-        new FileResourceLoader();
-    const shouldGenerateFactories = options.allowEmptyCodegenFiles || false;
+    this.rootDirs = [];
+    if (options.rootDirs !== undefined) {
+      this.rootDirs.push(...options.rootDirs);
+    } else if (options.rootDir !== undefined) {
+      this.rootDirs.push(options.rootDir);
+    } else {
+      this.rootDirs.push(host.getCurrentDirectory());
+    }
+    this.closureCompilerEnabled = !!options.annotateForClosureCompiler;
+    this.resourceLoader =
+        host.readResource !== undefined && host.resourceNameToFileName !== undefined ?
+        new HostResourceLoader(
+            host.resourceNameToFileName.bind(host), host.readResource.bind(host)) :
+        new FileResourceLoader(host, this.options);
+    const shouldGenerateShims = options.allowEmptyCodegenFiles || false;
     this.host = host;
     let rootFiles = [...rootNames];
-    if (shouldGenerateFactories) {
-      const generator = new FactoryGenerator();
-      const factoryFileMap = generator.computeFactoryFileMap(rootNames);
-      rootFiles.push(...Array.from(factoryFileMap.keys()));
+
+    const generators: ShimGenerator[] = [];
+    if (shouldGenerateShims) {
+      // Summary generation.
+      const summaryGenerator = SummaryGenerator.forRootFiles(rootNames);
+
+      // Factory generation.
+      const factoryGenerator = FactoryGenerator.forRootFiles(rootNames);
+      const factoryFileMap = factoryGenerator.factoryFileMap;
       this.factoryToSourceInfo = new Map<string, FactoryInfo>();
       this.sourceToFactorySymbols = new Map<string, Set<string>>();
       factoryFileMap.forEach((sourceFilePath, factoryPath) => {
@@ -51,7 +72,35 @@ export class NgtscProgram implements api.Program {
         this.sourceToFactorySymbols !.set(sourceFilePath, moduleSymbolNames);
         this.factoryToSourceInfo !.set(factoryPath, {sourceFilePath, moduleSymbolNames});
       });
-      this.host = new GeneratedFactoryHostWrapper(host, generator, factoryFileMap);
+
+      const factoryFileNames = Array.from(factoryFileMap.keys());
+      rootFiles.push(...factoryFileNames, ...summaryGenerator.getSummaryFileNames());
+      generators.push(summaryGenerator, factoryGenerator);
+    }
+
+    if (options.flatModuleOutFile !== undefined) {
+      const flatModuleId = options.flatModuleId || null;
+      const flatIndexGenerator =
+          FlatIndexGenerator.forRootFiles(options.flatModuleOutFile, rootNames, flatModuleId);
+      if (flatIndexGenerator !== null) {
+        generators.push(flatIndexGenerator);
+        rootFiles.push(flatIndexGenerator.flatIndexPath);
+      } else {
+        // This error message talks specifically about having a single .ts file in "files". However
+        // the actual logic is a bit more permissive. If a single file exists, that will be taken,
+        // otherwise the highest level (shortest path) "index.ts" file will be used as the flat
+        // module entry point instead. If neither of these conditions apply, the error below is
+        // given.
+        //
+        // The user is not informed about the "index.ts" option as this behavior is deprecated -
+        // an explicit entrypoint should always be specified.
+        throw new Error(
+            'Angular compiler option "flatModuleIndex" requires one and only one .ts file in the "files" field.');
+      }
+    }
+
+    if (generators.length > 0) {
+      this.host = new GeneratedShimsHostWrapper(host, generators);
     }
 
     this.tsProgram =
@@ -88,9 +137,16 @@ export class NgtscProgram implements api.Program {
   }
 
   getNgSemanticDiagnostics(
-      fileName?: string|undefined,
-      cancellationToken?: ts.CancellationToken|undefined): ReadonlyArray<api.Diagnostic> {
-    return [];
+      fileName?: string|undefined, cancellationToken?: ts.CancellationToken|
+                                   undefined): ReadonlyArray<ts.Diagnostic|api.Diagnostic> {
+    const compilation = this.ensureAnalyzed();
+    const diagnostics = [...compilation.diagnostics];
+    if (!!this.options.fullTemplateTypeCheck) {
+      const ctx = new TypeCheckContext();
+      compilation.typeCheck(ctx);
+      diagnostics.push(...this.compileTypeCheckProgram(ctx));
+    }
+    return diagnostics;
   }
 
   async loadNgStructureAsync(): Promise<void> {
@@ -117,6 +173,16 @@ export class NgtscProgram implements api.Program {
     throw new Error('Method not implemented.');
   }
 
+  private ensureAnalyzed(): IvyCompilation {
+    if (this.compilation === undefined) {
+      this.compilation = this.makeCompilation();
+      this.tsProgram.getSourceFiles()
+          .filter(file => !file.fileName.endsWith('.d.ts'))
+          .forEach(file => this.compilation !.analyzeSync(file));
+    }
+    return this.compilation;
+  }
+
   emit(opts?: {
     emitFlags?: api.EmitFlags,
     cancellationToken?: ts.CancellationToken,
@@ -126,12 +192,7 @@ export class NgtscProgram implements api.Program {
   }): ts.EmitResult {
     const emitCallback = opts && opts.emitCallback || defaultEmitCallback;
 
-    if (this.compilation === undefined) {
-      this.compilation = this.makeCompilation();
-      this.tsProgram.getSourceFiles()
-          .filter(file => !file.fileName.endsWith('.d.ts'))
-          .forEach(file => this.compilation !.analyzeSync(file));
-    }
+    this.ensureAnalyzed();
 
     // Since there is no .d.ts transformation API, .d.ts files are transformed during write.
     const writeFile: ts.WriteFileCallback =
@@ -140,8 +201,9 @@ export class NgtscProgram implements api.Program {
          sourceFiles: ReadonlyArray<ts.SourceFile>) => {
           if (fileName.endsWith('.d.ts')) {
             data = sourceFiles.reduce(
-                (data, sf) => this.compilation !.transformedDtsFor(sf.fileName, data, fileName),
-                data);
+                (data, sf) => this.compilation !.transformedDtsFor(sf.fileName, data), data);
+          } else if (this.closureCompilerEnabled && fileName.endsWith('.ts')) {
+            data = nocollapseHack(data);
           }
           this.host.writeFile(fileName, data, writeByteOrderMark, onError, sourceFiles);
         };
@@ -150,6 +212,9 @@ export class NgtscProgram implements api.Program {
         [ivyTransformFactory(this.compilation !, this.reflector, this.coreImportsFrom)];
     if (this.factoryToSourceInfo !== null) {
       transforms.push(generatedFactoryTransform(this.factoryToSourceInfo, this.coreImportsFrom));
+    }
+    if (this.isCore) {
+      transforms.push(ivySwitchTransform);
     }
     // Run the emit, including a custom transformer that will downlevel the Ivy decorators in code.
     const emitResult = emitCallback({
@@ -164,18 +229,32 @@ export class NgtscProgram implements api.Program {
     return emitResult;
   }
 
+  private compileTypeCheckProgram(ctx: TypeCheckContext): ReadonlyArray<ts.Diagnostic> {
+    const host = new TypeCheckProgramHost(this.tsProgram, this.host, ctx);
+    const auxProgram = ts.createProgram({
+      host,
+      rootNames: this.tsProgram.getRootFileNames(),
+      oldProgram: this.tsProgram,
+      options: this.options,
+    });
+    return auxProgram.getSemanticDiagnostics();
+  }
+
   private makeCompilation(): IvyCompilation {
     const checker = this.tsProgram.getTypeChecker();
     const scopeRegistry = new SelectorScopeRegistry(checker, this.reflector);
+    const referencesRegistry = new NoopReferencesRegistry();
 
     // Set up the IvyCompilation, which manages state for the Ivy transformer.
     const handlers = [
       new BaseDefDecoratorHandler(checker, this.reflector),
       new ComponentDecoratorHandler(
-          checker, this.reflector, scopeRegistry, this.isCore, this.resourceLoader),
+          checker, this.reflector, scopeRegistry, this.isCore, this.resourceLoader, this.rootDirs,
+          this.options.preserveWhitespaces || false, this.options.i18nUseExternalIds !== false),
       new DirectiveDecoratorHandler(checker, this.reflector, scopeRegistry, this.isCore),
       new InjectableDecoratorHandler(this.reflector, this.isCore),
-      new NgModuleDecoratorHandler(checker, this.reflector, scopeRegistry, this.isCore),
+      new NgModuleDecoratorHandler(
+          checker, this.reflector, scopeRegistry, referencesRegistry, this.isCore),
       new PipeDecoratorHandler(checker, this.reflector, scopeRegistry, this.isCore),
     ];
 
